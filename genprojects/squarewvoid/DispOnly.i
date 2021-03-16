@@ -22,38 +22,6 @@ density = 2.7e-3
   volumetric_locking_correction = false
 []
 
-[MultiApps]
-  [damage]
-    type = TransientMultiApp
-    app_type = raccoonApp
-    input_files = 'EPDC_d.i'
-    cli_args = 'l=${l};Gc=${Gc};psic=${psic};beta_effective=${beta_effective}'
-  []
-[]
-
-[Transfers]
-  [to_sub_E_el_active]
-    type = MultiAppCopyTransfer
-    direction = to_multiapp
-    multi_app = damage
-    source_variable = 'E_el_active'
-    variable = 'E_el_active'
-  []
-  [to_sub_coalescence_mobility]
-    type = MultiAppCopyTransfer
-    direction = to_multiapp
-    multi_app = damage
-    source_variable = 'coalescence_mobility'
-    variable = 'coalescence_mobility'
-  []
-  [from_sub_d]
-    type = MultiAppCopyTransfer
-    direction = from_multiapp
-    multi_app = damage
-    source_variable = 'd'
-    variable = 'd'
-  []
-[]
 
 [Mesh]
   [fmg]
