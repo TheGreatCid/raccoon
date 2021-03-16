@@ -116,6 +116,8 @@ density = 2.7e-3
   [strain]
     type = PlaneGreenStrain
     out_of_plane_strain = 'strain_zz'
+    output_properties = 'PlaneGreenStrain'
+
   []
   [elastic_plastic]
     # stress calculator, which is also responsible for return mapping
