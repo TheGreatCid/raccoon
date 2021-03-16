@@ -117,7 +117,7 @@ density = 2.7e-3
     type = PlaneGreenStrain
     out_of_plane_strain = 'strain_zz'
     outputs = 'exodus'
-    output_properties = 'PlaneGreenStrain'
+    output_properties = 'mechanical_strain'
 
   []
   [elastic_plastic]
