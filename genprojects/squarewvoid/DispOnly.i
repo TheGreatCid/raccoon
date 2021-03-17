@@ -23,6 +23,7 @@ density = 2.7e-3
 []
 
 
+
 [Mesh]
   [fmg]
     type = FileMeshGenerator
@@ -84,7 +85,8 @@ density = 2.7e-3
   [strain]
     type = PlaneGreenStrain
     out_of_plane_strain = 'strain_zz'
-    output_properties = 'PlaneGreenStrain'
+    outputs = 'exodus'
+    output_properties = 'mechanical_strain'
 
   []
   [elastic_plastic]
@@ -208,6 +210,8 @@ density = 2.7e-3
   [exodus]
     type = Exodus
     interval = 1
-    file_base = 'Mechanics_only_Square_FiniteDisp_beta_${beta}_e0_${e0}'
+    file_base = 'Square_FiniteDisp__disponly_beta_${beta}_e0_${e0}'
+    #show_material_properties = 'strain'
+    #output_material_properties = true
   []
 []
