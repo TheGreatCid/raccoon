@@ -60,13 +60,6 @@ density = 2.7e-3
     type = FileMeshGenerator
     file = 'gold/domain.msh'
   []
-  [bbnsg]
-    type = BoundingBoxNodeSetGenerator
-    bottom_left = '-8.01 -8.01 0'
-    top_right = '-7.99 -7.99 0'
-    new_boundary = 'fixedpoint'
-    input = fmg
-  []
 []
 
 [Variables]
