@@ -1,5 +1,5 @@
 # regularization length
-l = 0.2
+l = 0.16
 # fracture toughness
 Gc = 20
 # critical fracture energy
@@ -15,7 +15,7 @@ Hp = 1000
 
 # beta_effective is used to scale Gc and psic
 beta_effective = '${fparse 1 - (1 - beta) * (1 - exp(-0.3 / e0))}'
-density = 2.7e-3
+density = 0.2
 
 [GlobalParams]
   displacements = 'disp_x disp_y'
@@ -104,7 +104,7 @@ density = 2.7e-3
   [stiffness]
     type = ADComputeIsotropicElasticityTensor
     youngs_modulus = 7.25e4
-    poissons_ratio = 0.33
+    poissons_ratio = 0.25
   []
   [strain]
     type = PlaneGreenStrain
@@ -171,7 +171,7 @@ density = 2.7e-3
     variable = 'disp_y'
     boundary = 'Top'
     #//function = '-t/50'
-    function = 'if(t<40, -t/50, -40/50-(t/60-40/60))'
+    function = '0.1*t'
     #//'if(t<1e-6, 0.5*1.65e10*t*t, 1.65e4*t-0.5*1.65e-2)'
     preset = false
     use_displaced_mesh = true
