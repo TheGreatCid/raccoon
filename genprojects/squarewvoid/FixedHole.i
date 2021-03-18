@@ -171,7 +171,7 @@ density = 0.2
     variable = 'disp_y'
     boundary = 'Top'
     #//function = '-t/50'
-    function = '0.1*t'
+    function = '-0.01*t'
     #//'if(t<1e-6, 0.5*1.65e10*t*t, 1.65e4*t-0.5*1.65e-2)'
     preset = false
     use_displaced_mesh = true
