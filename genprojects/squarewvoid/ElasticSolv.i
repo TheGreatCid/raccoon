@@ -112,7 +112,7 @@ psic = 0.4498
     boundary = 'Hole'
     value = 0
     use_displaced_mesh = true
-  []307
+  []
   [FixedHole_y]
     type = DirichletBC
     variable = 'disp_y'
