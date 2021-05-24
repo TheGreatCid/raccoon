@@ -3,11 +3,10 @@ nu = 0.2
 K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
 lambda = '${fparse K-2*G/3}'
+
 Gc = 1e-3
 l = 0.1
 k = 2e-4
-psic = 0.0002636
-#psic = 1
 
 v = '${fparse -sqrt(Gc*3/lambda)}'
 
@@ -18,8 +17,8 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
 [MultiApps]
   [fracture]
     type = TransientMultiApp
-    input_files = 'fractureUpdate.i'
-    cli_args = 'Gc=${Gc};l=${l};k=${k};psic=${psic}'
+    input_files = 'fractureQDUpdate.i'
+    cli_args = 'Gc=${Gc};l=${l};k=${k}'
     execute_on = 'TIMESTEP_END'
   []
 []
@@ -43,7 +42,7 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = 'gold/domain05.msh'
+    file = '../gold/domain05.msh'
   []
 []
 
@@ -51,8 +50,6 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
   [disp_x]
   []
   [disp_y]
-  []
-  [strain_zz]
   []
 []
 
@@ -99,10 +96,6 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
     variable = disp_y
     component = 1
   []
-  [plane_stress]
-    type = ADWeakPlaneStress
-    variable = strain_zz
-  []
 []
 
 
@@ -129,7 +122,6 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
 []
 
 [Materials]
-
   [elasticity]
     type = SmallDeformationIsotropicElasticity
     bulk_modulus = K
@@ -141,16 +133,14 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
     outputs = exodus
   []
   [strain]
-    type = ADComputePlaneSmallStrain
-    out_of_plane_strain = strain_zz
+    type = ADComputeSmallStrain
     displacements = 'disp_x disp_y'
   []
-  [degradation]
-    type = RationalDegradationFunction
-    f_name = g
+  [crack_geometric]
+    type = CrackGeometricFunction
+    f_name = alpha
+    function = 'd^2'
     phase_field = d
-    parameter_names = 'p a2 a3 eta'
-    parameter_values = '2 1 0 1e-04'
   []
   [stress]
     type = ComputeSmallDeformationStress
@@ -160,16 +150,16 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
   []
   [bulk_properties]
     type = ADGenericConstantMaterial
-    prop_names = 'K G l Gc psic'
-    prop_values = '${K} ${G} ${l} ${Gc} ${psic}'
+    prop_names = 'K G l Gc'
+    prop_values = '${K} ${G} ${l} ${Gc}'
   []
-  [crack_geometric]
-    type = CrackGeometricFunction
-    f_name = alpha
-    function = 'd'
+  [degradation]
+    type = PowerDegradationFunction
+    f_name = g
     phase_field = d
+    parameter_names = 'p eta'
+    parameter_values = '2 ${k}'
   []
-
 []
 
 [Executioner]
@@ -181,7 +171,7 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
   petsc_options_value = 'lu      ilu          200         200                0                     vinewtonrsls'
   dt = 0.00492
   #dt = 0.01
-  end_time =8
+  end_time =20
   nl_abs_tol = 1e-06
   nl_rel_tol = 1e-06
   automatic_scaling = true
@@ -193,10 +183,13 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
   #picard_abs_tol = 1e-50
   #picard_rel_tol = 1e-03
   #accept_on_max_picard_iteration = false
+
+
+
 []
 
 [Outputs]
-  file_base = 'comp'
+  file_base = 'Fibermatrix_Update_QD_planestrain'
   exodus = true
   interval = 1
 []

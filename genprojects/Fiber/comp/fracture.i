@@ -1,7 +1,7 @@
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = 'gold/matrix.msh'
+    file = '../gold/domain05.msh'
   []
 []
 
@@ -20,6 +20,7 @@
 []
 
 [Bounds]
+  #Testing with irreversibiility
   [irreversibility]
     type = VariableOldValueBoundsAux
     variable = bounds_dummy
@@ -36,11 +37,14 @@
 []
 
 [BCs]
-  [no_damage_hole]
+  [damageBC]
     type = DirichletBC
     variable = d
-    boundary = hole
+    boundary = Hole
+
     value = 0
+    #use_displaced_mesh = true
+
   []
 []
 
@@ -48,6 +52,8 @@
   [diff]
     type = ADPFFDiffusion
     variable = d
+    regularization_length = l
+    normalization_constant = c0
   []
   [source]
     type = ADPFFSource
@@ -59,22 +65,22 @@
 [Materials]
   [fracture_properties]
     type = ADGenericConstantMaterial
-    prop_names = 'Gc l psic'
-    prop_values = '${Gc} ${l} ${psic}'
+    prop_names = 'Gc psic l'
+    prop_values = '${Gc} ${psic} ${l}'
   []
   [crack_geometric]
     type = CrackGeometricFunction
     f_name = alpha
-    function = d
+    function = 'd'
     phase_field = d
   []
   [degradation]
+    #Lorentz
     type = RationalDegradationFunction
     f_name = g
     phase_field = d
-    parameter_names = 'p a2 a3 eta '
-    parameter_values = '2 1 0 ${k}'
-    material_property_names = 'Gc psic xi c0 l '
+    parameter_names = 'p a2 a3 eta'
+    parameter_values = '2 1 0 1e-04'
   []
   [psi]
     type = ADDerivativeParsedMaterial
@@ -89,13 +95,11 @@
 [Executioner]
   type = Transient
   solve_type = 'NEWTON'
-  petsc_options_iname = '-pc_type -snes_type'
-  petsc_options_value = 'lu vinewtonrsls'
-  nl_abs_tol = 1e-08
+  petsc_options_iname = '-pc_type -sub_pc_type -ksp_max_it -ksp_gmres_restart -sub_pc_factor_levels '
+                        '-snes_type'
+  petsc_options_value = 'asm      lu          200         200                0                     '
+                        'vinewtonrsls'
+  nl_abs_tol = 1e-06
   nl_rel_tol = 1e-06
   automatic_scaling = true
-[]
-
-[Outputs]
-  print_linear_residuals = false
 []
