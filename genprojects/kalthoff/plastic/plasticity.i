@@ -11,36 +11,44 @@ sigma_y = 345 #Check if this value makes sense
 n = 1 #?
 ep0 = 0.345 #?
 
+
+
 [MultiApps]
   [fracture]
     type = TransientMultiApp
     input_files = 'fracture.i'
     cli_args = 'Gc=${Gc};l=${l};psic=${psic}'
+    execute_on = 'TIMESTEP_END'
   []
 []
 
 [Transfers]
   [from_d]
-    type = MultiAppCopyTransfer
+    type = MultiAppMeshFunctionTransfer
     multi_app = fracture
     direction = from_multiapp
-    source_variable = d
     variable = d
+    source_variable = d
   []
-  [to_we_active]
-    type = MultiAppCopyTransfer
+  [to_psie_active]
+    type = MultiAppMeshFunctionTransfer
     multi_app = fracture
     direction = to_multiapp
-    source_variable = we_active
-    variable = we_active
+    variable = psie_active
+    source_variable = psie_active
   []
-  [to_wp_active]
-    type = MultiAppCopyTransfer
+  [to_psip_active]
+    type = MultiAppMeshFunctionTransfer
     multi_app = fracture
     direction = to_multiapp
-    source_variable = wp_active
-    variable = wp_active
+    variable = psip_active
+    source_variable = psip_active
   []
+[]
+
+[GlobalParams]
+  displacements = 'disp_x disp_y'
+  volumetric_locking_correction = true
 []
 
 [Mesh]
@@ -52,10 +60,8 @@ ep0 = 0.345 #?
 
 [Variables]
   [disp_x]
-    block = 1
   []
   [disp_y]
-    block = 1
   []
 []
 
@@ -91,17 +97,13 @@ ep0 = 0.345 #?
   []
   [solid_x]
     type = ADStressDivergenceTensors
-    variable = 'disp_x'
+    variable = disp_x
     component = 0
-    displacements = 'disp_x disp_y'
-    block = 1
   []
   [solid_y]
     type = ADStressDivergenceTensors
-    variable = 'disp_y'
+    variable = disp_y
     component = 1
-    displacements = 'disp_x disp_y'
-    block = 1
   []
 []
 
@@ -122,78 +124,66 @@ ep0 = 0.345 #?
 []
 
 [Materials]
-  [fracture_properties]
+  [density]
+    type = GenericConstantMaterial
+    prop_names = 'reg_density'
+    prop_values = '${rho}'
+    []
+  [bulk_properties]
     type = ADGenericConstantMaterial
-    prop_names = 'K G l Gc psic viscosity density'
-    prop_values = '${K} ${G} ${l} ${Gc} ${psic} ${eta} ${rho}'
-    block = 1
-  []
-  [degradation]
-    type = ADDerivativeParsedMaterial
-    f_name = g
-    args = d
-    function = '(1-d)^2/(1+(0.5*Gc/c0/l/psic-1)*d)^2*(1-eta)+eta'
-    material_property_names = 'Gc c0 l psic'
-    constant_names = 'eta '
-    constant_expressions = '5e-3'
-    derivative_order = 1
-    block = 1
+    prop_names = 'K G l Gc psic'
+    prop_values = '${K} ${G} ${l} ${Gc} ${psic}'
   []
   [crack_geometric]
     type = CrackGeometricFunction
     f_name = alpha
     function = 'd'
     phase_field = d
-    block = 1
   []
-  [defgrad] #?
-    type = ComputeDeformationGradient
-    displacements = 'disp_x disp_y'
-    block = 1
+  [degradation]
+    type = RationalDegradationFunction
+    f_name = g
+    function = (1-d)^p/((1-d)^p+(Gc/psic*xi/c0/l)*d*(1+a2*d+a2*a3*d^2))*(1-eta)+eta
+    phase_field = d
+    material_property_names = 'Gc psic xi c0 l '
+    parameter_names = 'p a2 a3 eta '
+    parameter_values = '2 -0.5 0 1e-6'
   []
-  [hencky] #Look up type of elasicity
-    type = HenckyIsotropicElasticity
+  [strain]
+    type = ADComputeSmallStrain
+  []
+  [elasticity]
+    type = SmallDeformationIsotropicElasticity
     bulk_modulus = K
     shear_modulus = G
     phase_field = d
     degradation_function = g
-    output_properties = 'we_active'
+    decomposition = NONE
+    output_properties = 'elastic_strain psie_active'
     outputs = exodus
-    block = 1
   []
-  [power_law_hardening] #Why power law
+  [plasticity]
+    type = SmallDeformationJ2Plasticity
+    hardening_model = power_law_hardening
+    output_properties = 'effective_plastic_strain'
+    outputs = exodus
+  []
+  [power_law_hardening]
     type = PowerLawHardening
+    degradation_function = g
     yield_stress = ${sigma_y}
     exponent = ${n}
     reference_plastic_strain = ${ep0}
     phase_field = d
-    degradation_function = g
-    output_properties = 'wp_active'
+    output_properties = 'psip_active'
     outputs = exodus
-    block = 1
-  []
-  [J2]
-    type = LargeDeformationJ2Plasticity
-    hardening_model = power_law_hardening
-    output_properties = 'effective_plastic_strain'
-    outputs = exodus
-    block = 1
-  []
-  [newtonian_viscosity]
-    type = LargeDeformationNewtonianViscosity
-    block = 1
   []
   [stress]
-    type = ComputeLargeDeformationStress
-    elasticity_model = hencky
-    plasticity_model = J2
-    viscoelasticity_model = newtonian_viscosity
-    block = 1
-  []
-  [reg_density]
-    type = MaterialConverter
-    ad_props_in = 'density'
-    reg_props_out = 'reg_density'
+    type = ComputeSmallDeformationStress
+    elasticity_model = elasticity
+    plasticity_model = plasticity
+    output_properties = 'stress'
+    outputs = exodus
   []
 []
 
