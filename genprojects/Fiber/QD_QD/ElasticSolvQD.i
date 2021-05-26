@@ -1,7 +1,7 @@
 E = 4000
 nu = 0.2
 Gc = 100
-l = 0.02
+l = 0.01
 #psic = 0.4
 k = 1e-06
 
@@ -219,7 +219,7 @@ k = 1e-06
 []
 
 [Outputs]
-  file_base = 'Elastic_squarewvoidsmallstep_quad_Traction_Brittle_VolDev_Res_BC_QD_NoIrr'
+  file_base = 'Fiber_Quad_pstress'
   exodus = true
-  interval = 1
+  interval = 10
 []

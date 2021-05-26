@@ -4,9 +4,9 @@ K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
 lambda = '${fparse K-2*G/3}'
 Gc = 1e-3
-l = 0.1
+l = 0.01
 k = 2e-4
-psic = 0.0002636
+psic = 0.0052734375
 #psic = 1
 
 v = '${fparse -sqrt(Gc*3/lambda)}'
