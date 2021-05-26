@@ -1,15 +1,15 @@
 E = 4000
-nu = 0.2
+nu = 0.25
 K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
 lambda = '${fparse K-2*G/3}'
 Gc = 1e-3
-l = 0.1
+l = 0.03
 k = 2e-4
-psic = 0.0002636
-#psic = 1
+psic = 0.0017578125
+#psic = 0.0008789
 
-v = '${fparse -sqrt(Gc*3/lambda)}'
+v = '${fparse sqrt(Gc*3/lambda)}'
 
 [GlobalParams]
   displacements = 'disp_x disp_y'
@@ -189,7 +189,7 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
 []
 
 [Outputs]
-  file_base = 'comp_planestrain'
+  file_base = 'trac_planestrain'
   exodus = true
   interval = 1
 []

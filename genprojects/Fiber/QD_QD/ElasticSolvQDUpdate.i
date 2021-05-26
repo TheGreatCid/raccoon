@@ -1,14 +1,14 @@
 E = 4000
-nu = 0.2
+nu = 0.25
 K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
 lambda = '${fparse K-2*G/3}'
 
 Gc = 1e-3
-l = 0.1
+l = 0.01
 k = 2e-4
 
-v = '${fparse -sqrt(Gc*3/lambda)}'
+v = '${fparse sqrt(Gc*3/lambda)}'
 
 [GlobalParams]
   displacements = 'disp_x disp_y'
@@ -178,7 +178,7 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
   petsc_options_value = 'lu      ilu          200         200                0                     vinewtonrsls'
   #dt = 0.00492
   dt = 0.01
-  end_time =20
+  end_time = 20
   nl_abs_tol = 1e-06
   nl_rel_tol = 1e-06
   automatic_scaling = true
@@ -196,7 +196,7 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
 []
 
 [Outputs]
-  file_base = 'Fibermatrix_Update_QD'
+  file_base = 'trac'
   exodus = true
   interval = 10
 []

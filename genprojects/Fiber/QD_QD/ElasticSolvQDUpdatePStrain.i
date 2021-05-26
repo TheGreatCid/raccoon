@@ -5,10 +5,10 @@ G = '${fparse E/2/(1+nu)}'
 lambda = '${fparse K-2*G/3}'
 
 Gc = 1e-3
-l = 0.1
+l = 0.03
 k = 2e-4
 
-v = '${fparse -sqrt(Gc*3/lambda)}'
+v = '${fparse sqrt(Gc*3/lambda)}'
 
 [GlobalParams]
   displacements = 'disp_x disp_y'
@@ -189,7 +189,7 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
 []
 
 [Outputs]
-  file_base = 'Fibermatrix_Update_QD_planestrain'
+  file_base = 'compr'
   exodus = true
   interval = 1
 []
