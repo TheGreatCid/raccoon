@@ -9,7 +9,7 @@ k = 2e-4
 psic = 0.0017578125
 #psic = 0.0008789
 
-v = '${fparse sqrt(Gc*3/lambda)}'
+v = '${fparse -sqrt(Gc*3/lambda)}'
 
 [GlobalParams]
   displacements = 'disp_x disp_y'
@@ -43,7 +43,7 @@ v = '${fparse sqrt(Gc*3/lambda)}'
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = '../gold/domain05Coarse.msh'
+    file = '../gold/domaintri_coarse.msh'
   []
 []
 
@@ -189,7 +189,7 @@ v = '${fparse sqrt(Gc*3/lambda)}'
 []
 
 [Outputs]
-  file_base = 'trac_planestrain'
+  file_base = 'trac_planestrain_c'
   exodus = true
   interval = 1
 []

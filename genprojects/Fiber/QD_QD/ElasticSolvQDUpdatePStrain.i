@@ -1,5 +1,5 @@
 E = 4000
-nu = 0.2
+nu = 0.25
 K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
 lambda = '${fparse K-2*G/3}'
@@ -189,7 +189,7 @@ v = '${fparse sqrt(Gc*3/lambda)}'
 []
 
 [Outputs]
-  file_base = 'compr'
+  file_base = 'trac'
   exodus = true
   interval = 1
 []
