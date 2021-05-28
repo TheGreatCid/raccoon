@@ -1,17 +1,17 @@
 E = 4000
-nu = 0.2
+nu = 0.25
 K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
 lambda = '${fparse K-2*G/3}'
 
 Gc = 1e-3
-l = 0.01
+l = 0.03
 k = 2e-4
 
 v = '${fparse sqrt(Gc*3/lambda)}'
 
 [GlobalParams]
-  displacements = 'disp_x disp_y'
+  displacements = 'disp_x'
 []
 
 [MultiApps]
@@ -40,19 +40,20 @@ v = '${fparse sqrt(Gc*3/lambda)}'
   []
 []
 [Mesh]
-  [fmg]
-    type = FileMeshGenerator
-    file = './gold/bar.msh'
+  [meshgen]
+    type = GeneratedMeshGenerator
+    dim = 1
+    xmax = 1
+    xmin = 0
+    nx = 100
   []
 []
 
 [Variables]
   [disp_x]
   []
-  [disp_y]
-  []
-  [strain_zz]
-  []
+  # [disp_y]
+  # []
 []
 
 [AuxVariables]
@@ -62,10 +63,12 @@ v = '${fparse sqrt(Gc*3/lambda)}'
     order = CONSTANT
     family = MONOMIAL
   []
-  [stress_yy]
-    order = CONSTANT
-    family = MONOMIAL
+  [fy]
   []
+  # [stress_yy]
+  #   order = CONSTANT
+  #   family = MONOMIAL
+  # []
 []
 
 [AuxKernels]
@@ -77,14 +80,14 @@ v = '${fparse sqrt(Gc*3/lambda)}'
     index_j = 0
     execute_on = 'TIMESTEP_END'
   []
-  [stress_yy]
-    type = ADRankTwoAux
-    variable = 'stress_yy'
-    rank_two_tensor = 'stress'
-    index_i = 0
-    index_j = 0
-    execute_on = 'TIMESTEP_END'
-  []
+  # [stress_yy]
+  #   type = ADRankTwoAux
+  #   variable = 'stress_yy'
+  #   rank_two_tensor = 'stress'
+  #   index_i = 0
+  #   index_j = 0
+  #   execute_on = 'TIMESTEP_END'
+  # []
 []
 
 [Kernels]
@@ -92,31 +95,29 @@ v = '${fparse sqrt(Gc*3/lambda)}'
     type = ADStressDivergenceTensors
     variable = disp_x
     component = 0
+    save_in = fy
   []
-  [solid_y]
-    type = ADStressDivergenceTensors
-    variable = disp_y
-    component = 1
-  []
-  [plane_stress]
-    type = ADWeakPlaneStress
-    variable = strain_zz
-  []
+
+  # [solid_y]
+  #   type = ADStressDivergenceTensors
+  #   variable = disp_y
+  #   component = 1
+  # []
 []
 
 
 [BCs]
   [forcing]
     type = FunctionDirichletBC
-    variable = disp_y
-    boundary = top
+    variable = disp_x
+    boundary = right
     function = '${v}*t'
     preset = false
   []
   [fixed_y]
     type = DirichletBC
-    variable = disp_y
-    boundary = bottom
+    variable = disp_x
+    boundary = left
     value = 0
   []
 []
@@ -133,9 +134,8 @@ v = '${fparse sqrt(Gc*3/lambda)}'
     outputs = exodus
   []
   [strain]
-    type = ADComputePlaneSmallStrain
-    out_of_plane_strain = strain_zz
-    displacements = 'disp_x disp_y'
+    type = ADComputeSmallStrain
+    displacements = 'disp_x'
   []
   [crack_geometric]
     type = CrackGeometricFunction
@@ -193,4 +193,16 @@ v = '${fparse sqrt(Gc*3/lambda)}'
   file_base = 'bartest'
   exodus = true
   interval = 1
+[]
+
+[Postprocessors]
+  [fy]
+    type = NodalSum
+    variable = fy
+    boundary = left
+  []
+  [stress]
+    type = ElementAverageValue
+    variable = stress_xx
+  []
 []

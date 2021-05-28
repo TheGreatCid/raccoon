@@ -16,6 +16,10 @@
   []
   [bounds_dummy]
   []
+  [psie_active]
+    order = CONSTANT
+    family = MONOMIAL
+  []
 []
 
 [Bounds]
@@ -35,40 +39,46 @@
 []
 
 [Kernels]
-  [pff_diff]
+  [diff]
     type = ADPFFDiffusion
-    variable = 'd'
+    variable = d
+    regularization_length = l
+    normalization_constant = c0
   []
-  [pff_barr]
-    type = ADPFFBarrier
-    variable = 'd'
-  []
-  [pff_react]
-    type = ADPFFReaction
-    variable = 'd'
-    driving_energy_var = 'E_el_active'
-    lag = false
+  [source]
+    type = ADPFFSource
+    variable = d
+    free_energy = psi
   []
 []
 
 [Materials]
-  [bulk]
-    type = ADGenericConstantMaterial
-    prop_names = 'phase_field_regularization_length energy_release_rate critical_fracture_energy'
-    prop_values = '${l} ${Gc} ${psic}'
-  []
-  [local_dissipation]
-    type = LinearLocalDissipation
-    d = 'd'
-  []
   [fracture_properties]
-    type = ADFractureMaterial
-    local_dissipation_norm = 8/3
+    type = ADGenericConstantMaterial
+    prop_names = 'Gc psic l'
+    prop_values = '${Gc} ${psic} ${l}'
+  []
+  [crack_geometric]
+    type = CrackGeometricFunction
+    f_name = alpha
+    function = 'd'
+    phase_field = d
   []
   [degradation]
-    type = LorentzDegradation
-    d = 'd'
-    residual_degradation = 1e-09
+    #Lorentz
+    type = RationalDegradationFunction
+    f_name = g
+    phase_field = d
+    parameter_names = 'p a2 a3 eta'
+    parameter_values = '2 1 0 1e-04'
+  []
+  [psi]
+    type = ADDerivativeParsedMaterial
+    f_name = psi
+    function = 'alpha*Gc/c0/l+g*psie_active'
+    args = 'd psie_active'
+    material_property_names = 'alpha(d) g(d) Gc c0 l'
+    derivative_order = 1
   []
 []
 

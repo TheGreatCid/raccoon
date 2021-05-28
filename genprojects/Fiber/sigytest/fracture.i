@@ -1,7 +1,10 @@
 [Mesh]
-  [fmg]
-    type = FileMeshGenerator
-    file = './gold/bar.msh'
+  [meshgen]
+    type = GeneratedMeshGenerator
+    dim = 1
+    xmax = 1
+    xmin = 0
+    nx = 100
   []
 []
 

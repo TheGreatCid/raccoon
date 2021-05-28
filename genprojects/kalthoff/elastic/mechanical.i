@@ -1,32 +1,44 @@
 Gc = 22.2
 l = 0.35
 psic = 7.9
+E = 1.9e5
+nu = 0.3
+k = 2e-4
+rho = 8e-9
+K = '${fparse E/3/(1-2*nu)}'
+G = '${fparse E/2/(1+nu)}'
+lambda = '${fparse K-2*G/3}'
+
+
+[GlobalParams]
+  displacements = 'disp_x disp_y'
+[]
 
 [MultiApps]
   [fracture]
     type = TransientMultiApp
     input_files = 'fracture.i'
-    cli_args = 'Gc=${Gc};l=${l};psic=${psic}'
+    cli_args = 'Gc=${Gc};l=${l};k=${k};psic=${psic}'
+    execute_on = 'TIMESTEP_END'
   []
 []
 
 [Transfers]
   [from_d]
     type = MultiAppCopyTransfer
-    multi_app = 'fracture'
+    multi_app = fracture
     direction = from_multiapp
-    source_variable = 'd'
-    variable = 'd'
+    source_variable = d
+    variable = d
   []
-  [to_E_el_active]
+  [to_psie_active]
     type = MultiAppCopyTransfer
-    multi_app = 'fracture'
+    multi_app = fracture
     direction = to_multiapp
-    source_variable = 'E_el_active'
-    variable = 'E_el_active'
+    variable = psie_active
+    source_variable = psie_active
   []
 []
-
 [Mesh]
   [fmg]
     type = FileMeshGenerator
@@ -48,9 +60,6 @@ psic = 7.9
   []
   [d]
   []
-  [E_el_active]
-    family = MONOMIAL
-  []
 []
 
 [AuxKernels]
@@ -60,11 +69,6 @@ psic = 7.9
     rank_two_tensor = 'stress'
     scalar_type = 'MaxPrincipal'
     execute_on = 'TIMESTEP_END'
-  []
-  [E_el_active]
-    type = ADMaterialRealAux
-    variable = 'E_el_active'
-    property = 'E_el_active'
   []
 []
 
@@ -110,38 +114,48 @@ psic = 7.9
 []
 
 [Materials]
-  [bulk]
+  [bulk_properties]
     type = ADGenericConstantMaterial
-    prop_names = 'density phase_field_regularization_length energy_release_rate '
-                 'critical_fracture_energy'
-    prop_values = '8e-9 0.35 22.2 7.9'
+    prop_names = 'K G l Gc psic density'
+    prop_values = '${K} ${G} ${l} ${Gc} ${psic} ${rho}'
   []
-  [elasticity_tensor]
-    type = ADComputeIsotropicElasticityTensor
-    youngs_modulus = 1.9e5
-    poissons_ratio = 0.3
+  [elasticity]
+    type = SmallDeformationIsotropicElasticity
+    bulk_modulus = K
+    shear_modulus = G
+    phase_field = d
+    degradation_function = g
+    decomposition = SPECTRAL
+    output_properties = 'elastic_strain psie_active'
+    outputs = exodus
   []
   [strain]
     type = ADComputeSmallStrain
     displacements = 'disp_x disp_y'
   []
   [stress]
-    type = SmallStrainDegradedElasticPK2Stress_StrainSpectral
-    d = 'd'
-  []
-  [fracture_properties]
-    type = ADFractureMaterial
-    local_dissipation_norm = 8/3
+    type = ComputeSmallDeformationStress
+    elasticity_model = elasticity
+    output_properties = 'stress'
+    outputs = exodus
   []
   [degradation]
-    type = LorentzDegradation
-    d = 'd'
-    residual_degradation = 1e-09
+    type = RationalDegradationFunction
+    f_name = g
+    phase_field = d
+    parameter_names = 'p a2 a3 eta'
+    parameter_values = '2 1 0 1e-09'
   []
   [reg_density]
     type = MaterialConverter
     ad_props_in = 'density'
     reg_props_out = 'reg_density'
+  []
+  [crack_geometric]
+    type = CrackGeometricFunction
+    f_name = alpha
+    function = 'd'
+    phase_field = d
   []
 []
 
@@ -157,7 +171,7 @@ psic = 7.9
 []
 
 [Outputs]
-  file_base = 'visualize_explicit'
+  file_base = 'kaltoff_elastic'
   exodus = true
   interval = 20
 []

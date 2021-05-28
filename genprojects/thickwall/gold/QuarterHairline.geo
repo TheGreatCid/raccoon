@@ -94,3 +94,5 @@ Physical Line("Inner") = {1,2};
 
 
 
+//+
+Show "*";

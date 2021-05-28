@@ -5,7 +5,7 @@ G = '${fparse E/2/(1+nu)}'
 lambda = '${fparse K-2*G/3}'
 
 Gc = 1e-3
-l = 0.03
+l = 0.1
 k = 2e-4
 
 v = '${fparse sqrt(Gc*3/lambda)}'
