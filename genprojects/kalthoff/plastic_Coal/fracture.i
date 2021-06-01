@@ -1,13 +1,15 @@
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = ../gold/half_notched_plate_63.msh
+    file = '../gold/half_notched_plate_63.msh'
   []
 []
+
 [Variables]
   [d]
   []
 []
+
 [AuxVariables]
   [bounds_dummy]
   []
@@ -15,28 +17,40 @@
     order = CONSTANT
     family = MONOMIAL
   []
+  [psip_active]
+    order = CONSTANT
+    family = MONOMIAL
+  []
+  [coalescence_mobility]
+    order = CONSTANT
+    family = MONOMIAL
+  []
 []
+
 [Bounds]
   [irreversibility]
     type = VariableOldValueBoundsAux
-    variable = 'bounds_dummy'
-    bounded_variable = 'd'
+    variable = bounds_dummy
+    bounded_variable = d
     bound_type = lower
   []
   [upper]
     type = ConstantBoundsAux
-    variable = 'bounds_dummy'
-    bounded_variable = 'd'
+    variable = bounds_dummy
+    bounded_variable = d
     bound_type = upper
     bound_value = 1
   []
 []
+
 [Kernels]
   [diff]
     type = ADPFFDiffusion
     variable = d
+    fracture_toughness = Gc
     regularization_length = l
     normalization_constant = c0
+
   []
   [source]
     type = ADPFFSource
@@ -44,6 +58,8 @@
     free_energy = psi
   []
 []
+
+
 [Materials]
   [fracture_properties]
     type = ADGenericConstantMaterial
@@ -60,18 +76,20 @@
     type = RationalDegradationFunction
     f_name = g
     phase_field = d
-    parameter_names = 'p a2 a3 eta'
-    parameter_values = '2 1 0 1e-09'
+    material_property_names = 'Gc psic xi c0 l '
+    parameter_names = 'p a2 a3 eta '
+    parameter_values = '2 1 0 1e-6'
   []
   [psi]
     type = ADDerivativeParsedMaterial
     f_name = psi
-    function = 'alpha*Gc/c0/l+g*psie_active'
-    args = 'd psie_active'
+    function = 'alpha*Gc/c0/l+g*(psie_active+psip_active)'
+    args = 'd psie_active psip_active'
     material_property_names = 'alpha(d) g(d) Gc c0 l'
     derivative_order = 1
   []
 []
+
 [Executioner]
   type = Transient
   solve_type = 'NEWTON'

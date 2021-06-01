@@ -88,11 +88,15 @@
 [Executioner]
   type = Transient
   solve_type = 'NEWTON'
-  petsc_options_iname = '-pc_type -sub_pc_type -ksp_max_it -ksp_gmres_restart -sub_pc_factor_levels '
-                        '-snes_type'
-  petsc_options_value = 'asm      ilu          200         200                0                     '
-                        'vinewtonrsls'
+  petsc_options_iname = '-pc_type -snes_type'
+  petsc_options_value = 'lu vinewtonrsls'
   nl_abs_tol = 1e-08
   nl_rel_tol = 1e-06
   automatic_scaling = true
+  [Quadrature]
+    order = CONSTANT
+  []
+[]
+[Outputs]
+  print_linear_residuals = false
 []

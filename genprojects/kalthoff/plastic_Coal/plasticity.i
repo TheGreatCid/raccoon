@@ -6,9 +6,13 @@ nu = 0.3
 rho = 8e-9
 K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
-[GlobalParams]
-  displacements = 'disp_x disp_y'
-[]
+eta = 1
+sigma_y = 20000 #Check if this value makes sense
+n = 1 #?
+ep0 = 0.345
+beta = 1
+
+
 [MultiApps]
   [fracture]
     type = TransientMultiApp
@@ -17,61 +21,76 @@ G = '${fparse E/2/(1+nu)}'
     execute_on = 'TIMESTEP_END'
   []
 []
+
 [Transfers]
   [from_d]
-    type = MultiAppCopyTransfer
+    type = MultiAppMeshFunctionTransfer
     multi_app = fracture
     direction = from_multiapp
-    source_variable = d
     variable = d
+    source_variable = d
   []
   [to_psie_active]
-    type = MultiAppCopyTransfer
+    type = MultiAppMeshFunctionTransfer
     multi_app = fracture
     direction = to_multiapp
     variable = psie_active
     source_variable = psie_active
   []
+  [to_psip_active]
+    type = MultiAppMeshFunctionTransfer
+    multi_app = fracture
+    direction = to_multiapp
+    variable = psip_active
+    source_variable = psip_active
+  []
+  [to_sub_coalescence_mobility]
+    type = MultiAppCopyTransfer
+    direction = to_multiapp
+    multi_app = damage
+    source_variable = 'coalescence_mobility'
+    variable = 'coalescence_mobility'
+  []
 []
+
+[GlobalParams]
+  displacements = 'disp_x disp_y'
+  volumetric_locking_correction = true
+[]
+
 [Mesh]
   [fmg]
     type = FileMeshGenerator
     file = '../gold/half_notched_plate_63.msh'
   []
 []
+
 [Variables]
   [disp_x]
   []
   [disp_y]
   []
 []
+
 [AuxVariables]
   [stress]
-    order = CONSTANT
-    family = MONOMIAL
-  []
-  [psie_active]
     order = CONSTANT
     family = MONOMIAL
   []
   [d]
   []
 []
+
 [AuxKernels]
   [stress]
     type = ADRankTwoScalarAux
-    variable = stress
+    variable = 'stress'
     rank_two_tensor = 'stress'
-    scalar_type = MaxPrincipal
-    execute_on = 'TIMESTEP_END'
-  []
-  [psie_active]
-    type = ADMaterialRealAux
-    variable = psie_active
-    property = 'psie_active'
+    scalar_type = 'MaxPrincipal'
     execute_on = 'TIMESTEP_END'
   []
 []
+
 [Kernels]
   [inertia_x]
     type = InertialForce
@@ -81,7 +100,7 @@ G = '${fparse E/2/(1+nu)}'
   [inertia_y]
     type = InertialForce
     variable = disp_y
-    density = reg_density
+    density = 'reg_density'
   []
   [solid_x]
     type = ADStressDivergenceTensors
@@ -94,6 +113,7 @@ G = '${fparse E/2/(1+nu)}'
     component = 1
   []
 []
+
 [BCs]
   [xdisp]
     type = FunctionDirichletBC
@@ -109,18 +129,29 @@ G = '${fparse E/2/(1+nu)}'
     value = '0'
   []
 []
+
 [Materials]
   [bulk_properties]
     type = ADGenericConstantMaterial
     prop_names = 'K G l Gc psic density'
     prop_values = '${K} ${G} ${l} ${Gc} ${psic} ${rho}'
   []
+  [coalescence]
+    type = ADParsedMaterial
+    f_name = M #mobility
+    args = 'beta ep0 effective_plastic_strain'
+    function = 1-(1-beta)*(1-std::exp(-effective_plastic_strain/ep0))
+    outputs = exodus
+    output_properties = 'coalescence_mobility'
+  []
   [degradation]
     type = RationalDegradationFunction
     f_name = g
+    function = (1-d)^p/((1-d)^p+(Gc/psic*xi/c0/l)*d*(1+a2*d+a2*a3*d^2))*(1-eta)+eta
     phase_field = d
-    parameter_names = 'p a2 a3 eta'
-    parameter_values = '2 1 0 1e-09'
+    material_property_names = 'Gc psic xi c0 l '
+    parameter_names = 'p a2 a3 eta '
+    parameter_values = '2 -0.5 0 1e-6'
   []
   [reg_density]
     type = MaterialConverter
@@ -133,22 +164,45 @@ G = '${fparse E/2/(1+nu)}'
     function = 'd'
     phase_field = d
   []
+
+  [strain]
+    type = ADComputeSmallStrain
+  []
   [elasticity]
     type = SmallDeformationIsotropicElasticity
     bulk_modulus = K
     shear_modulus = G
     phase_field = d
     degradation_function = g
-    decomposition = SPECTRAL
+    decomposition = NONE
+    output_properties = 'elastic_strain psie_active'
+    outputs = exodus
   []
-  [strain]
-    type = ADComputeSmallStrain
+  [plasticity]
+    type = SmallDeformationJ2Plasticity
+    hardening_model = power_law_hardening
+    output_properties = 'effective_plastic_strain'
+    outputs = exodus
+  []
+  [power_law_hardening]
+    type = PowerLawHardening
+    degradation_function = g
+    yield_stress = ${sigma_y}
+    exponent = ${n}
+    reference_plastic_strain = ${ep0}
+    phase_field = d
+    output_properties = 'psip_active'
+    outputs = exodus
   []
   [stress]
     type = ComputeSmallDeformationStress
     elasticity_model = elasticity
+    plasticity_model = plasticity
+    output_properties = 'stress'
+    outputs = exodus
   []
 []
+
 [Executioner]
   type = Transient
   dt = 5e-7
@@ -170,6 +224,7 @@ G = '${fparse E/2/(1+nu)}'
   []
 []
 [Outputs]
+ file_base = 'kal_plasticity'
   print_linear_residuals = false
   exodus = true
   interval = 1

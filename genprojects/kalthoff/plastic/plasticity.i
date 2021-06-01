@@ -7,7 +7,7 @@ rho = 8e-9
 K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
 eta = 1
-sigma_y = 345 #Check if this value makes sense
+sigma_y = 20000 #Check if this value makes sense
 n = 1 #?
 ep0 = 0.345 #?
 
@@ -87,12 +87,12 @@ ep0 = 0.345 #?
 [Kernels]
   [inertia_x]
     type = InertialForce
-    variable = 'disp_x'
+    variable = disp_x
     density = 'reg_density'
   []
   [inertia_y]
     type = InertialForce
-    variable = 'disp_y'
+    variable = disp_y
     density = 'reg_density'
   []
   [solid_x]
@@ -124,21 +124,10 @@ ep0 = 0.345 #?
 []
 
 [Materials]
-  [density]
-    type = GenericConstantMaterial
-    prop_names = 'reg_density'
-    prop_values = '${rho}'
-    []
   [bulk_properties]
     type = ADGenericConstantMaterial
-    prop_names = 'K G l Gc psic'
-    prop_values = '${K} ${G} ${l} ${Gc} ${psic}'
-  []
-  [crack_geometric]
-    type = CrackGeometricFunction
-    f_name = alpha
-    function = 'd'
-    phase_field = d
+    prop_names = 'K G l Gc psic density'
+    prop_values = '${K} ${G} ${l} ${Gc} ${psic} ${rho}'
   []
   [degradation]
     type = RationalDegradationFunction
@@ -149,6 +138,18 @@ ep0 = 0.345 #?
     parameter_names = 'p a2 a3 eta '
     parameter_values = '2 -0.5 0 1e-6'
   []
+  [reg_density]
+    type = MaterialConverter
+    ad_props_in = 'density'
+    reg_props_out = 'reg_density'
+  []
+  [crack_geometric]
+    type = CrackGeometricFunction
+    f_name = alpha
+    function = 'd'
+    phase_field = d
+  []
+
   [strain]
     type = ADComputeSmallStrain
   []
@@ -189,17 +190,27 @@ ep0 = 0.345 #?
 
 [Executioner]
   type = Transient
-  dt = 5e-9
+  dt = 5e-7
   end_time = 9e-5
-
+  # [TimeIntegrator]
+  #   type = CentralDifference
+  #   solve_type = lumped
+  #   use_constant_mass = true
+  # []
+  solve_type = NEWTON
+  petsc_options_iname = '-pc_type'
+  petsc_options_value = 'lu'
+  automatic_scaling = true
   [TimeIntegrator]
-    type = CentralDifference
-    solve_type = lumped
+    type = NewmarkBeta
+  []
+  [Quadrature]
+    order = CONSTANT
   []
 []
-
 [Outputs]
-  file_base = 'visualize_explicit'
+ file_base = 'kal_plasticity'
+  print_linear_residuals = false
   exodus = true
-  interval = 20
+  interval = 1
 []
