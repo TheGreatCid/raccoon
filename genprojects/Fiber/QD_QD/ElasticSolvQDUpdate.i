@@ -8,7 +8,7 @@ Gc = 1e-3
 l = 0.01
 k = 2e-4
 
-v = '${fparse sqrt(Gc*3/lambda)}'
+v = '${fparse -sqrt(Gc*3/lambda)}'
 
 [GlobalParams]
   displacements = 'disp_x disp_y'
@@ -196,7 +196,7 @@ v = '${fparse sqrt(Gc*3/lambda)}'
 []
 
 [Outputs]
-  file_base = 'trac'
+  file_base = 'compQD'
   exodus = true
-  interval = 10
+  interval = 1
 []

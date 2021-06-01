@@ -9,7 +9,7 @@ k = 2e-4
 psic = 0.0017578125
 #psic = 1
 
-v = '${fparse -sqrt(Gc*3/lambda)}'
+v = '${fparse sqrt(Gc*3/lambda)}'
 
 [GlobalParams]
   displacements = 'disp_x disp_y'
@@ -196,7 +196,7 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
 []
 
 [Outputs]
-  file_base = 'trac'
+  file_base = 'tracc'
   exodus = true
   interval = 1
 []

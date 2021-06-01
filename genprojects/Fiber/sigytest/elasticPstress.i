@@ -3,23 +3,22 @@ nu = 0.25
 K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
 lambda = '${fparse K-2*G/3}'
-Gc = 1e-3
-l = 0.03
-k = 2e-4
-psic = 0.0017578125
-#psic = 0.0008789
 
-v = '${fparse -sqrt(Gc*3/lambda)}'
+Gc = 1e-3
+l = 0.01
+k = 2e-4
+
+v = '${fparse sqrt(Gc*3/lambda)}'
 
 [GlobalParams]
-  displacements = 'disp_x disp_y'
+  displacements = 'disp_x'
 []
 
 [MultiApps]
   [fracture]
     type = TransientMultiApp
     input_files = 'fracture.i'
-    cli_args = 'Gc=${Gc};l=${l};k=${k};psic=${psic}'
+    cli_args = 'Gc=${Gc};l=${l};k=${k}'
     execute_on = 'TIMESTEP_END'
   []
 []
@@ -41,16 +40,19 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
   []
 []
 [Mesh]
-  [fmg]
-    type = FileMeshGenerator
-    file = '../gold/domain05Coarse.msh'
+  [meshgen]
+    type = GeneratedMeshGenerator
+    dim = 1
+    xmax = 1
+    xmin = 0
+    nx = 100
   []
 []
 
 [Variables]
   [disp_x]
   []
-  [disp_y]
+  [strain_zz]
   []
 []
 
@@ -61,9 +63,7 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
     order = CONSTANT
     family = MONOMIAL
   []
-  [stress_yy]
-    order = CONSTANT
-    family = MONOMIAL
+  [fy]
   []
 []
 
@@ -76,14 +76,7 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
     index_j = 0
     execute_on = 'TIMESTEP_END'
   []
-  [stress_yy]
-    type = ADRankTwoAux
-    variable = 'stress_yy'
-    rank_two_tensor = 'stress'
-    index_i = 0
-    index_j = 0
-    execute_on = 'TIMESTEP_END'
-  []
+
 []
 
 [Kernels]
@@ -91,11 +84,11 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
     type = ADStressDivergenceTensors
     variable = disp_x
     component = 0
+    save_in = fy
   []
-  [solid_y]
-    type = ADStressDivergenceTensors
-    variable = disp_y
-    component = 1
+  [plane_stress]
+    type = ADWeakPlaneStress
+    variable = strain_zz
   []
 []
 
@@ -103,27 +96,20 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
 [BCs]
   [forcing]
     type = FunctionDirichletBC
-    variable = disp_y
-    boundary = 'Top'
+    variable = disp_x
+    boundary = right
     function = '${v}*t'
     preset = false
   []
-  [FixedHole_x]
+  [fixed_y]
     type = DirichletBC
     variable = disp_x
-    boundary = 'Hole'
+    boundary = left
     value = 0
   []
-  [FixedHole_y]
-    type = DirichletBC
-    variable = disp_y
-    boundary = 'Hole'
-    value = 0
-    []
 []
 
 [Materials]
-
   [elasticity]
     type = SmallDeformationIsotropicElasticity
     bulk_modulus = K
@@ -135,15 +121,15 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
     outputs = exodus
   []
   [strain]
-    type = ADComputeSmallStrain
-    displacements = 'disp_x disp_y'
+    type = ADComputePlaneSmallStrain
+    out_of_plane_strain = strain_zz
+    displacements = 'disp_x'
   []
-  [degradation]
-    type = RationalDegradationFunction
-    f_name = g
+  [crack_geometric]
+    type = CrackGeometricFunction
+    f_name = alpha
+    function = 'd^2'
     phase_field = d
-    parameter_names = 'p a2 a3 eta'
-    parameter_values = '2 1 0 1e-04'
   []
   [stress]
     type = ComputeSmallDeformationStress
@@ -153,16 +139,16 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
   []
   [bulk_properties]
     type = ADGenericConstantMaterial
-    prop_names = 'K G l Gc psic'
-    prop_values = '${K} ${G} ${l} ${Gc} ${psic}'
+    prop_names = 'K G l Gc'
+    prop_values = '${K} ${G} ${l} ${Gc}'
   []
-  [crack_geometric]
-    type = CrackGeometricFunction
-    f_name = alpha
-    function = 'd'
+  [degradation]
+    type = PowerDegradationFunction
+    f_name = g
     phase_field = d
+    parameter_names = 'p eta'
+    parameter_values = '2 ${k}'
   []
-
 []
 
 [Executioner]
@@ -174,7 +160,7 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
   petsc_options_value = 'lu      ilu          200         200                0                     vinewtonrsls'
   #dt = 0.00492
   dt = 0.01
-  end_time =8
+  end_time = 20
   nl_abs_tol = 1e-06
   nl_rel_tol = 1e-06
   automatic_scaling = true
@@ -186,10 +172,24 @@ v = '${fparse -sqrt(Gc*3/lambda)}'
   #picard_abs_tol = 1e-50
   #picard_rel_tol = 1e-03
   #accept_on_max_picard_iteration = false
+
+
+
 []
 
 [Outputs]
-  file_base = 'comp_planestrain_c'
+  file_base = 'bartest_pstress'
   exodus = true
-  interval = 1
+  interval = 10
+[]
+[Postprocessors]
+  [fy]
+    type = NodalSum
+    variable = fy
+    boundary = left
+  []
+  [stress]
+    type = ElementAverageValue
+    variable = stress_xx
+  []
 []

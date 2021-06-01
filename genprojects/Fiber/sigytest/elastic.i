@@ -8,7 +8,7 @@ Gc = 1e-3
 l = 0.03
 k = 2e-4
 
-v = '${fparse sqrt(Gc*3/lambda)}'
+v = '${fparse -sqrt(Gc*3/lambda)}'
 
 [GlobalParams]
   displacements = 'disp_x'

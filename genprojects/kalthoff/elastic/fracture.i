@@ -1,19 +1,14 @@
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = '../gold/half_notched_plate_63.msh'
+    file = half_notched_plate_65.msh
   []
 []
-
 [Variables]
   [d]
   []
 []
-
 [AuxVariables]
-  [E_el_active]
-    family = MONOMIAL
-  []
   [bounds_dummy]
   []
   [psie_active]
@@ -21,7 +16,6 @@
     family = MONOMIAL
   []
 []
-
 [Bounds]
   [irreversibility]
     type = VariableOldValueBoundsAux
@@ -37,7 +31,6 @@
     bound_value = 1
   []
 []
-
 [Kernels]
   [diff]
     type = ADPFFDiffusion
@@ -51,7 +44,6 @@
     free_energy = psi
   []
 []
-
 [Materials]
   [fracture_properties]
     type = ADGenericConstantMaterial
@@ -65,12 +57,11 @@
     phase_field = d
   []
   [degradation]
-    #Lorentz
     type = RationalDegradationFunction
     f_name = g
     phase_field = d
     parameter_names = 'p a2 a3 eta'
-    parameter_values = '2 1 0 1e-04'
+    parameter_values = '2 1 0 1e-09'
   []
   [psi]
     type = ADDerivativeParsedMaterial
@@ -81,15 +72,17 @@
     derivative_order = 1
   []
 []
-
 [Executioner]
   type = Transient
   solve_type = 'NEWTON'
-  petsc_options_iname = '-pc_type -sub_pc_type -ksp_max_it -ksp_gmres_restart -sub_pc_factor_levels '
-                        '-snes_type'
-  petsc_options_value = 'asm      ilu          200         200                0                     '
-                        'vinewtonrsls'
+  petsc_options_iname = '-pc_type -snes_type'
+  petsc_options_value = 'lu vinewtonrsls'
   nl_abs_tol = 1e-08
   nl_rel_tol = 1e-06
   automatic_scaling = true
+  [Quadrature]
+    order = CONSTANT
+  []
 []
+[Outputs]
+  print_linear_residuals = false

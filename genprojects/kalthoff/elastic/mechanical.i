@@ -3,26 +3,20 @@ l = 0.35
 psic = 7.9
 E = 1.9e5
 nu = 0.3
-k = 2e-4
 rho = 8e-9
 K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
-lambda = '${fparse K-2*G/3}'
-
-
 [GlobalParams]
   displacements = 'disp_x disp_y'
 []
-
 [MultiApps]
   [fracture]
     type = TransientMultiApp
     input_files = 'fracture.i'
-    cli_args = 'Gc=${Gc};l=${l};k=${k};psic=${psic}'
+    cli_args = 'Gc=${Gc};l=${l};psic=${psic}'
     execute_on = 'TIMESTEP_END'
   []
 []
-
 [Transfers]
   [from_d]
     type = MultiAppCopyTransfer
@@ -42,61 +36,64 @@ lambda = '${fparse K-2*G/3}'
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = '../gold/half_notched_plate_63.msh'
+    file = 'half_notched_plate_65.msh'
   []
 []
-
 [Variables]
   [disp_x]
   []
   [disp_y]
   []
 []
-
 [AuxVariables]
   [stress]
+    order = CONSTANT
+    family = MONOMIAL
+  []
+  [psie_active]
     order = CONSTANT
     family = MONOMIAL
   []
   [d]
   []
 []
-
 [AuxKernels]
   [stress]
     type = ADRankTwoScalarAux
-    variable = 'stress'
+    variable = stress
     rank_two_tensor = 'stress'
-    scalar_type = 'MaxPrincipal'
+    scalar_type = MaxPrincipal
+    execute_on = 'TIMESTEP_END'
+  []
+  [psie_active]
+    type = ADMaterialRealAux
+    variable = psie_active
+    property = 'psie_active'
     execute_on = 'TIMESTEP_END'
   []
 []
-
 [Kernels]
   [inertia_x]
     type = InertialForce
-    variable = 'disp_x'
+    variable = disp_x
     density = 'reg_density'
   []
   [inertia_y]
     type = InertialForce
-    variable = 'disp_y'
-    density = 'reg_density'
+    variable = disp_y
+    density = reg_density
   []
   [solid_x]
     type = ADStressDivergenceTensors
-    variable = 'disp_x'
+    variable = disp_x
     component = 0
-    displacements = 'disp_x disp_y'
   []
   [solid_y]
     type = ADStressDivergenceTensors
-    variable = 'disp_y'
+    variable = disp_y
     component = 1
-    displacements = 'disp_x disp_y'
   []
 []
-
 [BCs]
   [xdisp]
     type = FunctionDirichletBC
@@ -112,32 +109,11 @@ lambda = '${fparse K-2*G/3}'
     value = '0'
   []
 []
-
 [Materials]
   [bulk_properties]
     type = ADGenericConstantMaterial
     prop_names = 'K G l Gc psic density'
     prop_values = '${K} ${G} ${l} ${Gc} ${psic} ${rho}'
-  []
-  [elasticity]
-    type = SmallDeformationIsotropicElasticity
-    bulk_modulus = K
-    shear_modulus = G
-    phase_field = d
-    degradation_function = g
-    decomposition = SPECTRAL
-    output_properties = 'elastic_strain psie_active'
-    outputs = exodus
-  []
-  [strain]
-    type = ADComputeSmallStrain
-    displacements = 'disp_x disp_y'
-  []
-  [stress]
-    type = ComputeSmallDeformationStress
-    elasticity_model = elasticity
-    output_properties = 'stress'
-    outputs = exodus
   []
   [degradation]
     type = RationalDegradationFunction
@@ -157,21 +133,44 @@ lambda = '${fparse K-2*G/3}'
     function = 'd'
     phase_field = d
   []
-[]
-
-[Executioner]
-  type = Transient
-  dt = 5e-9
-  end_time = 9e-5
-
-  [TimeIntegrator]
-    type = CentralDifference
-    solve_type = lumped
+  [elasticity]
+    type = SmallDeformationIsotropicElasticity
+    bulk_modulus = K
+    shear_modulus = G
+    phase_field = d
+    degradation_function = g
+    decomposition = SPECTRAL
+  []
+  [strain]
+    type = ADComputeSmallStrain
+  []
+  [stress]
+    type = ComputeSmallDeformationStress
+    elasticity_model = elasticity
   []
 []
-
+[Executioner]
+  type = Transient
+  dt = 5e-7
+  end_time = 9e-5
+  # [TimeIntegrator]
+  #   type = CentralDifference
+  #   solve_type = lumped
+  #   use_constant_mass = true
+  # []
+  solve_type = NEWTON
+  petsc_options_iname = '-pc_type'
+  petsc_options_value = 'lu'
+  automatic_scaling = true
+  [TimeIntegrator]
+    type = NewmarkBeta
+  []
+  [Quadrature]
+    order = CONSTANT
+  []
+[]
 [Outputs]
-  file_base = 'kaltoff_elastic'
+  print_linear_residuals = false
   exodus = true
-  interval = 20
+  interval = 1
 []
