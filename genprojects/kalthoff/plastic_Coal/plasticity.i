@@ -7,10 +7,10 @@ rho = 8e-9
 K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
 eta = 1
-sigma_y = 20000 #Check if this value makes sense
-n = 1 #?
+sigma_y = 2000 #Check if this value makes sense
+n = 1 #for power law
 ep0 = 0.345
-beta = 1
+beta = .9
 
 
 [MultiApps]
@@ -46,10 +46,10 @@ beta = 1
   []
   [to_sub_coalescence_mobility]
     type = MultiAppCopyTransfer
+    multi_app = fracture
     direction = to_multiapp
-    multi_app = damage
-    source_variable = 'coalescence_mobility'
-    variable = 'coalescence_mobility'
+    source_variable = coalescence_mobility
+    variable = coalescence_mobility
   []
 []
 
@@ -61,7 +61,7 @@ beta = 1
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = '../gold/half_notched_plate_63.msh'
+    file = '../gold/kal.msh'
   []
 []
 
@@ -79,6 +79,10 @@ beta = 1
   []
   [d]
   []
+  [effective_plastic_strain]
+    order = CONSTANT
+    family = MONOMIAL
+    []
 []
 
 [AuxKernels]
@@ -138,20 +142,20 @@ beta = 1
   []
   [coalescence]
     type = ADParsedMaterial
-    f_name = M #mobility
-    args = 'beta ep0 effective_plastic_strain'
-    function = 1-(1-beta)*(1-std::exp(-effective_plastic_strain/ep0))
+    f_name = coalescence_mobility #mobility
+    material_property_names = 'effective_plastic_strain'
+    constant_names = 'beta ep0'
+    constant_expressions = '${beta} ${ep0}'
+    function = 1-(1-beta)*(1-exp(-(effective_plastic_strain/ep0)))
     outputs = exodus
     output_properties = 'coalescence_mobility'
   []
   [degradation]
     type = RationalDegradationFunction
     f_name = g
-    function = (1-d)^p/((1-d)^p+(Gc/psic*xi/c0/l)*d*(1+a2*d+a2*a3*d^2))*(1-eta)+eta
     phase_field = d
-    material_property_names = 'Gc psic xi c0 l '
-    parameter_names = 'p a2 a3 eta '
-    parameter_values = '2 -0.5 0 1e-6'
+    parameter_names = 'p a2 a3 eta'
+    parameter_values = '2 1 0 1e-04'
   []
   [reg_density]
     type = MaterialConverter
@@ -224,7 +228,7 @@ beta = 1
   []
 []
 [Outputs]
- file_base = 'kal_plasticity'
+ file_base = 'kal_plasticity_coal'
   print_linear_residuals = false
   exodus = true
   interval = 1
