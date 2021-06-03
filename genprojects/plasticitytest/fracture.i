@@ -4,7 +4,7 @@
     dim = 1
     xmax = 1
     xmin = 0
-    nx = 100
+    nx = 1
   []
 []
 

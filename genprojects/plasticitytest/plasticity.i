@@ -1,9 +1,8 @@
-Gc = 22.2
-l = 0.35
-psic = 7.9
-E = 1.9e5
+Gc = 1.38e5
+l = 0.1
+psic = 330e3
+E = 68.8e6
 nu = 0.3
-rho = 8e-9
 K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
 eta = 1
@@ -54,8 +53,8 @@ beta = .9
 []
 
 [GlobalParams]
-  displacements = 'disp_x disp_y'
-  volumetric_locking_correction = true
+  displacements = 'disp_x'
+  #volumetric_locking_correction = true
 []
 
 [Mesh]
@@ -64,14 +63,12 @@ beta = .9
     dim = 1
     xmax = 1
     xmin = 0
-    nx = 100
+    nx = 1
   []
 []
 
 [Variables]
   [disp_x]
-  []
-  [disp_y]
   []
 []
 
@@ -80,12 +77,16 @@ beta = .9
     order = CONSTANT
     family = MONOMIAL
   []
+  [stress_xx]
+  []
   [d]
   []
   [effective_plastic_strain]
     order = CONSTANT
     family = MONOMIAL
-    []
+  []
+  [fy]
+  []
 []
 
 [AuxKernels]
@@ -112,7 +113,7 @@ beta = .9
     type = FunctionDirichletBC
     variable = disp_x
     boundary = right
-    function = '${v}*t'
+    function = '0.1*t'
     preset = false
   []
   [fixed_y]
@@ -126,8 +127,8 @@ beta = .9
 [Materials]
   [bulk_properties]
     type = ADGenericConstantMaterial
-    prop_names = 'K G l Gc psic density'
-    prop_values = '${K} ${G} ${l} ${Gc} ${psic} ${rho}'
+    prop_names = 'K G l Gc psic'
+    prop_values = '${K} ${G} ${l} ${Gc} ${psic}'
   []
   [coalescence]
     type = ADParsedMaterial
@@ -145,11 +146,6 @@ beta = .9
     phase_field = d
     parameter_names = 'p a2 a3 eta'
     parameter_values = '2 1 0 1e-04'
-  []
-  [reg_density]
-    type = MaterialConverter
-    ad_props_in = 'density'
-    reg_props_out = 'reg_density'
   []
   [crack_geometric]
     type = CrackGeometricFunction
