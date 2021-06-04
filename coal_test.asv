@@ -1,0 +1,9 @@
+clc;clear;close all;
+data = readmatrix('stress_deformation.csv');
+stress = data(:,5)/330e3;
+plastic_strain = data(:,4);
+F = data(:,1);
+d = data(:,3);
+plot(plastic_strain+F,stress);
+figure
+plot(d);

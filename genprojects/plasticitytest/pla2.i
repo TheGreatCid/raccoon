@@ -14,7 +14,8 @@ beta = 1
 sigma_y = 320e6
 n = 5
 ep0 = 0.01
-v = '${fparse .1* a}'
+v = '${fparse .2* a}'
+
 [GlobalParams]
   displacements = 'disp_x disp_y disp_z'
   volumetric_locking_correction = true
@@ -53,6 +54,7 @@ v = '${fparse .1* a}'
     family = MONOMIAL
   []
 []
+
 [Bounds]
   [irreversibility]
     type = VariableOldValueBoundsAux
@@ -68,6 +70,7 @@ v = '${fparse .1* a}'
     bound_value = 1
   []
 []
+
 [AuxKernels]
   [stress]
     type = ADRankTwoAux
@@ -114,6 +117,65 @@ v = '${fparse .1* a}'
     free_energy = psi
   []
 []
+
+[Materials]
+  [bulk_properties]
+    type = ADGenericConstantMaterial
+    prop_names = 'K G l Gc psic'
+    prop_values = '${K} ${G} ${l} ${Gc} ${psic}'
+  []
+  [degradation]
+    type = RationalDegradationFunction
+    f_name = g
+    function = (1-d)^p/((1-d)^p+(Gc/psic*xi/c0/l)*d*(1+a2*d+a2*a3*d^2))*(1-eta)+eta
+    phase_field = d
+    material_property_names = 'Gc psic xi c0 l '
+    parameter_names = 'p a2 a3 eta '
+    parameter_values = '2 1 0 1e-6'
+  []
+  [crack_geometric]
+    type = CrackGeometricFunction
+    f_name = alpha
+    function = 'd'
+    phase_field = d
+  []
+  [defgrad]
+    type = ComputeDeformationGradient
+  []
+  [hencky]
+    type = HenckyIsotropicElasticity
+    bulk_modulus = K
+    shear_modulus = G
+    phase_field = d
+    degradation_function = g
+  []
+  [power_law_hardening]
+    type = PowerLawHardening
+    yield_stress = ${sigma_y}
+    exponent = ${n}
+    reference_plastic_strain = ${ep0}
+    phase_field = d
+    degradation_function = g
+  []
+  [J2]
+    type = LargeDeformationJ2Plasticity
+    hardening_model = power_law_hardening
+  []
+  [stress]
+    type = ComputeLargeDeformationStress
+    elasticity_model = hencky
+    plasticity_model = J2
+  []
+  [psi]
+    type = ADDerivativeParsedMaterial
+    f_name = psi
+    function = 'alpha*Gc/c0/l+psie+psip'
+    args = d
+    material_property_names = 'alpha(d) g(d) Gc c0 l psie(d) psip(d)'
+    derivative_order = 1
+  []
+[]
+
 [BCs]
   [xfix]
     type = DirichletBC
@@ -134,116 +196,16 @@ v = '${fparse .1* a}'
     value = 0
   []
   [ydisp]
-    type = LoadingUnloadingDirichletBC
+    type = FunctionDirichletBC
     variable = disp_y
     boundary = 'top'
-    initial_load_cap = 330e6
-    load_cap_increment = 100e6
-    load_step = 0.0001
-    ultimate_load = 330e6
-    unloaded_indicator = 0
-
+  #  function = 'if(t<1e-6, 0.5*1.65e10*t*t, 1.65e4*t-0.5*1.65e-2)'
+    function = 'if(t<${v}/4,t,if(${v}*(1/2)-t>0,${v}*(1/2)-t,0))'
+    #function = 't'
+    preset = false
   []
 []
-[Materials]
-  [bulk_properties]
-    type = ADGenericConstantMaterial
-    prop_names = 'K G l Gc psic'
-    prop_values = '${K} ${G} ${l} ${Gc} ${psic}'
-  []
-  [degradation]
-    type = RationalDegradationFunction
-    f_name = g
-    phase_field = d
-    parameter_names = 'p a2 a3 eta'
-    parameter_values = '2 1 0 1e-06'
-  []
-  [crack_geometric]
-    type = CrackGeometricFunction
-    f_name = alpha
-    function = 'd'
-    phase_field = d
-  []
-  [defgrad]
-    type = ComputeDeformationGradient
-  []
-  [hencky]
-    type = HenckyIsotropicElasticity
-    bulk_modulus = K
-    shear_modulus = G
-    phase_field = d
-    degradation_function = g
-    #decomposition = SPECTRAL
-    output_properties = 'psie_active'
-    outputs = exodus
-  []
-  [power_law_hardening]
-    type = PowerLawHardening
-    yield_stress = ${sigma_y}
-    exponent = ${n}
-    reference_plastic_strain = ${ep0}
-    phase_field = d
-    degradation_function = g
-  []
-  [J2]
-    type = LargeDeformationJ2Plasticity
-    hardening_model = power_law_hardening
-  []
-  [stress]
-    type = ComputeLargeDeformationStress
-    elasticity_model = hencky
-    plasticity_model = J2
 
-  []
-  [psi]
-    type = ADDerivativeParsedMaterial
-    f_name = psi
-    function = 'alpha*(Gc*coalescence_mobility)/c0/l+psie+psip'
-    args = d
-    material_property_names = 'alpha(d) g(d) Gc c0 l psie(d) psip(d) coalescence_mobility'
-    derivative_order = 1
-  []
-  [coalescence]
-    type = ADParsedMaterial
-    f_name = coalescence_mobility #mobility
-    material_property_names = 'effective_plastic_strain'
-    constant_names = 'beta ep0'
-    constant_expressions = '${beta} ${ep0}'
-    #function = 1-(1-beta)*(1-exp(-(effective_plastic_strain/ep0)))
-    function = 1
-    outputs = exodus
-    output_properties = 'coalescence_mobility'
-  []
-
-[]
-
-[Executioner]
-  type = Transient
-
-  solve_type = NEWTON
-  petsc_options_iname = '-pc_type -snes_type   -pc_factor_shift_type -pc_factor_shift_amount'
-  petsc_options_value = 'lu       vinewtonrsls NONZERO               1e-10'
-
-  line_search = none
-
-  nl_rel_tol = 1e-08
-  nl_abs_tol = 1e-10
-  nl_max_its = 50
-
-  dt = '${fparse 0.0001 * a}'
-  end_time = '${v}'
-
-  automatic_scaling = true
-
-  abort_on_solve_fail = true
-[]
-
-[Outputs]
-  file_base = stress_deformation
-  print_linear_residuals = false
-  csv = true
-  exodus = true
-[]
 [Postprocessors]
   [F]
     type = ElementAverageValue
@@ -261,4 +223,32 @@ v = '${fparse .1* a}'
     type = ADElementAverageMaterialProperty
     mat_prop = effective_plastic_strain
   []
+[]
+
+[Executioner]
+  type = Transient
+
+  solve_type = NEWTON
+  petsc_options_iname = '-pc_type -snes_type   -pc_factor_shift_type -pc_factor_shift_amount'
+  petsc_options_value = 'lu       vinewtonrsls NONZERO               1e-10'
+
+  line_search = none
+
+  nl_rel_tol = 1e-08
+  nl_abs_tol = 1e-10
+  nl_max_its = 50
+
+  dt = '${fparse 0.0001 * a}'
+  end_time = '${fparse 0.1 * a}'
+
+  automatic_scaling = true
+
+  abort_on_solve_fail = true
+[]
+
+[Outputs]
+  file_base = stress_deformation
+  print_linear_residuals = false
+  csv = true
+  exodus = true
 []
