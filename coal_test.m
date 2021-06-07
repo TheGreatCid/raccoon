@@ -1,9 +1,19 @@
 clc;clear;close all;
 data = readmatrix('stress_deformation.csv');
-stress = data(:,5)/320e6;
-plastic_strain = data(:,4);
-F = data(:,2)-1;
-d = data(:,3);
-plot(F(2:end)+plastic_strain(2:end),stress(2:end));
+stress = data(2:end,7)/320e6;
+plastic_strain = data(2:end,4);
+F = data(2:end,2);
+d = data(2:end,3);
+psie = data(2:end,5);
+psip = data(2:end,6);
+plot(F,stress);
+title("stress strain")
 figure
-plot(d);
+plot(F,d);
+title("Damage")
+figure
+plot(psie);
+title("psie");
+figure
+plot(psip);
+title("psip");

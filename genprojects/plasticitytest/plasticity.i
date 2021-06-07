@@ -1,20 +1,21 @@
 a = 1
-#R = 4
+R = 4
 
-psic = 330e6
+psic = 40e5
 Gc = 1.38e8
-#l = '${fparse R * a}'
-l = 4
+l = '${fparse R * a}'
+
 
 E = 68.8e9
 nu = 0.33
 K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
-beta = 1
+beta = 1.0
 sigma_y = 320e6
 n = 5
 ep0 = 0.01
-v = '${fparse .1* a}'
+v = '${fparse 0.1 * a}'
+
 [GlobalParams]
   displacements = 'disp_x disp_y disp_z'
   volumetric_locking_correction = true
@@ -52,6 +53,7 @@ v = '${fparse .1* a}'
     order = CONSTANT
     family = MONOMIAL
   []
+
 []
 [Bounds]
   [irreversibility]
@@ -133,17 +135,23 @@ v = '${fparse .1* a}'
     boundary = 'back'
     value = 0
   []
-  [ydisp]
-    type = LoadingUnloadingDirichletBC
-    variable = disp_y
-    boundary = 'top'
-    initial_load_cap = 330e6
-    load_cap_increment = 100e6
-    load_step = 0.0001
-    ultimate_load = 330e6
-    unloaded_indicator = 0
+ # [ydisp]
+ #   type = FunctionDirichletBC
+ #   variable = disp_y
+ #   function = '1*t'
+ #   boundary = top
+ #  []
 
-  []
+ [ydisp]
+   type = LoadingUnloadingDirichletBC
+   variable = disp_y
+   boundary = 'top'
+   initial_load_cap = '${fparse 0.02*a}'
+   load_cap_increment = '0.01'
+   load_step = '${fparse 0.0001 * a}'
+   ultimate_load = 0.06
+   unloaded_indicator = stress
+ []
 []
 [Materials]
   [bulk_properties]
@@ -177,13 +185,18 @@ v = '${fparse .1* a}'
     output_properties = 'psie_active'
     outputs = exodus
   []
+  [nodeg]
+    type = NoDegradation
+    phase_field = d
+    f_name = nodeg
+  []
   [power_law_hardening]
     type = PowerLawHardening
     yield_stress = ${sigma_y}
     exponent = ${n}
     reference_plastic_strain = ${ep0}
     phase_field = d
-    degradation_function = g
+    degradation_function = nodeg
   []
   [J2]
     type = LargeDeformationJ2Plasticity
@@ -198,9 +211,9 @@ v = '${fparse .1* a}'
   [psi]
     type = ADDerivativeParsedMaterial
     f_name = psi
-    function = 'alpha*(Gc*coalescence_mobility)/c0/l+psie+psip'
+    function = 'alpha*(Gc*coalescence_mobility)/c0/l+psie'
     args = d
-    material_property_names = 'alpha(d) g(d) Gc c0 l psie(d) psip(d) coalescence_mobility'
+    material_property_names = 'alpha(d) g(d) Gc c0 l psie(d) coalescence_mobility'
     derivative_order = 1
   []
   [coalescence]
@@ -260,5 +273,13 @@ v = '${fparse .1* a}'
   [ep]
     type = ADElementAverageMaterialProperty
     mat_prop = effective_plastic_strain
+  []
+  [psie]
+    type = ADElementAverageMaterialProperty
+    mat_prop = psie_active
+  []
+  [psip]
+    type = ADElementAverageMaterialProperty
+    mat_prop = psip_active
   []
 []
