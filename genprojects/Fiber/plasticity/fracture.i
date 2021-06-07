@@ -1,10 +1,7 @@
 [Mesh]
-  [gmg]
-    type = GeneratedMeshGenerator
-    dim = 3
-    xmax = 1
-    ymax = 1
-    zmax = 1
+  [fmg]
+    type = FileMeshGenerator
+    file = '../gold/domain05Coarse.msh'
   []
 []
 
@@ -28,7 +25,6 @@
     order = CONSTANT
     family = MONOMIAL
   []
-
 []
 
 [Bounds]
