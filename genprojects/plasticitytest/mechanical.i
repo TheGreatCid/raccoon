@@ -1,8 +1,8 @@
 a = 1
 R = 4
 
-psic = 40e5
-#psic = 10e5
+psic = 9.5e5
+#psic = 40e11
 Gc = 1.38e8
 l = '${fparse R * a}'
 
@@ -11,11 +11,51 @@ E = 68.8e9
 nu = 0.33
 K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
-beta = 1
+beta = 0.5
 sigma_y = 320e6
 n = 5
 ep0 = 0.01
-v = '${fparse 0.2 * a}'
+v = '${fparse 0.5 * a}'
+
+[MultiApps]
+  [fracture]
+    type = TransientMultiApp
+    input_files = 'fracture.i'
+    cli_args = 'Gc=${Gc};l=${l};psic=${psic}'
+    execute_on = 'TIMESTEP_END'
+  []
+[]
+
+[Transfers]
+  [from_d]
+    type = MultiAppMeshFunctionTransfer
+    multi_app = fracture
+    direction = from_multiapp
+    variable = d
+    source_variable = d
+  []
+  [to_psie_active]
+    type = MultiAppMeshFunctionTransfer
+    multi_app = fracture
+    direction = to_multiapp
+    variable = psie_active
+    source_variable = psie_active
+  []
+  [to_psip_active]
+    type = MultiAppMeshFunctionTransfer
+    multi_app = fracture
+    direction = to_multiapp
+    variable = psip_active
+    source_variable = psip_active
+  []
+  [to_sub_coalescence_mobility]
+    type = MultiAppCopyTransfer
+    multi_app = fracture
+    direction = to_multiapp
+    source_variable = coalescence_mobility
+    variable = coalescence_mobility
+  []
+[]
 
 [GlobalParams]
   displacements = 'disp_x disp_y disp_z'
@@ -39,8 +79,6 @@ v = '${fparse 0.2 * a}'
   []
   [disp_z]
   []
-  [d]
-  []
 []
 
 [AuxVariables]
@@ -54,22 +92,10 @@ v = '${fparse 0.2 * a}'
     order = CONSTANT
     family = MONOMIAL
   []
-[]
-[Bounds]
-  [irreversibility]
-    type = VariableOldValueBoundsAux
-    variable = bounds_dummy
-    bounded_variable = d
-    bound_type = lower
-  []
-  [upper]
-    type = ConstantBoundsAux
-    variable = bounds_dummy
-    bounded_variable = d
-    bound_type = upper
-    bound_value = 1
+  [d]
   []
 []
+
 [AuxKernels]
   [stress]
     type = ADRankTwoAux
@@ -106,15 +132,6 @@ v = '${fparse 0.2 * a}'
     component = 2
     use_displaced_mesh = true
   []
-  [pff_diff]
-    type = ADPFFDiffusion
-    variable = d
-  []
-  [pff_source]
-    type = ADPFFSource
-    variable = d
-    free_energy = psi
-  []
 []
 [BCs]
   [xfix]
@@ -135,23 +152,23 @@ v = '${fparse 0.2 * a}'
     boundary = 'back'
     value = 0
   []
- [ydisp]
-   type = FunctionDirichletBC
-   variable = disp_y
-   function = '1*t'
-   boundary = top
-  []
-
  # [ydisp]
- #   type = LoadingUnloadingDirichletBC
+ #   type = FunctionDirichletBC
  #   variable = disp_y
- #   boundary = 'top'
- #   initial_load_cap = '${fparse 0.02*a}'
- #   load_cap_increment = '0.01'
- #   load_step = '${fparse 0.0001 * a}'
- #   ultimate_load = 0.06
- #   unloaded_indicator = stress
- # []
+ #   function = '1*t'
+ #   boundary = top
+ #  []
+
+ [ydisp]
+   type = LoadingUnloadingDirichletBC
+   variable = disp_y
+   boundary = 'top'
+   initial_load_cap = '${fparse 0.005*a}'
+   load_cap_increment = '0.005'
+   load_step = '${fparse 0.0001 * a}'
+   ultimate_load = 0.06
+   unloaded_indicator = stress
+ []
 []
 [Materials]
   [bulk_properties]
@@ -197,6 +214,8 @@ v = '${fparse 0.2 * a}'
     reference_plastic_strain = ${ep0}
     phase_field = d
     degradation_function = nodeg
+    output_properties = 'psip_active'
+    outputs = exodus
   []
   [J2]
     type = LargeDeformationJ2Plasticity
@@ -214,8 +233,8 @@ v = '${fparse 0.2 * a}'
     material_property_names = 'effective_plastic_strain'
     constant_names = 'beta ep0'
     constant_expressions = '${beta} ${ep0}'
-    #function = 1-(1-beta)*(1-exp(-(effective_plastic_strain/ep0)))
-    function = 1
+    function = 1-(1-beta)*(1-exp(-(effective_plastic_strain/ep0)))
+    #function = 1
     outputs = exodus
     output_properties = 'coalescence_mobility'
   []
@@ -226,20 +245,15 @@ v = '${fparse 0.2 * a}'
   type = Transient
 
   solve_type = NEWTON
-  petsc_options_iname = '-pc_type -snes_type   -pc_factor_shift_type -pc_factor_shift_amount'
-  petsc_options_value = 'lu       vinewtonrsls NONZERO               1e-10'
+  petsc_options_iname = '-pc_type'
+  petsc_options_value = 'lu'
+  automatic_scaling = true
 
-  line_search = none
-
-  nl_rel_tol = 1e-08
-  nl_abs_tol = 1e-10
-  nl_max_its = 50
+line_search = none
 
   dt = '${fparse 0.0001 * a}'
   end_time = '${v}'
-  nl_abs_tol = 1e-08
-  nl_rel_tol = 1e-06
-  automatic_scaling = true
+
   abort_on_solve_fail = true
 []
 
@@ -273,5 +287,9 @@ v = '${fparse 0.2 * a}'
   [psip]
     type = ADElementAverageMaterialProperty
     mat_prop = psip_active
+  []
+  [coal]
+    type = ADElementAverageMaterialProperty
+    mat_prop = coalescence_mobility
   []
 []
