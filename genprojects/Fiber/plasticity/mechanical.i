@@ -7,8 +7,8 @@ Gc = 1e-3
 l = 0.03
 k = 2e-4
 psic = 0.0017578125
-beta = 1
-sigma_y = 320e6
+beta = 1.0
+sigma_y = 3.8e10
 n = 5
 ep0 = 0.01
 v = '${fparse sqrt(Gc*3/lambda)}'
@@ -61,7 +61,7 @@ v = '${fparse sqrt(Gc*3/lambda)}'
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = '../gold/domain05Coarse.msh'
+    file = '../gold/domainTriTens.msh'
   []
 []
 
@@ -150,7 +150,7 @@ v = '${fparse sqrt(Gc*3/lambda)}'
     f_name = g
     phase_field = d
     parameter_names = 'p a2 a3 eta'
-    parameter_values = '2 1 0 1e-06'
+    parameter_values = '2 1 0 1e-04'
   []
   [crack_geometric]
     type = CrackGeometricFunction
@@ -161,13 +161,23 @@ v = '${fparse sqrt(Gc*3/lambda)}'
   [defgrad]
     type = ComputeDeformationGradient
   []
-  [hencky]
-    type = HenckyIsotropicElasticity
+  # [hencky]
+  #   type = HenckyIsotropicElasticity
+  #   bulk_modulus = K
+  #   shear_modulus = G
+  #   phase_field = d
+  #   degradation_function = g
+  #   #decomposition = SPECTRAL
+  #   output_properties = 'psie_active'
+  #   outputs = exodus
+  # []
+  [CNHIso]
+    type = CNHIsotropicElasticity
     bulk_modulus = K
     shear_modulus = G
     phase_field = d
     degradation_function = g
-    #decomposition = SPECTRAL
+    decomposition = VOLDEV
     output_properties = 'psie_active'
     outputs = exodus
   []
@@ -189,10 +199,12 @@ v = '${fparse sqrt(Gc*3/lambda)}'
   [J2]
     type = LargeDeformationJ2Plasticity
     hardening_model = power_law_hardening
+    output_properties = 'effective_plastic_strain'
+    outputs = exodus
   []
   [stress]
     type = ComputeLargeDeformationStress
-    elasticity_model = hencky
+    elasticity_model = CNHIso
     plasticity_model = J2
   []
 
@@ -230,10 +242,12 @@ v = '${fparse sqrt(Gc*3/lambda)}'
 []
 
 [Outputs]
-  file_base = Fiber_plastic
+  file_base = ./exodusfiles/FiberMatrix/Fiber_tens_elasticity
   print_linear_residuals = false
+  interval = 10
   csv = true
   exodus = true
+
 []
 # [Postprocessors]
 #   [F]

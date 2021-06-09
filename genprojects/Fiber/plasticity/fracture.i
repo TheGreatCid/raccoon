@@ -1,7 +1,7 @@
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = '../gold/domain05Coarse.msh'
+    file = '../gold/domainTriTens.msh'
   []
 []
 
@@ -59,7 +59,17 @@
     free_energy = psi
   []
 []
+[BCs]
+  [damageBC]
+    type = DirichletBC
+    variable = d
+    boundary = Hole
 
+    value = 0
+    #use_displaced_mesh = true
+
+  []
+[]
 
 [Materials]
   [fracture_properties]
