@@ -207,7 +207,6 @@ v = '${fparse sqrt(Gc*3/lambda)}'
     elasticity_model = CNHIso
     plasticity_model = J2
   []
-
   [coalescence]
     type = ADParsedMaterial
     f_name = coalescence_mobility #mobility

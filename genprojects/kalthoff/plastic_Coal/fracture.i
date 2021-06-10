@@ -1,7 +1,7 @@
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = '../gold/kal.msh'
+    file = '../gold/half_notched_plate_63.msh'
   []
 []
 
@@ -60,18 +60,11 @@
   []
 []
 
-
 [Materials]
   [fracture_properties]
     type = ADGenericConstantMaterial
     prop_names = 'Gc psic l'
     prop_values = '${Gc} ${psic} ${l}'
-  []
-  [crack_geometric]
-    type = CrackGeometricFunction
-    f_name = alpha
-    function = 'd'
-    phase_field = d
   []
   [degradation]
     type = RationalDegradationFunction
@@ -80,20 +73,22 @@
     parameter_names = 'p a2 a3 eta'
     parameter_values = '2 1 0 1e-04'
   []
+  [crack_geometric]
+    type = CrackGeometricFunction
+    f_name = alpha
+    function = 'd'
+    phase_field = d
+  []
   [psi]
     type = ADDerivativeParsedMaterial
     f_name = psi
-    function = 'alpha*Gc*coalescence_mobility/c0/l+g*(psie_active+psip_active)'
-    args = 'd psie_active psip_active'
-    material_property_names = 'alpha(d) g(d) Gc c0 l coalescence_mobility'
+    #function = 'alpha*Gc*coalescence_mobility/c0/l+(psie_active+psip_active)'
+  #  function = 'alpha*Gc/c0/l+g*(psie_active+psip_active)'
+    function = 'alpha*(Gc*coalescence_mobility)/c0/l+g*(psie_active)'
+    #function = 'alpha*(Gc)/c0/l+g*(psie_active)'
+    args = 'd psie_active psip_active coalescence_mobility'
+    material_property_names = 'alpha(d) g(d) Gc c0 l'
     derivative_order = 1
-  []
-  [mobility]
-    type = ADParsedMaterial
-    args = 'coalescence_mobility'
-    function = 'coalescence_mobility'
-    f_name = 'coalescence_mobility'
-    constant_on = ELEMENT
   []
 []
 

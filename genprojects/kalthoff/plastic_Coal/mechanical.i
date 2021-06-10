@@ -61,7 +61,7 @@ beta = .9
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = '../gold/kal.msh'
+    file = '../gold/half_notched_plate_63.msh'
   []
 []
 
@@ -82,16 +82,30 @@ beta = .9
   [effective_plastic_strain]
     order = CONSTANT
     family = MONOMIAL
-    []
+  []
+
+  [F]
+    order = CONSTANT
+    family = MONOMIAL
+  []
+  [d]
+  []
 []
 
 [AuxKernels]
   [stress]
-    type = ADRankTwoScalarAux
-    variable = 'stress'
-    rank_two_tensor = 'stress'
-    scalar_type = 'MaxPrincipal'
-    execute_on = 'TIMESTEP_END'
+    type = ADRankTwoAux
+    variable = stress
+    rank_two_tensor = stress
+    index_i = 1
+    index_j = 1
+  []
+  [F]
+    type = ADRankTwoAux
+    variable = F
+    rank_two_tensor = deformation_gradient
+    index_i = 1
+    index_j = 1
   []
 []
 
@@ -135,6 +149,9 @@ beta = .9
 []
 
 [Materials]
+  [defgrad]
+    type = ComputeDeformationGradient
+  []
   [bulk_properties]
     type = ADGenericConstantMaterial
     prop_names = 'K G l Gc psic density'
@@ -147,8 +164,14 @@ beta = .9
     constant_names = 'beta ep0'
     constant_expressions = '${beta} ${ep0}'
     function = 1-(1-beta)*(1-exp(-(effective_plastic_strain/ep0)))
+    #function = 1
     outputs = exodus
     output_properties = 'coalescence_mobility'
+  []
+  [nodeg]
+    type = NoDegradation
+    phase_field = d
+    f_name = nodeg
   []
   [degradation]
     type = RationalDegradationFunction
@@ -168,42 +191,35 @@ beta = .9
     function = 'd'
     phase_field = d
   []
-
-  [strain]
-    type = ADComputeSmallStrain
-  []
-  [elasticity]
-    type = SmallDeformationIsotropicElasticity
+  [hencky]
+    type = HenckyIsotropicElasticity
     bulk_modulus = K
     shear_modulus = G
     phase_field = d
     degradation_function = g
-    decomposition = NONE
     output_properties = 'elastic_strain psie_active'
     outputs = exodus
   []
-  [plasticity]
-    type = SmallDeformationJ2Plasticity
+  [J2]
+    type = LargeDeformationJ2Plasticity
     hardening_model = power_law_hardening
     output_properties = 'effective_plastic_strain'
     outputs = exodus
   []
   [power_law_hardening]
     type = PowerLawHardening
-    degradation_function = g
     yield_stress = ${sigma_y}
     exponent = ${n}
     reference_plastic_strain = ${ep0}
     phase_field = d
+    degradation_function = nodeg
     output_properties = 'psip_active'
     outputs = exodus
   []
   [stress]
-    type = ComputeSmallDeformationStress
-    elasticity_model = elasticity
-    plasticity_model = plasticity
-    output_properties = 'stress'
-    outputs = exodus
+    type = ComputeLargeDeformationStress
+    elasticity_model = hencky
+    plasticity_model = J2
   []
 []
 
