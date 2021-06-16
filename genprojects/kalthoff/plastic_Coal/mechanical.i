@@ -1,17 +1,35 @@
-Gc = 22.2
-l = 0.35
-psic = 7.9
-E = 1.9e5
-nu = 0.3
-rho = 8e-9
-K = '${fparse E/3/(1-2*nu)}'
-G = '${fparse E/2/(1+nu)}'
-eta = 1
-sigma_y = 2000 #Check if this value makes sense
-n = 1 #for power law
-ep0 = 0.345
-beta = .9
+# Gc = 22.2
+# l = 0.35
+# psic = 7.9
+# E = 1.9e5
+# nu = 0.3
+# rho = 8e-9
+# K = '${fparse E/3/(1-2*nu)}'
+# G = '${fparse E/2/(1+nu)}'
+# eta = 1
+# sigma_y = 2000 #Check if this value makes sense
+# #sigma_y = 1e10
+# n = 1 #for power law
+# ep0 = 0.08
+# beta = 0.08
 
+
+#Units from Miehe paper
+Gc = 115e3
+l = 0.5
+rho = 7800
+lambda = 115.38e9
+G = 76.93e9
+nu = '${fparse lambda/(2*(lambda+G))}' #0.3
+E = '${fparse 2*G*(1+nu)}' #2.00018e11
+K = '${fparse E/3/(1-2*nu)}'
+
+eta = 1100
+n = 1
+sigma_y = 2e9
+ep0 = 0.8
+beta = 0.8
+psic = 1e6
 
 [MultiApps]
   [fracture]
@@ -61,7 +79,7 @@ beta = .9
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = '../gold/half_notched_plate_63.msh'
+    file = '../gold/kal_m.msh'
   []
 []
 
@@ -137,7 +155,9 @@ beta = .9
     type = FunctionDirichletBC
     variable = 'disp_x'
     boundary = 'load'
-    function = 'if(t<1e-6, 0.5*1.65e10*t*t, 1.65e4*t-0.5*1.65e-2)'
+    function = 'if(t<1e-7, 0.5*1.65e8*t*t, 16.5*t-8.25e-7)'
+    #function = 'if(t<1e-6, 0.5*1.65e10*t*t, 1.65e4*t-0.5*1.65e-2)'
+    #function = 'if(t<1e-6, 0.5*2.00e10*t*t, 2.00e4*t-0.5*2.00e-2)'
     preset = false
   []
   [y_bot]
@@ -192,15 +212,30 @@ beta = .9
     phase_field = d
   []
   [hencky]
-    type = HenckyIsotropicElasticity
+    type = CNHIsotropicElasticity
     bulk_modulus = K
     shear_modulus = G
     phase_field = d
     degradation_function = g
+    decomposition = VOLDEV
     output_properties = 'elastic_strain psie_active'
     outputs = exodus
   []
+  # [strain] #For elasticity
+  #   type = ADComputeSmallStrain
+  # []
+  # [elasticity]
+  #   type = SmallDeformationIsotropicElasticity
+  #   bulk_modulus = K
+  #   shear_modulus = G
+  #   phase_field = d
+  #   degradation_function = g
+  #   decomposition = SPECTRAL
+  #   output_properties = 'elastic_strain psie_active'
+  #   outputs = exodus
+  # []
   [J2]
+    #type = SmallDeformationJ2Plasticity
     type = LargeDeformationJ2Plasticity
     hardening_model = power_law_hardening
     output_properties = 'effective_plastic_strain'
@@ -218,6 +253,7 @@ beta = .9
   []
   [stress]
     type = ComputeLargeDeformationStress
+    #type = ComputeSmallDeformationStress
     elasticity_model = hencky
     plasticity_model = J2
   []
@@ -225,8 +261,10 @@ beta = .9
 
 [Executioner]
   type = Transient
-  dt = 5e-7
-  end_time = 9e-5
+  #dt = 5e-7
+  #end_time = 9e-5
+  dt = 3e-8
+  end_time = 10.25e-5
   # [TimeIntegrator]
   #   type = CentralDifference
   #   solve_type = lumped
@@ -244,8 +282,17 @@ beta = .9
   []
 []
 [Outputs]
- file_base = 'kal_plasticity_coal'
+ file_base = 'exodusfiles/kalthoff/kal_plasticity_v165_b08e08'
   print_linear_residuals = false
   exodus = true
-  interval = 1
+  interval = 5
 []
+# [Postprocessors]
+#
+#   [disp_x]
+#     type = AverageNodalVariableValue
+#     boundary = 'load'
+#     variable = disp_x
+#
+#   []
+# []

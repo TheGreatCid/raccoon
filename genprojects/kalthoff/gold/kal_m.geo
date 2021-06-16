@@ -2,19 +2,19 @@
 angle = (90-70)*Pi/180;
 angle2 = (90-85)*Pi/180;
 
-E = 5;
-e = 0.2;
-eps = 0.001;
+E = 5e-3;
+e = 0.2e-3;
+eps = 0.001e-3;
 
 Point(1) = {0, 0, 0, E};
-Point(2) = {0, 25-eps, 0, E/10};
-Point(3) = {50, 25, 0, e};
-Point(4) = {0, 25+eps, 0, E/10};
-Point(5) = {0, 100, 0, E};
-Point(6) = {50+75*Tan(angle), 100, 0, e};
-Point(7) = {100, 100, 0, E};
-Point(8) = {100, 0, 0, E};
-Point(9) ={50+75*Tan(angle2),0,0,e};
+Point(2) = {0, 25e-3-eps, 0, E/2};
+Point(3) = {50e-3, 25e-3, 0, e};
+Point(4) = {0, 25e-3+eps, 0, E/2};
+Point(5) = {0, 100e-3, 0, E};
+Point(6) = {50e-3+75e-3*Tan(angle), 100e-3, 0, e};
+Point(7) = {100e-3, 100e-3, 0, E};
+Point(8) = {100e-3, 0, 0, E};
+Point(9) ={50e-3+75e-3*Tan(angle2),0,0,e};
 
 
 Line(1) = {1, 2};
