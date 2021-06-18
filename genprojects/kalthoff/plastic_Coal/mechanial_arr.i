@@ -1,21 +1,6 @@
-# Gc = 22.2
-# l = 0.35
-# psic = 7.9
-# E = 1.9e5
-# nu = 0.3
-# rho = 8e-9
-# K = '${fparse E/3/(1-2*nu)}'
-# G = '${fparse E/2/(1+nu)}'
-# eta = 1
-# sigma_y = 2000 #Check if this value makes sense
-# #sigma_y = 1e10
-# n = 1 #for power law
-# ep0 = 0.08
-# beta = 0.08
-
 
 #Units from Miehe paper
-Gc = 240e3
+Gc = 115e3
 l = 2e-3
 rho = 7800
 lambda = 115.38e9
@@ -30,7 +15,13 @@ sigma_y = 2e9
 ep0 = 0.8
 beta = 0.8
 #psic = 3.03e6
-psic = 6328125 # 6e9
+psic = 6e6
+
+#Thermal values
+R = 8.3143 #Ideal gas constant
+Q = 400e3 #Activation Energy, rough guess
+sigma0 = #Reference yield stress
+
 
 [MultiApps]
   [fracture]
@@ -89,6 +80,8 @@ psic = 6328125 # 6e9
   []
   [disp_y]
   []
+  [temp]
+  []
 []
 
 [AuxVariables]
@@ -109,6 +102,8 @@ psic = 6328125 # 6e9
   []
   [d]
   []
+  [temp_in_k]
+  []
 []
 
 [AuxKernels]
@@ -126,9 +121,19 @@ psic = 6328125 # 6e9
     index_i = 1
     index_j = 1
   []
+  [temp_in_K]
+      type = ParsedAux
+      variable = 'temp_in_k'
+      args = 'temp'
+      function = 'temp + 273.15'
+  []
 []
 
 [Kernels]
+  [conduction]
+    type = HeatConduction
+    variable = 'temp'
+  []
   [inertia_x]
     type = InertialForce
     variable = disp_x
@@ -171,13 +176,11 @@ psic = 6328125 # 6e9
 []
 
 [Materials]
-  [defgrad]
-    type = ComputeDeformationGradient
-  []
+
   [bulk_properties]
     type = ADGenericConstantMaterial
-    prop_names = 'K G l Gc psic density'
-    prop_values = '${K} ${G} ${l} ${Gc} ${psic} ${rho}'
+    prop_names = 'K G l Gc psic density Q sigma0'
+    prop_values = '${K} ${G} ${l} ${Gc} ${psic} ${rho} ${Q} ${sigma0}'
   []
   [coalescence]
     type = ADParsedMaterial
@@ -189,6 +192,16 @@ psic = 6328125 # 6e9
     #function = 1
     outputs = exodus
     output_properties = 'coalescence_mobility'
+  []
+  [eigenstrain]
+    type = ComputeThermalExpansionEigenDeformationGradient
+    reference_temperature = ref_temp
+    temperature = temp
+    eigen_deformation_gradient_name = thermal_defgrad
+  []
+  [defgrad]
+    type = ComputeDeformationGradient
+    eigen_deformation_gradient_names = 'thermal_defgrad'
   []
   [nodeg]
     type = NoDegradation
@@ -243,11 +256,18 @@ psic = 6328125 # 6e9
     output_properties = 'effective_plastic_strain'
     outputs = exodus
   []
-  [power_law_hardening]
-    type = PowerLawHardening
-    yield_stress = ${sigma_y}
-    exponent = ${n}
-    reference_plastic_strain = ${ep0}
+  [arrhenius_law]
+    type = ArrheniusLaw
+    arrhenius_coefficient = A
+    activation_energy = ${Q}
+    ideal_gas_constant = ${R}
+    T = temp_in_k
+  []
+  [arrhenius_law_hardening]
+    type = ArrheniusLawHardening
+    reference_stress = sigma0
+    arrhenius_coefficient = A
+    eps = eps0
     phase_field = d
     degradation_function = nodeg
     output_properties = 'psip_active'
@@ -284,7 +304,7 @@ psic = 6328125 # 6e9
   []
 []
 [Outputs]
- file_base = 'exodusfiles/kalthoff/kal_plasticity_v200_b08e08'
+ file_base = 'exodusfiles/kalthoff/kal_plasticity_v200_b01e01'
   print_linear_residuals = false
   exodus = true
   interval = 5

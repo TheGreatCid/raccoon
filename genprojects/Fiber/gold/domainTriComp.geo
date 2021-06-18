@@ -33,21 +33,24 @@ Plane Surface(1) = {1, 2};
 
 //Mesh Refinement
 
-Point(10) = {0,1.45,0,e};
+Point(10) = {0,1.47,0,e};
 Point(11) = {0,-1.45,0,e};
-Point(12) = {-0.8,0,0,e};
-Point(13) = {0.8,0,0,e};
+Point(12) = {-0.6,0,0,e};
+Point(13) = {0.6,0,0,e};
 Point(14) = {0,-1,0,e};
+Point(15) = {0,0.8,0,E/2};
+Point(16) = {0,0.75,0,E/2};
 
-Line(14) = {6,10};
+//Line(14) = {6,10};
 Line(15) = {7,11};
 Line(16) = {10,12};
-Line(17) = {12,14};
+//Line(17) = {12,14};
 Line(18) = {10,13};
-Line(19) = {13,14};
+//Line(19) = {13,14};
+Line(20) = {15,16};
 
-Point{10,11,12,13,14} In Surface{1};
-Line{14,15,16,17,18,19} In Surface{1};
+Point{10,11,12,13,14,15,16} In Surface{1};
+Line{15,16,18,20} In Surface{1};
 //+
 Physical Surface("domain") = {1};
 //+
