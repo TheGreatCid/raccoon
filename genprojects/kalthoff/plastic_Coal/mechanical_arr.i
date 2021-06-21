@@ -11,18 +11,19 @@ K = '${fparse E/3/(1-2*nu)}'
 
 eta = 1
 n = 1
+#sigma_y = 2e9
 sigma_y = 2e9
-ep0 = 0.8
-beta = 0.8
+ep0 = 1
+beta = 1
 #psic = 3.03e6
 psic = 6e6
 
 #Thermal values
 R = 8.3143 #Ideal gas constant
-Q = 400e3 #Activation Energy, rough guess
-sigma0 = #Reference yield stress
-
-
+Q = 400e3 #Activation Energy, rough guess, 150e3 J/mole, another possible value
+sigma0 = 2e9#Reference yield stress
+kappa = 45e3 #W/k #45 W/mk
+#W/mk = (J/S)/(mk)
 [MultiApps]
   [fracture]
     type = TransientMultiApp
@@ -95,7 +96,6 @@ sigma0 = #Reference yield stress
     order = CONSTANT
     family = MONOMIAL
   []
-
   [F]
     order = CONSTANT
     family = MONOMIAL
@@ -103,6 +103,8 @@ sigma0 = #Reference yield stress
   [d]
   []
   [temp_in_k]
+  []
+  [ref_temp]
   []
 []
 
@@ -126,6 +128,11 @@ sigma0 = #Reference yield stress
       variable = 'temp_in_k'
       args = 'temp'
       function = 'temp + 273.15'
+  []
+  [reftemp]
+    type = ParsedAux
+    variable = 'ref_temp'
+    function = '293.15'
   []
 []
 
@@ -155,6 +162,8 @@ sigma0 = #Reference yield stress
     component = 1
   []
 []
+#ref temp
+
 
 [BCs]
   [xdisp]
@@ -182,6 +191,11 @@ sigma0 = #Reference yield stress
     prop_names = 'K G l Gc psic density Q sigma0'
     prop_values = '${K} ${G} ${l} ${Gc} ${psic} ${rho} ${Q} ${sigma0}'
   []
+  [thermal_conduct]
+    type = GenericConstantMaterial
+    prop_names = 'thermal_conductivity'
+    prop_values = '${kappa}'
+  []
   [coalescence]
     type = ADParsedMaterial
     f_name = coalescence_mobility #mobility
@@ -198,6 +212,7 @@ sigma0 = #Reference yield stress
     reference_temperature = ref_temp
     temperature = temp
     eigen_deformation_gradient_name = thermal_defgrad
+    thermal_expansion_function = '${fparse 11.2e-6}'
   []
   [defgrad]
     type = ComputeDeformationGradient
@@ -226,33 +241,19 @@ sigma0 = #Reference yield stress
     function = 'd'
     phase_field = d
   []
-  # [hencky]
-  #   type = CNHIsotropicElasticity
-  #   bulk_modulus = K
-  #   shear_modulus = G
-  #   phase_field = d
-  #   degradation_function = g
-  #   decomposition = VOLDEV
-  #   output_properties = 'elastic_strain psie_active'
-  #   outputs = exodus
-  # []
-  [strain] #For elasticity
-    type = ADComputeSmallStrain
-  []
-  [elasticity]
-    type = SmallDeformationIsotropicElasticity
+  [hencky]
+    type = HenckyIsotropicElasticity
     bulk_modulus = K
     shear_modulus = G
     phase_field = d
     degradation_function = g
-    decomposition = SPECTRAL
+    #decomposition = SPECTRAL
     output_properties = 'elastic_strain psie_active'
     outputs = exodus
   []
   [J2]
-    type = SmallDeformationJ2Plasticity
-    #type = LargeDeformationJ2Plasticity
-    hardening_model = power_law_hardening
+    type = LargeDeformationJ2Plasticity
+    hardening_model = arrhenius_law_hardening
     output_properties = 'effective_plastic_strain'
     outputs = exodus
   []
@@ -267,16 +268,15 @@ sigma0 = #Reference yield stress
     type = ArrheniusLawHardening
     reference_stress = sigma0
     arrhenius_coefficient = A
-    eps = eps0
+    eps = '${ep0}'
     phase_field = d
     degradation_function = nodeg
     output_properties = 'psip_active'
     outputs = exodus
   []
   [stress]
-    #type = ComputeLargeDeformationStress
-    type = ComputeSmallDeformationStress
-    elasticity_model = elasticity
+    type = ComputeLargeDeformationStress
+    elasticity_model = hencky
     plasticity_model = J2
   []
 []
@@ -304,7 +304,7 @@ sigma0 = #Reference yield stress
   []
 []
 [Outputs]
- file_base = 'exodusfiles/kalthoff/kal_plasticity_v200_b01e01'
+ file_base = 'exodusfiles/kalthoff/kal_thermoplastic_v200_e08_b08'
   print_linear_residuals = false
   exodus = true
   interval = 5

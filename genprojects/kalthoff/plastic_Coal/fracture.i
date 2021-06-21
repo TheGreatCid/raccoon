@@ -71,7 +71,7 @@
     f_name = g
     phase_field = d
     parameter_names = 'p a2 a3 eta'
-    parameter_values = '2 1 0 1e-04'
+    parameter_values = '2 1 0 1e-06'
   []
   [crack_geometric]
     type = CrackGeometricFunction

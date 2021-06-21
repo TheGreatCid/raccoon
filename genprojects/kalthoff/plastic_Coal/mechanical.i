@@ -200,7 +200,7 @@ psic = 6328125 # 6e9
     f_name = g
     phase_field = d
     parameter_names = 'p a2 a3 eta'
-    parameter_values = '2 1 0 1e-04'
+    parameter_values = '2 1 0 1e-06'
   []
   [reg_density]
     type = MaterialConverter
@@ -213,32 +213,32 @@ psic = 6328125 # 6e9
     function = 'd'
     phase_field = d
   []
-  # [hencky]
-  #   type = CNHIsotropicElasticity
+   [hencky]
+     type = HenckyIsotropicElasticity
+     bulk_modulus = K
+     shear_modulus = G
+     phase_field = d
+     degradation_function = g
+    # decomposition = VOLDEV
+     output_properties = 'elastic_strain psie_active'
+     outputs = exodus
+   []
+  #[strain] #For elasticity
+  #  type = ADComputeSmallStrain
+  #[]
+  # [elasticity]
+  #   type = SmallDeformationIsotropicElasticity
   #   bulk_modulus = K
   #   shear_modulus = G
   #   phase_field = d
   #   degradation_function = g
-  #   decomposition = VOLDEV
+  #   decomposition = SPECTRAL
   #   output_properties = 'elastic_strain psie_active'
   #   outputs = exodus
   # []
-  [strain] #For elasticity
-    type = ADComputeSmallStrain
-  []
-  [elasticity]
-    type = SmallDeformationIsotropicElasticity
-    bulk_modulus = K
-    shear_modulus = G
-    phase_field = d
-    degradation_function = g
-    decomposition = SPECTRAL
-    output_properties = 'elastic_strain psie_active'
-    outputs = exodus
-  []
   [J2]
-    type = SmallDeformationJ2Plasticity
-    #type = LargeDeformationJ2Plasticity
+    #type = SmallDeformationJ2Plasticity
+    type = LargeDeformationJ2Plasticity
     hardening_model = power_law_hardening
     output_properties = 'effective_plastic_strain'
     outputs = exodus
@@ -254,9 +254,9 @@ psic = 6328125 # 6e9
     outputs = exodus
   []
   [stress]
-    #type = ComputeLargeDeformationStress
-    type = ComputeSmallDeformationStress
-    elasticity_model = elasticity
+    type = ComputeLargeDeformationStress
+    #type = ComputeSmallDeformationStress
+    elasticity_model = hencky
     plasticity_model = J2
   []
 []
