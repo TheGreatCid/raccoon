@@ -163,7 +163,8 @@ HenckyIsotropicElasticity::computeMandelStressSpectralDecomposition(const ADRank
   ADRankTwoTensor stress_pos = lambda * strain_tr_pos * I2 + 2 * _G[_qp] * strain_pos;
   ADRankTwoTensor stress_neg = stress_intact - stress_pos;
   ADRankTwoTensor stress = _g[_qp] * stress_pos + stress_neg;
-
+  // If plasticity_update == false, then we are not in the middle of a plasticity update, hence we
+  // compute the strain energy density
   if (!plasticity_update)
   {
     ADReal psie_intact =
