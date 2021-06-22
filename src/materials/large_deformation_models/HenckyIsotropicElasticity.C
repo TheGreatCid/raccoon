@@ -62,6 +62,8 @@ HenckyIsotropicElasticity::computeMandelStress(const ADRankTwoTensor & Fe,
     stress = computeMandelStressNoDecomposition(Fe, plasticity_update);
   else if (_decomposition == Decomposition::voldev)
     stress = computeMandelStressVolDevDecomposition(Fe, plasticity_update);
+  else if (_decomposition == Decomposition::spectral)
+    stress = computeMandelStressSpectralDecomposition(Fe, plasticity_update);
   else
     paramError("decomposition", "Unsupported decomposition type.");
 
@@ -134,5 +136,43 @@ HenckyIsotropicElasticity::computeMandelStressVolDevDecomposition(const ADRankTw
     _dpsie_dd[_qp] = _dg_dd[_qp] * _psie_active[_qp];
   }
 
+  return stress;
+}
+
+ADRankTwoTensor
+HenckyIsotropicElasticity::computeMandelStressSpectralDecomposition(const ADRankTwoTensor & Fe,
+                                                                    const bool plasticity_update)
+{
+  ADRankTwoTensor strain = Fe;
+  // If this is called during a plasticity update, we need to first exponentiate Fe, where Fe should
+  // be some plastic flow. The foolowing operations cancel out with an exponentiation of Fe, so we
+  // only do this in the case of exponentiate == false
+  if (!plasticity_update)
+    strain = 0.5 * RaccoonUtils::log(Fe.transpose() * Fe);
+
+  const ADReal lambda = _K[_qp] - 2 * _G[_qp] / LIBMESH_DIM;
+  const ADRankTwoTensor I2(ADRankTwoTensor::initIdentity);
+  ADReal strain_tr = strain.trace();
+  ADReal strain_tr_pos = RaccoonUtils::Macaulay(strain_tr);
+
+  // Spectral decomposition
+  ADRankTwoTensor strain_pos = RaccoonUtils::spectralDecomposition(strain);
+
+  // Stress
+  ADRankTwoTensor stress_intact = _K[_qp] * strain.trace() * I2 + 2 * _G[_qp] * strain.deviatoric();
+  ADRankTwoTensor stress_pos = lambda * strain_tr_pos * I2 + 2 * _G[_qp] * strain_pos;
+  ADRankTwoTensor stress_neg = stress_intact - stress_pos;
+  ADRankTwoTensor stress = _g[_qp] * stress_pos + stress_neg;
+
+  if (!plasticity_update)
+  {
+    ADReal psie_intact =
+        0.5 * lambda * strain_tr * strain_tr + _G[_qp] * strain.doubleContraction(strain);
+    _psie_active[_qp] = 0.5 * lambda * strain_tr_pos * strain_tr_pos +
+                        _G[_qp] * strain_pos.doubleContraction(strain_pos);
+    ADReal psie_inactive = psie_intact - _psie_active[_qp];
+    _psie[_qp] = _g[_qp] * _psie_active[_qp] + psie_inactive;
+    _dpsie_dd[_qp] = _dg_dd[_qp] * _psie_active[_qp];
+  }
   return stress;
 }

@@ -26,11 +26,12 @@ K = '${fparse E/3/(1-2*nu)}'
 
 eta = 1
 n = 1
-sigma_y = 2e9
+#sigma_y = 2e9
+sigma_y = 1e30
 ep0 = 0.8
 beta = 0.8
-#psic = 3.03e6
-psic = 6328125 # 6e9
+psic = 3.03e6
+#psic = 6328125 # 6e6
 
 [MultiApps]
   [fracture]
@@ -219,7 +220,7 @@ psic = 6328125 # 6e9
      shear_modulus = G
      phase_field = d
      degradation_function = g
-    # decomposition = VOLDEV
+     decomposition = SPECTRAL
      output_properties = 'elastic_strain psie_active'
      outputs = exodus
    []
@@ -266,6 +267,7 @@ psic = 6328125 # 6e9
   #dt = 5e-7
   #end_time = 9e-5
   dt = 3e-8
+
   end_time = 10.25e-5
   # [TimeIntegrator]
   #   type = CentralDifference
@@ -284,7 +286,7 @@ psic = 6328125 # 6e9
   []
 []
 [Outputs]
- file_base = 'exodusfiles/kalthoff/kal_plasticity_v200_b08e08'
+ file_base = 'exodusfiles/kalthoff/kal_elasticity_hencky_spec_v200'
   print_linear_residuals = false
   exodus = true
   interval = 5
