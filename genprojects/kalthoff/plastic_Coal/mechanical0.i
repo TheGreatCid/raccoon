@@ -8,10 +8,10 @@ K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
 eta = 1
 #sigma_y = 2000 #Check if this value makes sense
-sigma_y = 1e10
+sigma_y = 2000
 n = 1 #for power law
-ep0 = 0.08
-beta = 0.08
+ep0 = 1e-30
+beta = 1e-30
 
 
 
@@ -143,7 +143,9 @@ beta = 0.08
      #function = 'if(t<1e-7, 0.5*2.00e8*t*t, 20.0*t-1.00e-6)'
     #function = 'if(t<1e-7, 0.5*2.00e8*t*t, 20.0*t-1.00e-6)'
     #function = 'if(t<1e-8, 0.5*2.00e10*t*t, 2.0e4*t-1.00e-2)'
-    function = 'if(t<1e-6, 0.5*1.65e10*t*t, 1.65e4*t-0.5*1.65e-2)'
+
+    #function = 'if(t<1e-6, 0.5*1.65e10*t*t, 1.65e4*t-0.5*1.65e-2)'
+    function = 'if(t<1e-6, 0.5*3.90e10*t*t, 3.90e4*t-0.5*3.90e-2)'
     preset = false
   []
   [y_bot]
@@ -197,32 +199,32 @@ beta = 0.08
     function = 'd'
     phase_field = d
   []
-   # [hencky]
-   #   type = CNHIsotropicElasticity
-   #   bulk_modulus = K
-   #   shear_modulus = G
-   #   phase_field = d
-   #   degradation_function = g
-   #   decomposition = VOLDEV
-   #   output_properties = 'elastic_strain psie_active'
-   #   outputs = exodus
-   # []
-  [strain] #For elasticity
-   type = ADComputeSmallStrain
-  []
-  [elasticity]
-    type = SmallDeformationIsotropicElasticity
-    bulk_modulus = K
-    shear_modulus = G
-    phase_field = d
-    degradation_function = g
-    decomposition = SPECTRAL
-    output_properties = 'elastic_strain psie_active'
-    outputs = exodus
-  []
+   [hencky]
+     type = HenckyIsotropicElasticity
+     bulk_modulus = K
+     shear_modulus = G
+     phase_field = d
+     degradation_function = g
+     decomposition = SPECTRAL
+     output_properties = 'elastic_strain psie_active'
+     outputs = exodus
+   []
+  # [strain] #For elasticity
+  #  type = ADComputeSmallStrain
+  # []
+  # [elasticity]
+  #   type = SmallDeformationIsotropicElasticity
+  #   bulk_modulus = K
+  #   shear_modulus = G
+  #   phase_field = d
+  #   degradation_function = g
+  #   decomposition = SPECTRAL
+  #   output_properties = 'elastic_strain psie_active'
+  #   outputs = exodus
+  # []
   [J2]
-    type = SmallDeformationJ2Plasticity
-    #type = LargeDeformationJ2Plasticity
+    #type = SmallDeformationJ2Plasticity
+    type = LargeDeformationJ2Plasticity
     hardening_model = power_law_hardening
     output_properties = 'effective_plastic_strain'
     outputs = exodus
@@ -238,9 +240,9 @@ beta = 0.08
     outputs = exodus
   []
   [stress]
-    #type = ComputeLargeDeformationStress
-    type = ComputeSmallDeformationStress
-    elasticity_model = elasticity
+    type = ComputeLargeDeformationStress
+    #type = ComputeSmallDeformationStress
+    elasticity_model = hencky
     plasticity_model = J2
   []
 []
@@ -249,7 +251,7 @@ beta = 0.08
   type = Transient
   dt = 5e-7
   #end_time = 9e-5
-  #dt = 3e-8
+  #dt = 1e-7
   end_time = 10.25e-5
   # [TimeIntegrator]
   #   type = CentralDifference
@@ -268,7 +270,7 @@ beta = 0.08
   []
 []
 [Outputs]
- file_base = 'exodusfiles/kalthoff/kal_elasticity_v200_oldprops'
+ file_base = 'exodusfiles/kalthoff/kal_plastic_v350_b001e001_oldprops'
   print_linear_residuals = false
   exodus = true
   interval = 5

@@ -266,8 +266,8 @@ psic = 3.03e6
   type = Transient
   #dt = 5e-7
   #end_time = 9e-5
-  dt = 3e-8
-
+  #dt = 3e-8
+  dt = 6e-8
   end_time = 10.25e-5
   # [TimeIntegrator]
   #   type = CentralDifference

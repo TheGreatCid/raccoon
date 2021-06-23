@@ -1,27 +1,25 @@
-
-#Units from Miehe paper
-Gc = 240e3
-l = 2e-3
-rho = 7800
-lambda = 115.38e9
-G = 76.93e9
-nu = '${fparse lambda/(2*(lambda+G))}' #0.3
-E = '${fparse 2*G*(1+nu)}' #2.00018e11
+Gc = 22.2
+l = 0.35
+psic = 7.9
+E = 1.9e5
+nu = 0.3
+rho = 8e-9
 K = '${fparse E/3/(1-2*nu)}'
-
+G = '${fparse E/2/(1+nu)}'
 eta = 1
-n = 1
-sigma_y = 2e9
-ep0 = 0.8
-beta = 0.8
+#sigma_y = 2000 #Check if this value makes sense
+sigma_y = 100
+n = 1 #for power law
+ep0 = 0.01
+beta = 0.01
 #psic = 3.03e6
-psic = 6328125 # 6e9
 
 #Thermal values
 R = 8.3143 #Ideal gas constant
 Q = 400e3 #Activation Energy, rough guess, 150e3 J/mole, another possible value
-sigma0 = 2e9#Reference yield stress
+sigma0 = 400#Reference yield stress
 kappa = 45e3 #W/k #45 W/mk
+creep_coef = 7.46e-9
 #W/mk = (J/S)/(mk)
 [MultiApps]
   [fracture]
@@ -71,7 +69,7 @@ kappa = 45e3 #W/k #45 W/mk
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = '../gold/kal_m.msh'
+    file = '../gold/kal.msh'
   []
 []
 
@@ -105,6 +103,10 @@ kappa = 45e3 #W/k #45 W/mk
   []
   [ref_temp]
   []
+  [creep_strain]
+    order = CONSTANT
+    family = MONOMIAL
+  []
 []
 
 [AuxKernels]
@@ -122,6 +124,11 @@ kappa = 45e3 #W/k #45 W/mk
     index_i = 1
     index_j = 1
   []
+  [creep_strain]
+    type = ADMaterialRealAux
+    variable = creep_strain
+    property = effective_plastic_strain
+  []
   [temp_in_K]
       type = ParsedAux
       variable = 'temp_in_k'
@@ -131,7 +138,7 @@ kappa = 45e3 #W/k #45 W/mk
   [reftemp]
     type = ParsedAux
     variable = 'ref_temp'
-    function = '293.15'
+    function = '20'
   []
 []
 
@@ -169,9 +176,9 @@ kappa = 45e3 #W/k #45 W/mk
     type = FunctionDirichletBC
     variable = 'disp_x'
     boundary = 'load'
-    function = 'if(t<1e-7, 0.5*2.00e8*t*t, 20.0*t-1.00e-6)'
+    #function = 'if(t<1e-7, 0.5*2.00e8*t*t, 20.0*t-1.00e-6)'
     #function = 'if(t<1e-7, 0.5*1.65e8*t*t, 16.5*t-8.25e-7)'
-    #function = 'if(t<1e-6, 0.5*1.65e10*t*t, 1.65e4*t-0.5*1.65e-2)'
+    function = 'if(t<1e-6, 0.5*1.65e10*t*t, 1.65e4*t-0.5*1.65e-2)'
     #function = 'if(t<1e-6, 0.5*2.00e10*t*t, 2.00e4*t-0.5*2.00e-2)'
     preset = false
   []
@@ -181,10 +188,10 @@ kappa = 45e3 #W/k #45 W/mk
     boundary = 'bottom'
     value = '0'
   []
+
 []
 
 [Materials]
-
   [bulk_properties]
     type = ADGenericConstantMaterial
     prop_names = 'K G l Gc psic density Q sigma0'
@@ -248,14 +255,8 @@ kappa = 45e3 #W/k #45 W/mk
     shear_modulus = G
     phase_field = d
     degradation_function = g
-    decomposition = VOLDEV
+    decomposition = SPECTRAL
     output_properties = 'elastic_strain psie_active'
-    outputs = exodus
-  []
-  [J2]
-    type = LargeDeformationJ2Plasticity
-    hardening_model = arrhenius_law_hardening
-    output_properties = 'effective_plastic_strain'
     outputs = exodus
   []
   [arrhenius_law]
@@ -275,18 +276,24 @@ kappa = 45e3 #W/k #45 W/mk
     output_properties = 'psip_active'
     outputs = exodus
   []
+  [J2_creep]
+    type = LargeDeformationJ2PowerLawCreep
+    hardening_model = arrhenius_law_hardening
+    coefficient = ${creep_coef}
+    exponent = 5
+  []
   [stress]
     type = ComputeLargeDeformationStress
     elasticity_model = hencky
-    plasticity_model = J2
+    plasticity_model = J2_creep
   []
 []
 
 [Executioner]
   type = Transient
-  #dt = 5e-7
+  dt = 5e-7
   #end_time = 9e-5
-  dt = 3e-8
+  #dt = 3e-8
   end_time = 10.25e-5
   # [TimeIntegrator]
   #   type = CentralDifference

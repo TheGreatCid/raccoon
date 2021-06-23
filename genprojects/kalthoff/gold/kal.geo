@@ -14,7 +14,7 @@ Point(5) = {0, 100, 0, E};
 Point(6) = {50+75*Tan(angle), 100, 0, e};
 Point(7) = {100, 100, 0, E};
 Point(8) = {100, 0, 0, E};
-Point(9) ={50+75*Tan(angle2),0,0,e};
+Point(9) ={50+75*Tan(angle2),0,0,E/10};
 
 
 Line(1) = {1, 2};
@@ -39,3 +39,5 @@ Line{11} In Surface{1};
 Physical Surface("all") = {1};
 Physical Line("load") = {1};
 Physical Line("bottom") = {8,9};
+//+
+Physical Curve("other") = {4, 5, 7, 6};
