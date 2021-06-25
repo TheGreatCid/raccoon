@@ -1,6 +1,4 @@
-Gc = 22.2
 l = 0.35
-psic = 7.9
 E = 1.9e5
 nu = 0.3
 rho = 8e-9
@@ -13,48 +11,6 @@ n = 1 #for power law
 ep0 = 1e-30
 beta = 1e-30
 
-
-
-
-[MultiApps]
-  [fracture]
-    type = TransientMultiApp
-    input_files = 'fracture.i'
-    cli_args = 'Gc=${Gc};l=${l};psic=${psic}'
-    execute_on = 'TIMESTEP_END'
-  []
-[]
-
-[Transfers]
-  [from_d]
-    type = MultiAppMeshFunctionTransfer
-    multi_app = fracture
-    direction = from_multiapp
-    variable = d
-    source_variable = d
-  []
-  [to_psie_active]
-    type = MultiAppMeshFunctionTransfer
-    multi_app = fracture
-    direction = to_multiapp
-    variable = psie_active
-    source_variable = psie_active
-  []
-  [to_psip_active]
-    type = MultiAppMeshFunctionTransfer
-    multi_app = fracture
-    direction = to_multiapp
-    variable = psip_active
-    source_variable = psip_active
-  []
-  [to_sub_coalescence_mobility]
-    type = MultiAppCopyTransfer
-    multi_app = fracture
-    direction = to_multiapp
-    source_variable = coalescence_mobility
-    variable = coalescence_mobility
-  []
-[]
 
 [GlobalParams]
   displacements = 'disp_x disp_y'
@@ -90,8 +46,6 @@ beta = 1e-30
   [F]
     order = CONSTANT
     family = MONOMIAL
-  []
-  [d]
   []
 []
 
@@ -162,19 +116,8 @@ beta = 1e-30
   []
   [bulk_properties]
     type = ADGenericConstantMaterial
-    prop_names = 'K G l Gc psic density'
-    prop_values = '${K} ${G} ${l} ${Gc} ${psic} ${rho}'
-  []
-  [coalescence]
-    type = ADParsedMaterial
-    f_name = coalescence_mobility #mobility
-    material_property_names = 'effective_plastic_strain'
-    constant_names = 'beta ep0'
-    constant_expressions = '${beta} ${ep0}'
-    function = 1-(1-beta)*(1-exp(-(effective_plastic_strain/ep0)))
-    #function = 1
-    outputs = exodus
-    output_properties = 'coalescence_mobility'
+    prop_names = 'K G l density'
+    prop_values = '${K} ${G} ${l} ${rho}'
   []
   [nodeg]
     type = NoDegradation
@@ -193,35 +136,16 @@ beta = 1e-30
     ad_props_in = 'density'
     reg_props_out = 'reg_density'
   []
-  [crack_geometric]
-    type = CrackGeometricFunction
-    f_name = alpha
-    function = 'd'
-    phase_field = d
-  []
    [hencky]
      type = HenckyIsotropicElasticity
      bulk_modulus = K
      shear_modulus = G
      phase_field = d
-     degradation_function = g
+     degradation_function = nodeg
      decomposition = SPECTRAL
      output_properties = 'elastic_strain psie_active'
      outputs = exodus
    []
-  # [strain] #For elasticity
-  #  type = ADComputeSmallStrain
-  # []
-  # [elasticity]
-  #   type = SmallDeformationIsotropicElasticity
-  #   bulk_modulus = K
-  #   shear_modulus = G
-  #   phase_field = d
-  #   degradation_function = g
-  #   decomposition = SPECTRAL
-  #   output_properties = 'elastic_strain psie_active'
-  #   outputs = exodus
-  # []
   [J2]
     #type = SmallDeformationJ2Plasticity
     type = LargeDeformationJ2Plasticity
@@ -251,7 +175,7 @@ beta = 1e-30
   type = Transient
   #dt = 5e-7
   #end_time = 9e-5
-  dt = 5e-9
+  dt = 1e-8
   end_time = 10.25e-5
   [TimeIntegrator]
     type = CentralDifference
@@ -267,10 +191,10 @@ beta = 1e-30
   # []
 []
 [Outputs]
- file_base = 'exodusfiles/kalthoff/kal_plastic_v350_b001e001_oldprops'
+ file_base = 'exodusfiles/kalthoff/kal_plastic_v350_b001e001_oldprops_nodamage'
   print_linear_residuals = false
   exodus = true
-  interval = 5
+  interval = 25
 []
 # [Postprocessors]
 #

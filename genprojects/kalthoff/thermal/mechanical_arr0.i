@@ -8,14 +8,19 @@ K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
 eta = 1
 #sigma_y = 2000 #Check if this value makes sense
-sigma_y = 2000
+sigma_y = 100
 n = 1 #for power law
-ep0 = 1e-30
-beta = 1e-30
+ep0 = 0.01
+beta = 0.01
+#psic = 3.03e6
 
-
-
-
+#Thermal values
+R = 8.3143 #Ideal gas constant
+Q = 400e3 #Activation Energy, rough guess, 150e3 J/mole, another possible value
+sigma0 = 400#Reference yield stress
+kappa = 45e3 #W/k #45 W/mk
+creep_coef = 7.46e-9
+#W/mk = (J/S)/(mk)
 [MultiApps]
   [fracture]
     type = TransientMultiApp
@@ -73,6 +78,8 @@ beta = 1e-30
   []
   [disp_y]
   []
+  [temp]
+  []
 []
 
 [AuxVariables]
@@ -86,13 +93,32 @@ beta = 1e-30
     order = CONSTANT
     family = MONOMIAL
   []
-
   [F]
     order = CONSTANT
     family = MONOMIAL
   []
   [d]
   []
+  [temp_in_k]
+  []
+  [ref_temp]
+  []
+  [creep_strain]
+    order = CONSTANT
+    family = MONOMIAL
+ []
+ [psie_active]
+  order = CONSTANT
+  family = MONOMIAL
+ []
+ [psip_active]
+  order = CONSTANT
+  family = MONOMIAL
+ []
+ [del_delt]
+   order = CONSTANT 
+   family = MONOMIAL
+[]
 []
 
 [AuxKernels]
@@ -110,9 +136,29 @@ beta = 1e-30
     index_i = 1
     index_j = 1
   []
+  [creep_strain]
+    type = ADMaterialRealAux
+    variable = creep_strain
+    property = effective_plastic_strain
+  []
+  [temp_in_K]
+      type = ParsedAux
+      variable = 'temp_in_k'
+      args = 'temp'
+      function = 'temp + 273.15'
+  []
+  [reftemp]
+    type = ParsedAux
+    variable = 'ref_temp'
+    function = '20'
+  []
 []
 
 [Kernels]
+  [conduction]
+    type = HeatConduction
+    variable = 'temp'
+  []
   [inertia_x]
     type = InertialForce
     variable = disp_x
@@ -134,18 +180,18 @@ beta = 1e-30
     component = 1
   []
 []
+#ref temp
+
 
 [BCs]
   [xdisp]
     type = FunctionDirichletBC
     variable = 'disp_x'
     boundary = 'load'
-     #function = 'if(t<1e-7, 0.5*2.00e8*t*t, 20.0*t-1.00e-6)'
     #function = 'if(t<1e-7, 0.5*2.00e8*t*t, 20.0*t-1.00e-6)'
-    #function = 'if(t<1e-8, 0.5*2.00e10*t*t, 2.0e4*t-1.00e-2)'
-
-    #function = 'if(t<1e-6, 0.5*1.65e10*t*t, 1.65e4*t-0.5*1.65e-2)'
-    function = 'if(t<1e-6, 0.5*3.90e10*t*t, 3.90e4*t-0.5*3.90e-2)'
+    #function = 'if(t<1e-7, 0.5*1.65e8*t*t, 16.5*t-8.25e-7)'
+    function = 'if(t<1e-6, 0.5*1.65e10*t*t, 1.65e4*t-0.5*1.65e-2)'
+    #function = 'if(t<1e-6, 0.5*2.00e10*t*t, 2.00e4*t-0.5*2.00e-2)'
     preset = false
   []
   [y_bot]
@@ -154,16 +200,19 @@ beta = 1e-30
     boundary = 'bottom'
     value = '0'
   []
+
 []
 
 [Materials]
-  [defgrad]
-    type = ComputeDeformationGradient
-  []
   [bulk_properties]
     type = ADGenericConstantMaterial
-    prop_names = 'K G l Gc psic density'
-    prop_values = '${K} ${G} ${l} ${Gc} ${psic} ${rho}'
+    prop_names = 'K G l Gc psic density Q sigma0'
+    prop_values = '${K} ${G} ${l} ${Gc} ${psic} ${rho} ${Q} ${sigma0}'
+  []
+  [thermal_conduct]
+    type = GenericConstantMaterial
+    prop_names = 'thermal_conductivity'
+    prop_values = '${kappa}'
   []
   [coalescence]
     type = ADParsedMaterial
@@ -176,6 +225,19 @@ beta = 1e-30
     outputs = exodus
     output_properties = 'coalescence_mobility'
   []
+  [eigenstrain]
+    type = ComputeThermalExpansionEigenDeformationGradient
+    reference_temperature = ref_temp
+    temperature = temp
+    eigen_deformation_gradient_name = thermal_defgrad
+    thermal_expansion_function = '${fparse 11.2e-6}'
+    outputs = exodus
+    output_properties = 'thermal_defgrad'
+  []
+  [defgrad]
+    type = ComputeDeformationGradient
+    eigen_deformation_gradient_names = 'thermal_defgrad'
+  []
   [nodeg]
     type = NoDegradation
     phase_field = d
@@ -186,7 +248,7 @@ beta = 1e-30
     f_name = g
     phase_field = d
     parameter_names = 'p a2 a3 eta'
-    parameter_values = '2 1 0 1e-06'
+    parameter_values = '2 1 0 1e-04'
   []
   [reg_density]
     type = MaterialConverter
@@ -199,75 +261,70 @@ beta = 1e-30
     function = 'd'
     phase_field = d
   []
-   [hencky]
-     type = HenckyIsotropicElasticity
-     bulk_modulus = K
-     shear_modulus = G
-     phase_field = d
-     degradation_function = g
-     decomposition = SPECTRAL
-     output_properties = 'elastic_strain psie_active'
-     outputs = exodus
-   []
-  # [strain] #For elasticity
-  #  type = ADComputeSmallStrain
-  # []
-  # [elasticity]
-  #   type = SmallDeformationIsotropicElasticity
-  #   bulk_modulus = K
-  #   shear_modulus = G
-  #   phase_field = d
-  #   degradation_function = g
-  #   decomposition = SPECTRAL
-  #   output_properties = 'elastic_strain psie_active'
-  #   outputs = exodus
-  # []
-  [J2]
-    #type = SmallDeformationJ2Plasticity
-    type = LargeDeformationJ2Plasticity
-    hardening_model = power_law_hardening
-    output_properties = 'effective_plastic_strain'
+  [hencky]
+    type = HenckyIsotropicElasticity
+    bulk_modulus = K
+    shear_modulus = G
+    phase_field = d
+    degradation_function = g
+    decomposition = SPECTRAL
+    output_properties = 'elastic_strain psie_active'
     outputs = exodus
   []
-  [power_law_hardening]
-    type = PowerLawHardening
-    yield_stress = ${sigma_y}
-    exponent = ${n}
-    reference_plastic_strain = ${ep0}
+  [arrhenius_law]
+    type = ArrheniusLaw
+    arrhenius_coefficient = A
+    activation_energy = ${Q}
+    ideal_gas_constant = ${R}
+    T = temp_in_k
+  []
+  [arrhenius_law_hardening]
+    type = ArrheniusLawHardening
+    reference_stress = sigma0
+    arrhenius_coefficient = A
+    eps = '${ep0}'
     phase_field = d
     degradation_function = nodeg
     output_properties = 'psip_active'
     outputs = exodus
   []
+  [J2_creep]
+    type = LargeDeformationJ2PowerLawCreep
+    hardening_model = arrhenius_law_hardening
+    coefficient = ${creep_coef}
+    exponent = 5
+  []
   [stress]
     type = ComputeLargeDeformationStress
-    #type = ComputeSmallDeformationStress
     elasticity_model = hencky
-    plasticity_model = J2
+    plasticity_model = J2_creep
   []
 []
 
 [Executioner]
   type = Transient
-  #dt = 5e-7
+  dt = 5e-7
   #end_time = 9e-5
-  dt = 5e-9
+  #dt = 3e-8
   end_time = 10.25e-5
-  [TimeIntegrator]
-    type = CentralDifference
-    solve_type = lumped
-    use_constant_mass = true
-  []
-
+  # [TimeIntegrator]
+  #   type = CentralDifference
+  #   solve_type = lumped
+  #   use_constant_mass = true
+  # []
+  solve_type = NEWTON
   petsc_options_iname = '-pc_type'
   petsc_options_value = 'lu'
   automatic_scaling = true
-  # [Quadrature]
-  #   order = CONSTANT
-  # []
+  [TimeIntegrator]
+    type = NewmarkBeta
+  []
+  [Quadrature]
+    order = CONSTANT
+  []
 []
 [Outputs]
- file_base = 'exodusfiles/kalthoff/kal_plastic_v350_b001e001_oldprops'
+ file_base = 'exodusfiles/kalthoff/kal_thermoplastic_v200_e08_b08'
   print_linear_residuals = false
   exodus = true
   interval = 5

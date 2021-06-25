@@ -43,6 +43,14 @@ ComputeLargeDeformationXMATStress::validParams()
       "plastic_degradation_function", "gp", "The degradation function");
 
   params.suppressParameter<bool>("use_displaced_mesh");
+
+  // David's Stuff-------------------
+  params.addParam<MaterialPropertyName>("internal_dissipation_energy",
+                                        "_del_delt",
+                                        "The internal Dissipation energy for heat conduction");
+  params.addRequiredParam<MaterialName>("elasticity_model",
+                                        "Name of the elastic stress-strain constitutive model");
+  //-- ---------------------------------
   return params;
 }
 
@@ -52,8 +60,12 @@ ComputeLargeDeformationXMATStress::ComputeLargeDeformationXMATStress(
     BaseNameInterface(parameters),
     ADSingleVariableReturnMappingSolution(parameters),
     DerivativeMaterialPropertyNameInterface(),
-    _Fm(getADMaterialProperty<RankTwoTensor>(prependBaseName("mechanical_deformation_gradient"))),
+    // David's Stuff
+    _del_delt(declareADProperty<Real>("internal_dissipation_energy")),
+
     _stress(declareADProperty<RankTwoTensor>(prependBaseName("stress"))),
+    //--------
+    _Fm(getADMaterialProperty<RankTwoTensor>(prependBaseName("mechanical_deformation_gradient"))),
 
     ///////////////////////////////
     // Elasticity
@@ -103,6 +115,7 @@ ComputeLargeDeformationXMATStress::ComputeLargeDeformationXMATStress(
     _gp_name(prependBaseName("plastic_degradation_function", true)),
     _gp(getADMaterialProperty<Real>(_gp_name)),
     _dgp_dd(getADMaterialProperty<Real>(derivativePropertyName(_gp_name, {_d_name})))
+
 {
   if (getParam<bool>("use_displaced_mesh"))
     mooseError("The stress calculator needs to run on the undisplaced mesh.");
@@ -119,6 +132,7 @@ ComputeLargeDeformationXMATStress::initQpStatefulProperties()
 void
 ComputeLargeDeformationXMATStress::computeQpProperties()
 {
+  initialSetup();
   _Fe[_qp] = _Fm[_qp];
   updateState();
 }
@@ -129,8 +143,8 @@ ComputeLargeDeformationXMATStress::updateState()
   // First assume no plastic increment
   ADReal delta_ep = 0;
   _Fe[_qp] = _Fe[_qp] * _Fp_old[_qp].inverse();
-  _stress[_qp] = MandelStress(_Fe[_qp]);
-
+  //_stress[_qp] = MandelStress(_Fe[_qp]);
+  _stress[_qp] = _elasticity_model->computeMandelStress(_Fe[_qp]);
   // Compute the flow direction following the Prandtl-Reuss flow rule.
   // We guard against zero denominator.
   ADRankTwoTensor stress_dev = _stress[_qp].deviatoric();
@@ -152,51 +166,14 @@ ComputeLargeDeformationXMATStress::updateState()
   _Fe[_qp] = _Fe[_qp] * delta_Fp.inverse();
   _stress[_qp] = CauchyStress(_Fe[_qp]);
   plasticEnergy(_ep[_qp]);
-}
-
-ADRankTwoTensor
-ComputeLargeDeformationXMATStress::MandelStress(const ADRankTwoTensor & Fe,
-                                                const bool plasticity_update)
-{
-  ADRankTwoTensor strain = Fe;
-  // If this is called during a plasticity update, we need to first exponentiate Fe, where Fe should
-  // be some plastic flow. The foolowing operations cancel out with an exponentiation of Fe, so we
-  // only do this in the case of exponentiate == false
-  if (!plasticity_update)
-    strain = 0.5 * RaccoonUtils::log(Fe.transpose() * Fe);
-
-  const ADRankTwoTensor I2(ADRankTwoTensor::initIdentity);
-  // Here, we keep the volumetric part no matter what. But ideally, in the case of J2 plasticity,
-  // the volumetric part of the flow should be zero, and we could save some operations.
-  ADReal strain_tr = strain.trace();
-  ADReal strain_tr_pos = RaccoonUtils::Macaulay(strain_tr);
-  ADReal strain_tr_neg = strain_tr - strain_tr_pos;
-  ADRankTwoTensor strain_dev = strain.deviatoric();
-
-  ADRankTwoTensor stress_intact = _K[_qp] * strain_tr * I2 + 2 * _G[_qp] * strain_dev;
-  ADRankTwoTensor stress_neg = _K[_qp] * strain_tr_neg * I2;
-  ADRankTwoTensor stress_pos = stress_intact - stress_neg;
-  ADRankTwoTensor stress = _g[_qp] * stress_pos + stress_neg;
-
-  // If plasticity_update == false, then we are not in the middle of a plasticity update, hence we
-  // compute the strain energy density
-  if (!plasticity_update)
-  {
-    ADReal psie_intact =
-        0.5 * _K[_qp] * strain_tr * strain_tr + _G[_qp] * strain_dev.doubleContraction(strain_dev);
-    ADReal psie_inactive = 0.5 * _K[_qp] * strain_tr_neg * strain_tr_neg;
-    _psie_active[_qp] = psie_intact - psie_inactive;
-    _psie[_qp] = _g[_qp] * _psie_active[_qp] + psie_inactive;
-    _dpsie_dd[_qp] = _dg_dd[_qp] * _psie_active[_qp];
-  }
-
-  return stress;
+  computeDelValues(delta_ep);
 }
 
 ADRankTwoTensor
 ComputeLargeDeformationXMATStress::CauchyStress(const ADRankTwoTensor & Fe)
 {
-  return Fe.inverse().transpose() * MandelStress(Fe) * Fe.transpose() / Fe.det();
+  return Fe.inverse().transpose() * _elasticity_model->computeMandelStress(_Fe[_qp]) *
+         Fe.transpose() / Fe.det();
 }
 
 Real
@@ -205,7 +182,8 @@ ComputeLargeDeformationXMATStress::computeReferenceResidual(const ADReal & effec
 {
   return raw_value(
       effective_trial_stress -
-      MandelStress(delta_ep * _Np[_qp], /*plasticity_update = */ true).doubleContraction(_Np[_qp]));
+      _elasticity_model->computeMandelStress(delta_ep * _Np[_qp], /*plasticity_update = */ true)
+          .doubleContraction(_Np[_qp]));
 }
 
 ADReal
@@ -214,7 +192,8 @@ ComputeLargeDeformationXMATStress::computeResidual(const ADReal & effective_tria
 {
   const ADReal stress_delta =
       effective_trial_stress -
-      MandelStress(delta_ep * _Np[_qp], /*plasticity_update = */ true).doubleContraction(_Np[_qp]);
+      _elasticity_model->computeMandelStress(delta_ep * _Np[_qp], /*plasticity_update = */ true)
+          .doubleContraction(_Np[_qp]);
   const ADReal yield_stress = plasticEnergy(_ep_old[_qp] + delta_ep, 1);
   const ADReal creep_rate = _coefficient * std::pow(stress_delta / yield_stress, _exponent);
   return creep_rate * _dt - delta_ep;
@@ -226,9 +205,11 @@ ComputeLargeDeformationXMATStress::computeDerivative(const ADReal & effective_tr
 {
   const ADReal stress_delta =
       effective_trial_stress -
-      MandelStress(delta_ep * _Np[_qp], /*plasticity_update = */ true).doubleContraction(_Np[_qp]);
+      _elasticity_model->computeMandelStress(delta_ep * _Np[_qp], /*plasticity_update = */ true)
+          .doubleContraction(_Np[_qp]);
   const ADReal dstress_delta_ddelta_ep =
-      -MandelStress(_Np[_qp], /*plasticity_update = */ true).doubleContraction(_Np[_qp]);
+      -_elasticity_model->computeMandelStress(_Np[_qp], /*plasticity_update = */ true)
+           .doubleContraction(_Np[_qp]);
   const ADReal yield_stress = plasticEnergy(_ep_old[_qp] + delta_ep, 1);
   const ADReal dyield_stress_ddelta_ep = plasticEnergy(_ep_old[_qp] + delta_ep, 2);
   const ADReal dcreep_rate =
@@ -260,4 +241,21 @@ ComputeLargeDeformationXMATStress::plasticEnergy(const ADReal & ep, const unsign
   return 0;
 }
 
-ADReal ComputeLargeDeformationXMATHStress::
+// David's Stuff-----------------------
+void
+ComputeLargeDeformationXMATStress::computeDelValues(const ADReal & delta_ep)
+{
+  _del_delt[_qp] = _gp[_qp] * (_sigma_0[_qp] / _arrhenius_coef[_qp]) * delta_ep;
+  // return _del_delt[_qp];
+}
+void
+ComputeLargeDeformationXMATStress::initialSetup()
+{
+  _elasticity_model =
+      dynamic_cast<LargeDeformationElasticityModel *>(&getMaterial("elasticity_model"));
+  if (!_elasticity_model)
+    paramError("elasticity_model",
+               "Elasticity model " + _elasticity_model->name() +
+                   " is not compatible with ComputeLargeDeformationStress");
+}
+//---------------------------------

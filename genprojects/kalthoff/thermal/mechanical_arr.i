@@ -106,7 +106,19 @@ creep_coef = 7.46e-9
   [creep_strain]
     order = CONSTANT
     family = MONOMIAL
-  []
+ []
+ [psie_active]
+  order = CONSTANT
+  family = MONOMIAL
+ []
+ [psip_active]
+  order = CONSTANT
+  family = MONOMIAL
+ []
+ [del_delt]
+   order = CONSTANT
+   family = MONOMIAL
+ []
 []
 
 [AuxKernels]

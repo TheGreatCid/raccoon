@@ -28,8 +28,8 @@ protected:
   virtual void initQpStatefulProperties() override;
   virtual void computeQpProperties() override;
   virtual void updateState();
-  virtual ADRankTwoTensor MandelStress(const ADRankTwoTensor & Fe,
-                                       const bool plasticity_update = false);
+  // virtual ADRankTwoTensor MandelStress(const ADRankTwoTensor & Fe,
+  //                                     const bool plasticity_update = false);
   virtual ADRankTwoTensor CauchyStress(const ADRankTwoTensor & Fe);
   virtual Real computeReferenceResidual(const ADReal & effective_trial_stress,
                                         const ADReal & delta_ep) override;
@@ -39,12 +39,22 @@ protected:
                                    const ADReal & delta_ep) override;
   virtual ADReal plasticEnergy(const ADReal & ep, const unsigned int derivative = 0);
 
+  //--David's Stuff--Del Values for heat generation with plastic strain rates
+  virtual void computeDelValues(const ADReal & delta_ep);
+  virtual void initialSetup();
+
+  /// The elasticity model
+  LargeDeformationElasticityModel * _elasticity_model;
+  // Disspative energy
+  ADMaterialProperty<Real> & _del_delt;
+  // The Stress
+  ADMaterialProperty<RankTwoTensor> & _stress;
+
+  //-------------------
+
   // @{ The mechanical strain excluding eigen strains from the total strain
   const ADMaterialProperty<RankTwoTensor> & _Fm;
   // @}
-
-  /// The stress
-  ADMaterialProperty<RankTwoTensor> & _stress;
 
   /// The elastic strain
   ADMaterialProperty<RankTwoTensor> & _Fe;
