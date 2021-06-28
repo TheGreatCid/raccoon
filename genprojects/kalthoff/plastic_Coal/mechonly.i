@@ -99,7 +99,7 @@ beta = 1e-30
     #function = 'if(t<1e-8, 0.5*2.00e10*t*t, 2.0e4*t-1.00e-2)'
 
     #function = 'if(t<1e-6, 0.5*1.65e10*t*t, 1.65e4*t-0.5*1.65e-2)'
-    function = 'if(t<1e-6, 0.5*3.90e10*t*t, 3.90e4*t-0.5*3.90e-2)'
+    function = 'if(t<1e-6, 0.5*2.50e10*t*t, 2.50e4*t-0.5*2.50e-2)'
     preset = false
   []
   [y_bot]
@@ -173,14 +173,15 @@ beta = 1e-30
 
 [Executioner]
   type = Transient
-  #dt = 5e-7
+  dt = 5e-7
   #end_time = 9e-5
-  dt = 1e-8
-  end_time = 10.25e-5
+  #dt = 1e-8
+  end_time = 3.5e-5
   [TimeIntegrator]
-    type = CentralDifference
-    solve_type = lumped
-    use_constant_mass = true
+    # type = CentralDifference
+    # solve_type = lumped
+    # use_constant_mass = true
+    type = NewmarkBeta
   []
 
   petsc_options_iname = '-pc_type'
@@ -191,10 +192,10 @@ beta = 1e-30
   # []
 []
 [Outputs]
- file_base = 'exodusfiles/kalthoff/kal_plastic_v350_b001e001_oldprops_nodamage'
+ file_base = 'exodusfiles/kalthoff/kal_plastic_v250_oldprops_nodamage'
   print_linear_residuals = false
   exodus = true
-  interval = 25
+  interval = 2
 []
 # [Postprocessors]
 #

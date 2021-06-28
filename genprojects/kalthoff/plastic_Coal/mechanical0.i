@@ -13,9 +13,6 @@ n = 1 #for power law
 ep0 = 1e-30
 beta = 1e-30
 
-
-
-
 [MultiApps]
   [fracture]
     type = TransientMultiApp
