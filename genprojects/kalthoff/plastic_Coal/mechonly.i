@@ -1,15 +1,15 @@
 l = 0.35
-E = 1.9e5
+E = 1.9e5 #Mpa
 nu = 0.3
 rho = 8e-9
 K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
 eta = 1
 #sigma_y = 2000 #Check if this value makes sense
-sigma_y = 2000
+sigma_y = 350
 n = 1 #for power law
-ep0 = 1e-30
-beta = 1e-30
+ep0 = 0.2
+beta = 0.2
 
 
 [GlobalParams]
@@ -20,7 +20,7 @@ beta = 1e-30
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = '../gold/kal.msh'
+    file = '../gold/kal_nd.msh'
   []
 []
 
@@ -99,7 +99,7 @@ beta = 1e-30
     #function = 'if(t<1e-8, 0.5*2.00e10*t*t, 2.0e4*t-1.00e-2)'
 
     #function = 'if(t<1e-6, 0.5*1.65e10*t*t, 1.65e4*t-0.5*1.65e-2)'
-    function = 'if(t<1e-6, 0.5*2.50e10*t*t, 2.50e4*t-0.5*2.50e-2)'
+    function = 'if(t<1e-6, 0.5*4.00e10*t*t, 4.00e4*t-0.5*4.00e-2)'
     preset = false
   []
   [y_bot]
@@ -169,19 +169,30 @@ beta = 1e-30
     elasticity_model = hencky
     plasticity_model = J2
   []
+  [coalescence]
+    type = ADParsedMaterial
+    f_name = coalescence_mobility #mobility
+    material_property_names = 'effective_plastic_strain'
+    constant_names = 'beta ep0'
+    constant_expressions = '${beta} ${ep0}'
+    function = 1-(1-beta)*(1-exp(-(effective_plastic_strain/ep0)))
+    #function = 1
+    outputs = exodus
+    output_properties = 'coalescence_mobility'
+  []
 []
 
 [Executioner]
   type = Transient
   dt = 5e-7
-  #end_time = 9e-5
-  #dt = 1e-8
-  end_time = 3.5e-5
+  end_time = 9e-5
+  #dt = 5e-9
+  #end_time = 7e-5
   [TimeIntegrator]
     # type = CentralDifference
     # solve_type = lumped
     # use_constant_mass = true
-    type = NewmarkBeta
+     type = NewmarkBeta
   []
 
   petsc_options_iname = '-pc_type'
@@ -192,17 +203,17 @@ beta = 1e-30
   # []
 []
 [Outputs]
- file_base = 'exodusfiles/kalthoff/kal_plastic_v250_oldprops_nodamage'
+ file_base = 'exodusfiles/kalthoff/kal_plastic_v400_oldprops_nodamage_decYield'
   print_linear_residuals = false
   exodus = true
-  interval = 2
+  interval = 1
 []
-# [Postprocessors]
-#
-#   [disp_x]
-#     type = AverageNodalVariableValue
-#     boundary = 'load'
-#     variable = disp_x
-#
-#   []
-# []
+[Postprocessors]
+
+  [disp_x]
+    type = AverageNodalVariableValue
+    boundary = 'load'
+    variable = disp_x
+
+  []
+[]

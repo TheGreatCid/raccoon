@@ -1,7 +1,7 @@
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = ../gold/half_notched_plate_63.msh
+    file = ../gold/kal_nd.msh
   []
 []
 [Variables]

@@ -36,7 +36,7 @@ G = '${fparse E/2/(1+nu)}'
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = '../gold/half_notched_plate_63.msh'
+    file = '../gold/kal_nd.msh'
   []
 []
 [Variables]
@@ -99,7 +99,7 @@ G = '${fparse E/2/(1+nu)}'
     type = FunctionDirichletBC
     variable = 'disp_x'
     boundary = 'load'
-    function = 'if(t<1e-6, 0.5*1.65e10*t*t, 1.65e4*t-0.5*1.65e-2)'
+    function = 'if(t<1e-6, 0.5*4.00e10*t*t, 4.00e4*t-0.5*4.00e-2)'
     preset = false
   []
   [y_bot]
