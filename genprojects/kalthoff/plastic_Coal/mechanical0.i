@@ -61,7 +61,7 @@ beta = 0.2
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = '../gold/kal.msh'
+    file = '../gold/kalshear.msh'
   []
 []
 
@@ -144,7 +144,7 @@ beta = 0.2
     #function = 'if(t<1e-8, 0.5*2.00e10*t*t, 2.0e4*t-1.00e-2)'
 
     #function = 'if(t<1e-6, 0.5*1.65e10*t*t, 1.65e4*t-0.5*1.65e-2)'
-    function = 'if(t<1e-6, 0.5*3.20e10*t*t, 3.20e4*t-0.5*3.20e-2)'
+    function = 'if(t<1e-6, 0.5*2.00e10*t*t, 2.00e4*t-0.5*2.00e-2)'
     preset = false
   []
   [y_bot]
@@ -251,7 +251,7 @@ beta = 0.2
   dt = 5e-7
   #end_time = 9e-5
   #dt = 5e-9
-  end_time = 10.25e-5
+  end_time = 20e-5
   [TimeIntegrator]
     type = NewmarkBeta
     gamma = '${fparse 5/6}'
@@ -268,7 +268,7 @@ beta = 0.2
   # []
 []
 [Outputs]
- file_base = 'exodusfiles/kalthoff/kal_plastic_v350_b02e02_oldprops_HHT'
+ file_base = 'exodusfiles/kalthoff/kal_plastic_v200_b02e02_oldprops_HHT'
   print_linear_residuals = false
   exodus = true
   interval = 1
