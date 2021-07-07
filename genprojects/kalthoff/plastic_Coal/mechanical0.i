@@ -148,7 +148,16 @@ beta = 0.2
     preset = false
   []
   [y_bot]
-    type = DirichletBC
+    type = DirichletBC  [solid_x]
+    type = ADStressDivergenceTensors
+    variable = disp_x
+    component = 0
+  []
+  [solid_y]
+    type = ADStressDivergenceTensors
+    variable = disp_y
+    component = 1
+  []
     variable = 'disp_y'
     boundary = 'bottom'
     value = '0'

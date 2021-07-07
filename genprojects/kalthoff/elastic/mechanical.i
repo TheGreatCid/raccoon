@@ -84,7 +84,7 @@ G = '${fparse E/2/(1+nu)}'
     density = reg_density
   []
   [solid_x]
-    type = ADStressDivergenceTensors
+    type = ADStressDivergenceTensors0.2/sqrt((1.95e5)/8e-9)
     variable = disp_x
     component = 0
   []
