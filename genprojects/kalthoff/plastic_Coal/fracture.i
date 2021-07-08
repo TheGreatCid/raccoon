@@ -1,7 +1,7 @@
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = '../gold/kal_nd.msh'
+    file = '../gold/kalshear.msh'
   []
 []
 

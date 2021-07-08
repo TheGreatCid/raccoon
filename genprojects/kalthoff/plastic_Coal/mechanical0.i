@@ -8,9 +8,9 @@ K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
 eta = 1
 #sigma_y = 2000 #Check if this value makes sense
-sigma_y = 350
+sigma_y = 1000
 n = 1 #for power law
-ep0 = 0.2
+ep0 = 0.01
 beta = 0.2
 
 [MultiApps]
@@ -144,20 +144,11 @@ beta = 0.2
     #function = 'if(t<1e-8, 0.5*2.00e10*t*t, 2.0e4*t-1.00e-2)'
 
     #function = 'if(t<1e-6, 0.5*1.65e10*t*t, 1.65e4*t-0.5*1.65e-2)'
-    function = 'if(t<1e-6, 0.5*2.00e10*t*t, 2.00e4*t-0.5*2.00e-2)'
+    function = 'if(t<1e-6, 0.5*4.00e10*t*t, 4.00e4*t-0.5*4.00e-2)'
     preset = false
   []
   [y_bot]
-    type = DirichletBC  [solid_x]
-    type = ADStressDivergenceTensors
-    variable = disp_x
-    component = 0
-  []
-  [solid_y]
-    type = ADStressDivergenceTensors
-    variable = disp_y
-    component = 1
-  []
+    type = DirichletBC
     variable = 'disp_y'
     boundary = 'bottom'
     value = '0'
@@ -277,7 +268,7 @@ beta = 0.2
   # []
 []
 [Outputs]
- file_base = 'exodusfiles/kalthoff/kal_plastic_v200_b02e02_oldprops_HHT'
+ file_base = 'exodusfiles/kalthoff/kal_plastic_v350_b02e001_oldprops_HHT'
   print_linear_residuals = false
   exodus = true
   interval = 1
