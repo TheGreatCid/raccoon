@@ -7,7 +7,7 @@ rho = 8e-9
 K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
 eta = 1
-sigma_y = 20000 #Check if this value makes sense
+sigma_y = 1400 #Check if this value makes sense
 n = 1 #?
 ep0 = 0.345 #?
 
@@ -54,7 +54,7 @@ ep0 = 0.345 #?
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = '../gold/half_notched_plate_63.msh'
+    file = '../gold/kal.msh'
   []
 []
 
@@ -72,15 +72,32 @@ ep0 = 0.345 #?
   []
   [d]
   []
+  [effective_plastic_strain]
+    order = CONSTANT
+    family = MONOMIAL
+  []
+  [F]
+    order = CONSTANT
+    family = MONOMIAL
+  []
+  [d]
+  []
 []
 
 [AuxKernels]
   [stress]
-    type = ADRankTwoScalarAux
-    variable = 'stress'
-    rank_two_tensor = 'stress'
-    scalar_type = 'MaxPrincipal'
-    execute_on = 'TIMESTEP_END'
+    type = ADRankTwoAux
+    variable = stress
+    rank_two_tensor = stress
+    index_i = 1
+    index_j = 1
+  []
+  [F]
+    type = ADRankTwoAux
+    variable = F
+    rank_two_tensor = deformation_gradient
+    index_i = 1
+    index_j = 1
   []
 []
 
@@ -96,13 +113,15 @@ ep0 = 0.345 #?
     density = 'reg_density'
   []
   [solid_x]
-    type = ADStressDivergenceTensors
+    type = ADDynamicStressDivergenceTensors
     variable = disp_x
+    alpha = '${fparse -1/3}'
     component = 0
   []
   [solid_y]
-    type = ADStressDivergenceTensors
+    type = ADDynamicStressDivergenceTensors
     variable = disp_y
+    alpha = '${fparse -1/3}'
     component = 1
   []
 []
@@ -112,7 +131,7 @@ ep0 = 0.345 #?
     type = FunctionDirichletBC
     variable = 'disp_x'
     boundary = 'load'
-    function = 'if(t<1e-6, 0.5*1.65e10*t*t, 1.65e4*t-0.5*1.65e-2)'
+    function = 'if(t<1e-6, 0.5*2.00e10*t*t, 2.00e4*t-0.5*2.00e-2)'
     preset = false
   []
   [y_bot]
@@ -124,6 +143,9 @@ ep0 = 0.345 #?
 []
 
 [Materials]
+  [defgrad]
+    type = ComputeDeformationGradient
+  []
   [bulk_properties]
     type = ADGenericConstantMaterial
     prop_names = 'K G l Gc psic density'
@@ -149,22 +171,18 @@ ep0 = 0.345 #?
     function = 'd'
     phase_field = d
   []
-
-  [strain]
-    type = ADComputeSmallStrain
-  []
   [elasticity]
-    type = SmallDeformationIsotropicElasticity
+    type = HenckyIsotropicElasticity
     bulk_modulus = K
     shear_modulus = G
     phase_field = d
     degradation_function = g
-    decomposition = NONE
+    decomposition = SPECTRAL
     output_properties = 'elastic_strain psie_active'
     outputs = exodus
   []
   [plasticity]
-    type = SmallDeformationJ2Plasticity
+    type = LargeDeformationJ2Plasticity
     hardening_model = power_law_hardening
     output_properties = 'effective_plastic_strain'
     outputs = exodus
@@ -180,36 +198,35 @@ ep0 = 0.345 #?
     outputs = exodus
   []
   [stress]
-    type = ComputeSmallDeformationStress
+    type = ComputeLargeDeformationStress
     elasticity_model = elasticity
     plasticity_model = plasticity
-    output_properties = 'stress'
-    outputs = exodus
   []
 []
 
 [Executioner]
   type = Transient
   dt = 5e-7
-  end_time = 9e-5
-  # [TimeIntegrator]
-  #   type = CentralDifference
-  #   solve_type = lumped
-  #   use_constant_mass = true
-  # []
-  solve_type = NEWTON
+  #end_time = 9e-5
+  #dt = 5e-9
+  end_time = 20e-5
+  [TimeIntegrator]
+    type = NewmarkBeta
+    gamma = '${fparse 5/6}'
+    beta = '${fparse 4/9}'
+    # solve_type = lumped
+    # use_constant_mass = true
+  []
+
   petsc_options_iname = '-pc_type'
   petsc_options_value = 'lu'
   automatic_scaling = true
-  [TimeIntegrator]
-    type = NewmarkBeta
-  []
-  [Quadrature]
-    order = CONSTANT
-  []
+  # [Quadrature]
+  #   order = CONSTANT
+  # []
 []
 [Outputs]
- file_base = 'kal_plasticity'
+ file_base = 'kal_plasticNoCoal_v200'
   print_linear_residuals = false
   exodus = true
   interval = 1

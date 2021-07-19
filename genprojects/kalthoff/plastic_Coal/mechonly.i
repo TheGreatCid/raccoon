@@ -101,7 +101,7 @@ beta = 0.2
     #function = 'if(t<1e-8, 0.5*2.00e10*t*t, 2.0e4*t-1.00e-2)'
 
     #function = 'if(t<1e-6, 0.5*1.65e10*t*t, 1.65e4*t-0.5*1.65e-2)'
-    function = 'if(t<1e-6, 0.5*4.00e10*t*t, 4.00e4*t-0.5*4.00e-2)'
+    function = 'if(t<1e-6, 0.5*2.00e10*t*t, 2.00e4*t-0.5*2.00e-2)'
     preset = false
   []
   [y_bot]
@@ -207,7 +207,7 @@ beta = 0.2
   # []
 []
 [Outputs]
- file_base = 'exodusfiles/kalthoff/kal_plastic_v400_oldprops_y1400_nodamage_HHT'
+ file_base = 'exodusfiles/kalthoff/kal_plastic_v200_oldprops_y1400_nodamage_HHT'
   print_linear_residuals = false
   exodus = true
   interval = 1

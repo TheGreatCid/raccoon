@@ -61,7 +61,7 @@ beta = 0.2
 [Mesh]
   [fmg]
     type = FileMeshGenerator
-    file = '../gold/kalshear.msh'
+    file = '../gold/kal_nd.msh'
   []
 []
 
@@ -268,7 +268,7 @@ beta = 0.2
   # []
 []
 [Outputs]
- file_base = 'exodusfiles/kalthoff/kal_plastic_v350_b02e001_oldprops_HHT'
+ file_base = 'exodusfiles/kalthoff/kal_plastic_v400_y1400_b02e001_oldprops_HHT'
   print_linear_residuals = false
   exodus = true
   interval = 1
