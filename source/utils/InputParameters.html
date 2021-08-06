@@ -1,4 +1,4 @@
-<!DOCTYPE html><head><meta charset="UTF-8"><title>InputParameters.md|RACCOON</title><link rel="icon" type="image/x-icon" href="../../media/raccoon_icon.png" sizes="16x16 32x32 64x64 128x128"></link><link href="../../contrib/materialize/materialize.min.css" type="text/css" rel="stylesheet" media="screen,projection"></link><link href="../../contrib/prism/prism.min.css" type="text/css" rel="stylesheet"></link><link href="../../css/moose.css" type="text/css" rel="stylesheet"></link><link href="../../css/alert_moose.css" type="text/css" rel="stylesheet"></link><link href="../../contrib/katex/katex.min.css" type="text/css" rel="stylesheet"></link><link href="../../css/katex_moose.css" type="text/css" rel="stylesheet"></link><link href="../../css/content_moose.css" type="text/css" rel="stylesheet"></link><link href="../../css/sqa_moose.css" type="text/css" rel="stylesheet"></link><script type="text/javascript" src="../../contrib/jquery/jquery.min.js"></script><script type="text/javascript" src="../../contrib/katex/katex.min.js"></script><script type="text/javascript" src="../../contrib/plotly/plotly.min.js"></script></head><body><div class="page-wrap"><header><nav><div class="nav-wrapper container"><a href="https://hugary1995.github.io/raccoon/index.html" class="left moose-logo hide-on-med-and-down">RACCOON</a><a href="https://github.com/hugary1995/raccoon" class="right"><img src="../../media/framework/github-logo.png" class="github-mark"></img><img src="../../media/framework/github-mark.png" class="github-logo"></img></a><ul class="right hide-on-med-and-down"><li><a href="../../install/index.html">Install</a></li><li><a href="../../theory/index.html">Theory</a></li><li><a href="../../modules/index.html">Modules</a></li><li><a href="../../syntax/index.html">Syntax</a></li><li><a href="../../contribute/index.html">Contribute</a></li></ul><a href="#" class="sidenav-trigger" data-target="65335717-fe09-4f07-8f6e-42a8bc3bca65"><i class="material-icons">menu</i></a><ul class="sidenav" id="65335717-fe09-4f07-8f6e-42a8bc3bca65"><li><a href="../../install/index.html">Install</a></li><li><a href="../../theory/index.html">Theory</a></li><li><a href="../../modules/index.html">Modules</a></li><li><a href="../../syntax/index.html">Syntax</a></li><li><a href="../../contribute/index.html">Contribute</a></li></ul><a href="#moose-search" class="modal-trigger"><i class="material-icons">search</i></a></div></nav><div class="modal modal-fixed-footer moose-search-modal" id="moose-search"><div class="modal-content container moose-search-modal-content"><div class="row"><div class="col l12"><div class="input-field"><input type_="text" onkeyup="mooseSearch()" placeholder="https://hugary1995.github.io/raccoon/index.html" id="moose-search-box"></input></div></div><div><div class="col s12" id="moose-search-results"></div></div></div></div><div class="modal-footer"><a href="#!" class="modal-close btn-flat">Close</a></div></div></header><main class="main"><div class="container"><div class="row"><div class="col hide-on-med-and-down l12"><nav class="breadcrumb-nav"><div class="nav-wrapper"><a href=".." class="breadcrumb">source</a><span class="breadcrumb">utils</span><a href="#" class="breadcrumb">InputParameters</a></div></nav></div></div><div class="row"><div class="moose-content col s12 m12 l10"><section id="c0d6c863-e0c2-4903-a1bb-90b65758cccc" data-section-level="1" data-section-text="InputParameters"><h1 id="inputparameters">InputParameters</h1><p>To simplify and unify the creation of all simulation objects in MOOSE, all input parameters must be declared and populated through a single &quot;InputParameters&quot; object. This ensures that every constructor in MOOSE is uniform and ensures that every object can be created through MOOSE&#x27;s Factory pattern. The InputParameters object is a collection of parameters, each one with seperate attributes that can be used to finely control the behavior of the underlying object. For example, parameters can be marked as required or optional, be provided with a default or not, and be used to enhance GUI interfaces that may be used to programmatically generate input files for MOOSE.</p><p>The complete list of attributes for each input parameter:</p><pre class="moose-pre"><code class="language-cpp">  struct Metadata
+<!DOCTYPE html><head><meta charset="UTF-8"><title>InputParameters | RACCOON</title><link rel="icon" type="image/x-icon" href="../../media/raccoon_icon.png" sizes="16x16 32x32 64x64 128x128"></link><link href="../../contrib/materialize/materialize.min.css" type="text/css" rel="stylesheet" media="screen,projection"></link><link href="../../contrib/prism/prism.min.css" type="text/css" rel="stylesheet"></link><link href="../../css/moose.css" type="text/css" rel="stylesheet"></link><link href="../../css/devel_moose.css" type="text/css" rel="stylesheet"></link><link href="../../css/alert_moose.css" type="text/css" rel="stylesheet"></link><link href="../../css/content_moose.css" type="text/css" rel="stylesheet"></link><link href="../../css/sqa_moose.css" type="text/css" rel="stylesheet"></link><script type="text/javascript" src="../../contrib/jquery/jquery.min.js"></script></head><body><div class="page-wrap"><header><nav><div class="nav-wrapper container"><a class="left moose-logo hide-on-med-and-down">RACCOON</a><a href="https://github.com/hugary1995/raccoon" class="right"><img src="../../media/framework/github-logo.png" class="github-mark"></img><img src="../../media/framework/github-mark.png" class="github-logo"></img></a><ul class="right hide-on-med-and-down"><li><a href="#!" class="dropdown-trigger" data-target="ab32000c-95dc-4a82-a4f0-17643af0bfaf" data-constrainWidth="false">Getting Started<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="9b5f41dd-9ae9-43ed-85da-85876e5fb384" data-constrainWidth="false">Tutorials<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="3f959470-124b-4bbe-8b91-d057da2925c7" data-constrainWidth="false">Theory<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="68e01b66-138e-4175-bafb-c724cf4a9a14" data-constrainWidth="false">Documentation<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="../../contribute/index.html">Contribute</a></li></ul><a href="#" class="sidenav-trigger" data-target="fb2d21e6-37ee-4c45-9774-fd6f0ff480d9"><i class="material-icons">menu</i></a><ul class="sidenav" id="fb2d21e6-37ee-4c45-9774-fd6f0ff480d9"><li><a href="#!" class="dropdown-trigger" data-target="8d768970-5efb-4bfe-be14-8e665e2f81bb" data-constrainWidth="false">Getting Started<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="1ba12d2f-a26f-4379-a1f9-15abacd7c15a" data-constrainWidth="false">Tutorials<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="17e9a6d7-a3f2-4d99-97df-a188114115a3" data-constrainWidth="false">Theory<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="be60a253-0da2-49be-bf28-4e8c8d34cb01" data-constrainWidth="false">Documentation<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="../../contribute/index.html">Contribute</a></li></ul><a href="#moose-search" class="modal-trigger"><i class="material-icons">search</i></a></div><ul class="dropdown-content" id="ab32000c-95dc-4a82-a4f0-17643af0bfaf"><li><a href="../../getting_started/install.html">Install RACCOON</a></li><li><a href="../../getting_started/update.html">Update RACCOON</a></li><li><a href="../../getting_started/running.html">Running your first model</a></li><li><a href="../../getting_started/paraview.html">Visualization</a></li><li><a href="../../getting_started/ide.html">Code development</a></li></ul><ul class="dropdown-content" id="9b5f41dd-9ae9-43ed-85da-85876e5fb384"><li><a href="../../tutorials/01_small_deformation_elasticity.html">1. Small deformation</a></li><li><a href="../../tutorials/02_mode1_brittle_fracture.html">2. Mode-I fracture</a></li><li><a href="../../tutorials/03_mode2_brittle_fracture.html">3. Mode-II fracture</a></li><li><a href="../../tutorials/04_fiber_reinforced_matrix.html">4. Fiber-reinforced matrix</a></li><li><a href="../../tutorials/05_soil_desiccation.html">5. Soil desiccation</a></li><li><a href="../../tutorials/06_large_deformation_elasticity.html">6. Large deformation</a></li><li><a href="../../tutorials/07_elastoplasticity.html">7. Elastoplasticity</a></li><li><a href="../../tutorials/08_ductile_fracture.html">8. Ductile fracture</a></li><li><a href="../../tutorials/09_three_point_bending.html">9. Three-point bending</a></li><li><a href="../../tutorials/10_quenching_bibeam.html">10. Quenching of bi-beam</a></li><li><a href="../../tutorials/11_adaptivity.html">11. Adaptive mesh refinement</a></li></ul><ul class="dropdown-content" id="3f959470-124b-4bbe-8b91-d057da2925c7"><li><a href="../../theory/intro.html">Introduction</a></li><li><a href="../../theory/kinematics.html">State variables and kinematics</a></li><li><a href="../../theory/thermodynamics.html">Thermodynamics</a></li><li><a href="../../theory/minimization.html">The minimization problem</a></li><li><a href="../../theory/constitutive_models.html">Constitutive Models</a></li></ul><ul class="dropdown-content" id="68e01b66-138e-4175-bafb-c724cf4a9a14"><li><a href="../../modules/index.html">Physics modules</a></li><li><a href="../../syntax/index.html">Complete syntax</a></li><li><a href="../../syntax/raccoon.html">RACCOON syntax</a></li><li><a href="../../syntax/tensor_mechanics.html">Tensor mechanics syntax</a></li><li><a href="../../syntax/phase_field.html">Phase field syntax</a></li><li><a href="../../syntax/heat_conduction.html">Heat conduction syntax</a></li></ul><ul class="dropdown-content" id="8d768970-5efb-4bfe-be14-8e665e2f81bb"><li><a href="../../getting_started/install.html">Install RACCOON</a></li><li><a href="../../getting_started/update.html">Update RACCOON</a></li><li><a href="../../getting_started/running.html">Running your first model</a></li><li><a href="../../getting_started/paraview.html">Visualization</a></li><li><a href="../../getting_started/ide.html">Code development</a></li></ul><ul class="dropdown-content" id="1ba12d2f-a26f-4379-a1f9-15abacd7c15a"><li><a href="../../tutorials/01_small_deformation_elasticity.html">1. Small deformation</a></li><li><a href="../../tutorials/02_mode1_brittle_fracture.html">2. Mode-I fracture</a></li><li><a href="../../tutorials/03_mode2_brittle_fracture.html">3. Mode-II fracture</a></li><li><a href="../../tutorials/04_fiber_reinforced_matrix.html">4. Fiber-reinforced matrix</a></li><li><a href="../../tutorials/05_soil_desiccation.html">5. Soil desiccation</a></li><li><a href="../../tutorials/06_large_deformation_elasticity.html">6. Large deformation</a></li><li><a href="../../tutorials/07_elastoplasticity.html">7. Elastoplasticity</a></li><li><a href="../../tutorials/08_ductile_fracture.html">8. Ductile fracture</a></li><li><a href="../../tutorials/09_three_point_bending.html">9. Three-point bending</a></li><li><a href="../../tutorials/10_quenching_bibeam.html">10. Quenching of bi-beam</a></li><li><a href="../../tutorials/11_adaptivity.html">11. Adaptive mesh refinement</a></li></ul><ul class="dropdown-content" id="17e9a6d7-a3f2-4d99-97df-a188114115a3"><li><a href="../../theory/intro.html">Introduction</a></li><li><a href="../../theory/kinematics.html">State variables and kinematics</a></li><li><a href="../../theory/thermodynamics.html">Thermodynamics</a></li><li><a href="../../theory/minimization.html">The minimization problem</a></li><li><a href="../../theory/constitutive_models.html">Constitutive Models</a></li></ul><ul class="dropdown-content" id="be60a253-0da2-49be-bf28-4e8c8d34cb01"><li><a href="../../modules/index.html">Physics modules</a></li><li><a href="../../syntax/index.html">Complete syntax</a></li><li><a href="../../syntax/raccoon.html">RACCOON syntax</a></li><li><a href="../../syntax/tensor_mechanics.html">Tensor mechanics syntax</a></li><li><a href="../../syntax/phase_field.html">Phase field syntax</a></li><li><a href="../../syntax/heat_conduction.html">Heat conduction syntax</a></li></ul></nav><div class="modal modal-fixed-footer moose-search-modal" id="moose-search"><div class="modal-content container moose-search-modal-content"><div class="row"><div class="col l12"><div class="input-field"><input type_="text" onkeyup="mooseSearch()" id="moose-search-box"></input></div></div><div><div class="col s12" id="moose-search-results"></div></div></div></div><div class="modal-footer"><a href="#!" class="modal-close btn-flat">Close</a></div></div></header><main class="main"><div class="container"><div class="row"><div class="moose-content col s12 m12 l12"><section id="7637bee7-d0ae-4da2-9a92-1506c52db18c" data-section-level="1" data-section-text="InputParameters"><h1 id="inputparameters">InputParameters</h1><p>To simplify and unify the creation of all simulation objects in MOOSE, all input parameters must be declared and populated through a single &quot;InputParameters&quot; object. This ensures that every constructor in MOOSE is uniform and ensures that every object can be created through MOOSE&#x27;s Factory pattern. The InputParameters object is a collection of parameters, each one with seperate attributes that can be used to finely control the behavior of the underlying object. For example, parameters can be marked as required or optional, be provided with a default or not, and be used to enhance GUI interfaces that may be used to programmatically generate input files for MOOSE.</p><p>The complete list of attributes for each input parameter:</p><pre class="moose-pre" style="max-height:350px;"><code class="language-cpp">  struct Metadata
   {
     std::string _doc_string;
     /// The custom type that will be printed in the YAML dump for a parameter if supplied
@@ -23,10 +23,6 @@
     bool _have_coupled_default = false;
     /// The default value for optionally coupled variables
     std::vector&lt;Real&gt; _coupled_default = {0};
-    /// are pps provided as single pp or as vector of pps
-    bool _vector_of_postprocessors = false;
-    std::vector&lt;bool&gt; _have_default_postprocessor_val = {false};
-    std::vector&lt;PostprocessorValue&gt; _default_postprocessor_val = {0};
     /// True if a parameters value was set by addParam, and not set again.
     bool _set_by_add_param = false;
     /// The reserved option names for a parameter
@@ -46,7 +42,81 @@
     /// whether user setting of this parameter should be ignored
     bool _ignore = false;
   };
-</code></pre><a href="#ef6ad67a-5268-4761-b58a-00eae58652ea" class="modal-trigger">(moose/framework/include/utils/InputParameters.h)</a><div class="modal moose-modal" id="ef6ad67a-5268-4761-b58a-00eae58652ea"><div class="modal-content"><h4>/home/travis/build/hugary1995/raccoon/moose/framework/include/utils/InputParameters.h</h4><pre class="moose-pre"><code class="language-cpp">// This file is part of the MOOSE framework
+</code></pre><a class="moose-source-filename tooltipped modal-trigger" href="#d39c03ce-c7c1-4391-a165-c10d115945b2">(moose/framework/include/utils/InputParameters.h)</a><section id="cf543958-7cd6-4f2c-8671-3405b0ade275" data-section-level="2" data-section-text="Applying or Transferring Common Parameters"><h2 id="applying-or-transferring-common-parameters">Applying or Transferring Common Parameters</h2><p>When building a custom Action, it is often useful to read in several parameters that will be used to directly set parameters on objects being built by the custom Action. The <code>InputParameters</code> object contains a few useful methods for applying or transferring common parameters to avoid several manual lines for setting these parameters. See the utility methods and corresponding documentation here:</p><pre class="moose-pre" style="max-height:350px;"><code class="language-cpp">  // BEGIN APPLY PARAMETER METHODS
+  /**
+   * Method for applying common parameters
+   * @param common The set of parameters to apply to the parameters stored in this object
+   * @param exclude A vector of parameters to exclude
+   *
+   * In order to apply common parameter 4 statements must be satisfied
+   *   (1) A local parameter must exist with the same name as common parameter
+   *   (2) Common parameter must valid
+   *   (3) Local parameter must be invalid OR not have been set from its default
+   *   (4) Both cannot be private
+   *
+   * Output objects have a set of common parameters that are passed
+   * down to each of the output objects created. This method is used for
+   * applying those common parameters.
+   *
+   * @see CommonOutputAction AddOutputAction
+   */
+  void applyParameters(const InputParameters &amp; common,
+                       std::vector&lt;std::string&gt; exclude = std::vector&lt;std::string&gt;());
+
+  /**
+   * Method for applying common parameters
+   * @param common The set of parameters to apply to the parameters stored in this object
+   * @param include A vector of parameters to apply
+   *
+   * In order to apply common parameter 4 statements must be satisfied
+   *   (1) A local parameter must exist with the same name as common parameter
+   *   (2) Common parameter must valid
+   *   (3) Local parameter must be invalid OR not have been set from its default
+   *   (4) Both cannot be private
+   *
+   * Output objects have a set of common parameters that are passed
+   * down to each of the output objects created. This method is used for
+   * applying those common parameters.
+   *
+   * @see CommonOutputAction AddOutputAction
+   */
+  void applySpecificParameters(const InputParameters &amp; common,
+                               const std::vector&lt;std::string&gt; &amp; include,
+                               bool allow_private = false);
+
+  /**
+   * Apply values from a single parameter in common, to a single parameter stored in this object
+   * @param common The set of InputParameters from which to extract parameters from
+   * @param common_name The name within common from which to get the parameter values
+   *
+   * In order to apply common parameter 4 statements must be satisfied
+   *   (1) A local parameter must exist with the same name as common parameter
+   *   (2) Common parameter must valid
+   *   (3) Local parameter must be invalid OR not have been set from its default
+   *   (4) Both cannot be private
+   */
+  void applyParameter(const InputParameters &amp; common,
+                      const std::string &amp; common_name,
+                      bool allow_private = false);
+</code></pre><a class="moose-source-filename tooltipped modal-trigger" href="#0e2610bc-c95d-4da2-8a26-e391ad229783">(moose/framework/include/utils/InputParameters.h)</a></section><section id="2f284566-b365-4016-abc9-ce05b4b60830" data-section-level="2" data-section-text="Range Checked Parameters"><h2 id="range-checked-parameters">Range Checked Parameters</h2><p>The InputParameters object supports parsed expressions for various bounds checking of the user input so that custom logic does not need to be implemented in every end-user object. The range checking expression is always the second to last paramter right before the doc string.</p><pre class="moose-pre" style="max-height:350px;"><code class="language-cpp">  // BEGIN RANGE CHECKED PARAMETER METHODS
+  /**
+   * These methods add an range checked parameters. A lower and upper bound can be supplied and the
+   * supplied parameter will be checked to fall within that range.
+   */
+  template &lt;typename T&gt;
+  void addRequiredRangeCheckedParam(const std::string &amp; name,
+                                    const std::string &amp; parsed_function,
+                                    const std::string &amp; doc_string);
+  template &lt;typename T&gt;
+  void addRangeCheckedParam(const std::string &amp; name,
+                            const T &amp; value,
+                            const std::string &amp; parsed_function,
+                            const std::string &amp; doc_string);
+  template &lt;typename T&gt;
+  void addRangeCheckedParam(const std::string &amp; name,
+                            const std::string &amp; parsed_function,
+                            const std::string &amp; doc_string);
+</code></pre><a class="moose-source-filename tooltipped modal-trigger" href="#a1ff076c-02d2-4520-80ca-3ba1a26e6a0b">(moose/framework/include/utils/InputParameters.h)</a></section><section id="acfa00c1-011b-40dc-97ef-45a8ba24ffe9" data-section-level="2" data-section-text="Deprecating coupled variables"><h2 id="deprecating-coupled-variables">Deprecating coupled variables</h2><p>The <code>InputParameters</code> class provides a convenient method for deprecating coupled variable names called <code>addDeprecatedCoupledVar</code>. The method takes three arguments. The first corresponds to the deprecated name; the second argument is the new, blessed name that users should use. This name should have a corresponding <code>params.addCoupledVar(&#x27;blessed_name&#x27;, &#x27;blessed_name_doc_string&#x27;)</code> in the relevant <code>Class::validParams()</code> block. The final optional argument is the date that the deprecated variable name will be removed. </p></section></section><div class="moose-modal modal" id="d39c03ce-c7c1-4391-a165-c10d115945b2"><div class="modal-content"><h4>(moose/framework/include/utils/InputParameters.h)</h4><pre class="moose-pre"><code class="language-cpp">// This file is part of the MOOSE framework
 // https://www.mooseframework.org
 //
 // All rights reserved, see COPYRIGHT for full restrictions
@@ -145,6 +215,20 @@ public:
    */
   template &lt;typename T&gt;
   T &amp; set(const std::string &amp; name, bool quiet_mode = false);
+
+  /**
+   * Given a series of parameters names and values, sets each name to
+   * the corresponding value.  Any number of name, value pairs can be
+   * supplied.
+   *
+   * Note that each \p value must be of the correct type for the
+   * parameter of that name, not merely of a type convertible to the
+   * correct type.
+   *
+   * @param name The name of the first parameter to set
+   */
+  template &lt;typename T, typename... Ts&gt;
+  void setParameters(const std::string &amp; name, const T &amp; value, Ts... extra_input_parameters);
 
   /**
    * Runs a range on the supplied parameter if it exists and throws an error if that check fails.
@@ -482,7 +566,7 @@ public:
   /**
    * Prints the type of the requested parameter by name
    */
-  std::string type(const std::string &amp; name);
+  std::string type(const std::string &amp; name) const;
 
   /**
    * Returns a Boolean indicating whether the specified parameter is private or not
@@ -680,35 +764,6 @@ public:
    */
   std::map&lt;std::string, std::pair&lt;std::string, std::string&gt;&gt; getAutoBuildVectors() const;
 
-  /**
-   * Get the default value for a postprocessor added with addPostprocessor
-   * @param name The name of the postprocessor
-   * @param suppress_error If true, the error check is suppressed
-   * @param index The index in the default postprocessor vector
-   * @return The default value for the postprocessor
-   */
-  const PostprocessorValue &amp; getDefaultPostprocessorValue(const std::string &amp; name,
-                                                          bool suppress_error = false,
-                                                          unsigned int index = 0) const;
-
-  /**
-   * Set the default value for a postprocessor added with addPostprocessor
-   * @param name The name of the postprocessor
-   * @value value The value of the postprocessor default to set
-   * @param index The index in the default postprocessor vector
-   */
-  void setDefaultPostprocessorValue(const std::string &amp; name,
-                                    const PostprocessorValue &amp; value,
-                                    unsigned int index = 0);
-
-  /**
-   * Returns true if a default PostprocessorValue is defined
-   * @param name The name of the postprocessor
-   * @param index The index in the default postprocessor vector
-   * @return True if a default value exists
-   */
-  bool hasDefaultPostprocessorValue(const std::string &amp; name, unsigned int index = 0) const;
-
   // BEGIN APPLY PARAMETER METHODS
   /**
    * Method for applying common parameters
@@ -890,18 +945,19 @@ public:
   bool shouldIgnore(const std::string &amp; name);
 
   /**
-   * Getter for the _vector_of_postprocessors flag in parameters
-   *
-   * @param pp_name The name of the postprocessor parameter
+   * @returns True if the parameter with name \p name is of type T.
    */
-  bool isSinglePostprocessor(const std::string &amp; pp_name) const
-  {
-    return !_params.find(pp_name)-&gt;second._vector_of_postprocessors;
-  }
+  template &lt;typename T&gt;
+  bool isType(const std::string &amp; name) const;
 
 private:
   // Private constructor so that InputParameters can only be created in certain places.
   InputParameters();
+
+  /**
+   * Method to terminate the recursive setParameters definition
+   */
+  void setParameters() {}
 
   /**
    * Private method for setting deprecated coupled variable documentation strings
@@ -933,10 +989,6 @@ private:
     bool _have_coupled_default = false;
     /// The default value for optionally coupled variables
     std::vector&lt;Real&gt; _coupled_default = {0};
-    /// are pps provided as single pp or as vector of pps
-    bool _vector_of_postprocessors = false;
-    std::vector&lt;bool&gt; _have_default_postprocessor_val = {false};
-    std::vector&lt;PostprocessorValue&gt; _default_postprocessor_val = {0};
     /// True if a parameters value was set by addParam, and not set again.
     bool _set_by_add_param = false;
     /// The reserved option names for a parameter
@@ -992,24 +1044,6 @@ private:
    */
   template &lt;typename T, typename S&gt;
   void setParamHelper(const std::string &amp; name, T &amp; l_value, const S &amp; r_value);
-
-  /**
-   * Reserve space for default postprocessor values
-   * @param name The name of the postprocessor
-   * @param size Number of entries required in default p
-   */
-  void reserveDefaultPostprocessorValueStorage(const std::string &amp; name, unsigned int size);
-
-  /**
-   * Setter for the _vector_of_postprocessors flag in parameters
-   *
-   * @param pp_name The name of the postprocessor parameter
-   * @param b value that _vector_of_postprocessors is set to
-   */
-  void setVectorOfPostprocessors(const std::string &amp; pp_name, bool b)
-  {
-    _params[pp_name]._vector_of_postprocessors = b;
-  }
 
   /// original location of input block (i.e. filename,linenum) - used for nice error messages.
   std::string _block_location;
@@ -1089,6 +1123,16 @@ InputParameters::set(const std::string &amp; name, bool quiet_mode)
   setHelper&lt;T&gt;(name);
 
   return cast_ptr&lt;Parameter&lt;T&gt; *&gt;(_values[name])-&gt;set();
+}
+
+template &lt;typename T, typename... Ts&gt;
+void
+InputParameters::setParameters(const std::string &amp; name,
+                               const T &amp; value,
+                               Ts... extra_input_parameters)
+{
+  this-&gt;set&lt;T&gt;(name) = value;
+  this-&gt;setParameters(extra_input_parameters...);
 }
 
 template &lt;typename T, typename UP_T&gt;
@@ -1460,6 +1504,7 @@ InputParameters::suppressParameter(const std::string &amp; name)
 
   _params[name]._required = false;
   _params[name]._is_private = true;
+  _params[name]._controllable = false;
 }
 
 template &lt;typename T&gt;
@@ -1599,9 +1644,6 @@ void InputParameters::setParamHelper&lt;MaterialPropertyName, int&gt;(const std:
                                                                 MaterialPropertyName &amp; l_value,
                                                                 const int &amp; r_value);
 
-template &lt;&gt;
-void InputParameters::setHelper&lt;std::vector&lt;PostprocessorName&gt;&gt;(const std::string &amp; name);
-
 template &lt;typename T&gt;
 const T &amp;
 InputParameters::getParamHelper(const std::string &amp; name, const InputParameters &amp; pars, const T *)
@@ -1649,63 +1691,16 @@ validParams()
   // has *only* the new style validParams.
   return T::validParams();
 }
-</code></pre></div><div class="modal-footer"><a class="modal-close btn-flat">Close</a></div></div><section class="scrollspy" id="14da2ce5-ecde-4dbf-b5f3-0f9870098288" data-section-level="2" data-section-text="Applying or Transferring Common Parameters"><h2 id="applying-or-transferring-common-parameters">Applying or Transferring Common Parameters</h2><p>When building a custom Action, it is often useful to read in several parameters that will be used to directly set parameters on objects being built by the custom Action. The <code>InputParameters</code> object contains a few useful methods for applying or transferring common parameters to avoid several manual lines for setting these parameters. See the utility methods and corresponding documentation here:</p><pre class="moose-pre"><code class="language-cpp">  // BEGIN APPLY PARAMETER METHODS
-  /**
-   * Method for applying common parameters
-   * @param common The set of parameters to apply to the parameters stored in this object
-   * @param exclude A vector of parameters to exclude
-   *
-   * In order to apply common parameter 4 statements must be satisfied
-   *   (1) A local parameter must exist with the same name as common parameter
-   *   (2) Common parameter must valid
-   *   (3) Local parameter must be invalid OR not have been set from its default
-   *   (4) Both cannot be private
-   *
-   * Output objects have a set of common parameters that are passed
-   * down to each of the output objects created. This method is used for
-   * applying those common parameters.
-   *
-   * @see CommonOutputAction AddOutputAction
-   */
-  void applyParameters(const InputParameters &amp; common,
-                       std::vector&lt;std::string&gt; exclude = std::vector&lt;std::string&gt;());
 
-  /**
-   * Method for applying common parameters
-   * @param common The set of parameters to apply to the parameters stored in this object
-   * @param include A vector of parameters to apply
-   *
-   * In order to apply common parameter 4 statements must be satisfied
-   *   (1) A local parameter must exist with the same name as common parameter
-   *   (2) Common parameter must valid
-   *   (3) Local parameter must be invalid OR not have been set from its default
-   *   (4) Both cannot be private
-   *
-   * Output objects have a set of common parameters that are passed
-   * down to each of the output objects created. This method is used for
-   * applying those common parameters.
-   *
-   * @see CommonOutputAction AddOutputAction
-   */
-  void applySpecificParameters(const InputParameters &amp; common,
-                               const std::vector&lt;std::string&gt; &amp; include,
-                               bool allow_private = false);
-
-  /**
-   * Apply values from a single parameter in common, to a single parameter stored in this object
-   * @param common The set of InputParameters from which to extract parameters from
-   * @param common_name The name within common from which to get the parameter values
-   *
-   * In order to apply common parameter 4 statements must be satisfied
-   *   (1) A local parameter must exist with the same name as common parameter
-   *   (2) Common parameter must valid
-   *   (3) Local parameter must be invalid OR not have been set from its default
-   *   (4) Both cannot be private
-   */
-  void applyParameter(const InputParameters &amp; common,
-                      const std::string &amp; common_name,
-                      bool allow_private = false);
-</code></pre><a href="#c65871e8-108f-422d-8695-5677f439d797" class="modal-trigger">(moose/framework/include/utils/InputParameters.h)</a><div class="modal moose-modal" id="c65871e8-108f-422d-8695-5677f439d797"><div class="modal-content"><h4>/home/travis/build/hugary1995/raccoon/moose/framework/include/utils/InputParameters.h</h4><pre class="moose-pre"><code class="language-cpp">// This file is part of the MOOSE framework
+template &lt;typename T&gt;
+bool
+InputParameters::isType(const std::string &amp; name) const
+{
+  if (!_params.count(name))
+    mooseError(&quot;Parameter \&quot;&quot;, name, &quot;\&quot; is not valid.&quot;);
+  return have_parameter&lt;T&gt;(name);
+}
+</code></pre></div><div class="modal-footer"><a class="modal-close btn-flat">Close</a></div></div><div class="moose-modal modal" id="0e2610bc-c95d-4da2-8a26-e391ad229783"><div class="modal-content"><h4>(moose/framework/include/utils/InputParameters.h)</h4><pre class="moose-pre"><code class="language-cpp">// This file is part of the MOOSE framework
 // https://www.mooseframework.org
 //
 // All rights reserved, see COPYRIGHT for full restrictions
@@ -1804,6 +1799,20 @@ public:
    */
   template &lt;typename T&gt;
   T &amp; set(const std::string &amp; name, bool quiet_mode = false);
+
+  /**
+   * Given a series of parameters names and values, sets each name to
+   * the corresponding value.  Any number of name, value pairs can be
+   * supplied.
+   *
+   * Note that each \p value must be of the correct type for the
+   * parameter of that name, not merely of a type convertible to the
+   * correct type.
+   *
+   * @param name The name of the first parameter to set
+   */
+  template &lt;typename T, typename... Ts&gt;
+  void setParameters(const std::string &amp; name, const T &amp; value, Ts... extra_input_parameters);
 
   /**
    * Runs a range on the supplied parameter if it exists and throws an error if that check fails.
@@ -2141,7 +2150,7 @@ public:
   /**
    * Prints the type of the requested parameter by name
    */
-  std::string type(const std::string &amp; name);
+  std::string type(const std::string &amp; name) const;
 
   /**
    * Returns a Boolean indicating whether the specified parameter is private or not
@@ -2339,35 +2348,6 @@ public:
    */
   std::map&lt;std::string, std::pair&lt;std::string, std::string&gt;&gt; getAutoBuildVectors() const;
 
-  /**
-   * Get the default value for a postprocessor added with addPostprocessor
-   * @param name The name of the postprocessor
-   * @param suppress_error If true, the error check is suppressed
-   * @param index The index in the default postprocessor vector
-   * @return The default value for the postprocessor
-   */
-  const PostprocessorValue &amp; getDefaultPostprocessorValue(const std::string &amp; name,
-                                                          bool suppress_error = false,
-                                                          unsigned int index = 0) const;
-
-  /**
-   * Set the default value for a postprocessor added with addPostprocessor
-   * @param name The name of the postprocessor
-   * @value value The value of the postprocessor default to set
-   * @param index The index in the default postprocessor vector
-   */
-  void setDefaultPostprocessorValue(const std::string &amp; name,
-                                    const PostprocessorValue &amp; value,
-                                    unsigned int index = 0);
-
-  /**
-   * Returns true if a default PostprocessorValue is defined
-   * @param name The name of the postprocessor
-   * @param index The index in the default postprocessor vector
-   * @return True if a default value exists
-   */
-  bool hasDefaultPostprocessorValue(const std::string &amp; name, unsigned int index = 0) const;
-
   // BEGIN APPLY PARAMETER METHODS
   /**
    * Method for applying common parameters
@@ -2549,18 +2529,19 @@ public:
   bool shouldIgnore(const std::string &amp; name);
 
   /**
-   * Getter for the _vector_of_postprocessors flag in parameters
-   *
-   * @param pp_name The name of the postprocessor parameter
+   * @returns True if the parameter with name \p name is of type T.
    */
-  bool isSinglePostprocessor(const std::string &amp; pp_name) const
-  {
-    return !_params.find(pp_name)-&gt;second._vector_of_postprocessors;
-  }
+  template &lt;typename T&gt;
+  bool isType(const std::string &amp; name) const;
 
 private:
   // Private constructor so that InputParameters can only be created in certain places.
   InputParameters();
+
+  /**
+   * Method to terminate the recursive setParameters definition
+   */
+  void setParameters() {}
 
   /**
    * Private method for setting deprecated coupled variable documentation strings
@@ -2592,10 +2573,6 @@ private:
     bool _have_coupled_default = false;
     /// The default value for optionally coupled variables
     std::vector&lt;Real&gt; _coupled_default = {0};
-    /// are pps provided as single pp or as vector of pps
-    bool _vector_of_postprocessors = false;
-    std::vector&lt;bool&gt; _have_default_postprocessor_val = {false};
-    std::vector&lt;PostprocessorValue&gt; _default_postprocessor_val = {0};
     /// True if a parameters value was set by addParam, and not set again.
     bool _set_by_add_param = false;
     /// The reserved option names for a parameter
@@ -2651,24 +2628,6 @@ private:
    */
   template &lt;typename T, typename S&gt;
   void setParamHelper(const std::string &amp; name, T &amp; l_value, const S &amp; r_value);
-
-  /**
-   * Reserve space for default postprocessor values
-   * @param name The name of the postprocessor
-   * @param size Number of entries required in default p
-   */
-  void reserveDefaultPostprocessorValueStorage(const std::string &amp; name, unsigned int size);
-
-  /**
-   * Setter for the _vector_of_postprocessors flag in parameters
-   *
-   * @param pp_name The name of the postprocessor parameter
-   * @param b value that _vector_of_postprocessors is set to
-   */
-  void setVectorOfPostprocessors(const std::string &amp; pp_name, bool b)
-  {
-    _params[pp_name]._vector_of_postprocessors = b;
-  }
 
   /// original location of input block (i.e. filename,linenum) - used for nice error messages.
   std::string _block_location;
@@ -2748,6 +2707,16 @@ InputParameters::set(const std::string &amp; name, bool quiet_mode)
   setHelper&lt;T&gt;(name);
 
   return cast_ptr&lt;Parameter&lt;T&gt; *&gt;(_values[name])-&gt;set();
+}
+
+template &lt;typename T, typename... Ts&gt;
+void
+InputParameters::setParameters(const std::string &amp; name,
+                               const T &amp; value,
+                               Ts... extra_input_parameters)
+{
+  this-&gt;set&lt;T&gt;(name) = value;
+  this-&gt;setParameters(extra_input_parameters...);
 }
 
 template &lt;typename T, typename UP_T&gt;
@@ -3119,6 +3088,7 @@ InputParameters::suppressParameter(const std::string &amp; name)
 
   _params[name]._required = false;
   _params[name]._is_private = true;
+  _params[name]._controllable = false;
 }
 
 template &lt;typename T&gt;
@@ -3258,9 +3228,6 @@ void InputParameters::setParamHelper&lt;MaterialPropertyName, int&gt;(const std:
                                                                 MaterialPropertyName &amp; l_value,
                                                                 const int &amp; r_value);
 
-template &lt;&gt;
-void InputParameters::setHelper&lt;std::vector&lt;PostprocessorName&gt;&gt;(const std::string &amp; name);
-
 template &lt;typename T&gt;
 const T &amp;
 InputParameters::getParamHelper(const std::string &amp; name, const InputParameters &amp; pars, const T *)
@@ -3308,25 +3275,16 @@ validParams()
   // has *only* the new style validParams.
   return T::validParams();
 }
-</code></pre></div><div class="modal-footer"><a class="modal-close btn-flat">Close</a></div></div></section><section class="scrollspy" id="ee3b2381-e2cb-45c2-a33d-104cb80bcb37" data-section-level="2" data-section-text="Range Checked Parameters"><h2 id="range-checked-parameters">Range Checked Parameters</h2><p>The InputParameters object supports parsed expressions for various bounds checking of the user input so that custom logic does not need to be implemented in every end-user object. The range checking expression is always the second to last paramter right before the doc string.</p><pre class="moose-pre"><code class="language-cpp">  // BEGIN RANGE CHECKED PARAMETER METHODS
-  /**
-   * These methods add an range checked parameters. A lower and upper bound can be supplied and the
-   * supplied parameter will be checked to fall within that range.
-   */
-  template &lt;typename T&gt;
-  void addRequiredRangeCheckedParam(const std::string &amp; name,
-                                    const std::string &amp; parsed_function,
-                                    const std::string &amp; doc_string);
-  template &lt;typename T&gt;
-  void addRangeCheckedParam(const std::string &amp; name,
-                            const T &amp; value,
-                            const std::string &amp; parsed_function,
-                            const std::string &amp; doc_string);
-  template &lt;typename T&gt;
-  void addRangeCheckedParam(const std::string &amp; name,
-                            const std::string &amp; parsed_function,
-                            const std::string &amp; doc_string);
-</code></pre><a href="#6efdafb9-e240-4265-9b1d-572445e03baa" class="modal-trigger">(moose/framework/include/utils/InputParameters.h)</a><div class="modal moose-modal" id="6efdafb9-e240-4265-9b1d-572445e03baa"><div class="modal-content"><h4>/home/travis/build/hugary1995/raccoon/moose/framework/include/utils/InputParameters.h</h4><pre class="moose-pre"><code class="language-cpp">// This file is part of the MOOSE framework
+
+template &lt;typename T&gt;
+bool
+InputParameters::isType(const std::string &amp; name) const
+{
+  if (!_params.count(name))
+    mooseError(&quot;Parameter \&quot;&quot;, name, &quot;\&quot; is not valid.&quot;);
+  return have_parameter&lt;T&gt;(name);
+}
+</code></pre></div><div class="modal-footer"><a class="modal-close btn-flat">Close</a></div></div><div class="moose-modal modal" id="a1ff076c-02d2-4520-80ca-3ba1a26e6a0b"><div class="modal-content"><h4>(moose/framework/include/utils/InputParameters.h)</h4><pre class="moose-pre"><code class="language-cpp">// This file is part of the MOOSE framework
 // https://www.mooseframework.org
 //
 // All rights reserved, see COPYRIGHT for full restrictions
@@ -3425,6 +3383,20 @@ public:
    */
   template &lt;typename T&gt;
   T &amp; set(const std::string &amp; name, bool quiet_mode = false);
+
+  /**
+   * Given a series of parameters names and values, sets each name to
+   * the corresponding value.  Any number of name, value pairs can be
+   * supplied.
+   *
+   * Note that each \p value must be of the correct type for the
+   * parameter of that name, not merely of a type convertible to the
+   * correct type.
+   *
+   * @param name The name of the first parameter to set
+   */
+  template &lt;typename T, typename... Ts&gt;
+  void setParameters(const std::string &amp; name, const T &amp; value, Ts... extra_input_parameters);
 
   /**
    * Runs a range on the supplied parameter if it exists and throws an error if that check fails.
@@ -3762,7 +3734,7 @@ public:
   /**
    * Prints the type of the requested parameter by name
    */
-  std::string type(const std::string &amp; name);
+  std::string type(const std::string &amp; name) const;
 
   /**
    * Returns a Boolean indicating whether the specified parameter is private or not
@@ -3960,35 +3932,6 @@ public:
    */
   std::map&lt;std::string, std::pair&lt;std::string, std::string&gt;&gt; getAutoBuildVectors() const;
 
-  /**
-   * Get the default value for a postprocessor added with addPostprocessor
-   * @param name The name of the postprocessor
-   * @param suppress_error If true, the error check is suppressed
-   * @param index The index in the default postprocessor vector
-   * @return The default value for the postprocessor
-   */
-  const PostprocessorValue &amp; getDefaultPostprocessorValue(const std::string &amp; name,
-                                                          bool suppress_error = false,
-                                                          unsigned int index = 0) const;
-
-  /**
-   * Set the default value for a postprocessor added with addPostprocessor
-   * @param name The name of the postprocessor
-   * @value value The value of the postprocessor default to set
-   * @param index The index in the default postprocessor vector
-   */
-  void setDefaultPostprocessorValue(const std::string &amp; name,
-                                    const PostprocessorValue &amp; value,
-                                    unsigned int index = 0);
-
-  /**
-   * Returns true if a default PostprocessorValue is defined
-   * @param name The name of the postprocessor
-   * @param index The index in the default postprocessor vector
-   * @return True if a default value exists
-   */
-  bool hasDefaultPostprocessorValue(const std::string &amp; name, unsigned int index = 0) const;
-
   // BEGIN APPLY PARAMETER METHODS
   /**
    * Method for applying common parameters
@@ -4170,18 +4113,19 @@ public:
   bool shouldIgnore(const std::string &amp; name);
 
   /**
-   * Getter for the _vector_of_postprocessors flag in parameters
-   *
-   * @param pp_name The name of the postprocessor parameter
+   * @returns True if the parameter with name \p name is of type T.
    */
-  bool isSinglePostprocessor(const std::string &amp; pp_name) const
-  {
-    return !_params.find(pp_name)-&gt;second._vector_of_postprocessors;
-  }
+  template &lt;typename T&gt;
+  bool isType(const std::string &amp; name) const;
 
 private:
   // Private constructor so that InputParameters can only be created in certain places.
   InputParameters();
+
+  /**
+   * Method to terminate the recursive setParameters definition
+   */
+  void setParameters() {}
 
   /**
    * Private method for setting deprecated coupled variable documentation strings
@@ -4213,10 +4157,6 @@ private:
     bool _have_coupled_default = false;
     /// The default value for optionally coupled variables
     std::vector&lt;Real&gt; _coupled_default = {0};
-    /// are pps provided as single pp or as vector of pps
-    bool _vector_of_postprocessors = false;
-    std::vector&lt;bool&gt; _have_default_postprocessor_val = {false};
-    std::vector&lt;PostprocessorValue&gt; _default_postprocessor_val = {0};
     /// True if a parameters value was set by addParam, and not set again.
     bool _set_by_add_param = false;
     /// The reserved option names for a parameter
@@ -4272,24 +4212,6 @@ private:
    */
   template &lt;typename T, typename S&gt;
   void setParamHelper(const std::string &amp; name, T &amp; l_value, const S &amp; r_value);
-
-  /**
-   * Reserve space for default postprocessor values
-   * @param name The name of the postprocessor
-   * @param size Number of entries required in default p
-   */
-  void reserveDefaultPostprocessorValueStorage(const std::string &amp; name, unsigned int size);
-
-  /**
-   * Setter for the _vector_of_postprocessors flag in parameters
-   *
-   * @param pp_name The name of the postprocessor parameter
-   * @param b value that _vector_of_postprocessors is set to
-   */
-  void setVectorOfPostprocessors(const std::string &amp; pp_name, bool b)
-  {
-    _params[pp_name]._vector_of_postprocessors = b;
-  }
 
   /// original location of input block (i.e. filename,linenum) - used for nice error messages.
   std::string _block_location;
@@ -4369,6 +4291,16 @@ InputParameters::set(const std::string &amp; name, bool quiet_mode)
   setHelper&lt;T&gt;(name);
 
   return cast_ptr&lt;Parameter&lt;T&gt; *&gt;(_values[name])-&gt;set();
+}
+
+template &lt;typename T, typename... Ts&gt;
+void
+InputParameters::setParameters(const std::string &amp; name,
+                               const T &amp; value,
+                               Ts... extra_input_parameters)
+{
+  this-&gt;set&lt;T&gt;(name) = value;
+  this-&gt;setParameters(extra_input_parameters...);
 }
 
 template &lt;typename T, typename UP_T&gt;
@@ -4740,6 +4672,7 @@ InputParameters::suppressParameter(const std::string &amp; name)
 
   _params[name]._required = false;
   _params[name]._is_private = true;
+  _params[name]._controllable = false;
 }
 
 template &lt;typename T&gt;
@@ -4879,9 +4812,6 @@ void InputParameters::setParamHelper&lt;MaterialPropertyName, int&gt;(const std:
                                                                 MaterialPropertyName &amp; l_value,
                                                                 const int &amp; r_value);
 
-template &lt;&gt;
-void InputParameters::setHelper&lt;std::vector&lt;PostprocessorName&gt;&gt;(const std::string &amp; name);
-
 template &lt;typename T&gt;
 const T &amp;
 InputParameters::getParamHelper(const std::string &amp; name, const InputParameters &amp; pars, const T *)
@@ -4929,4 +4859,13 @@ validParams()
   // has *only* the new style validParams.
   return T::validParams();
 }
-</code></pre></div><div class="modal-footer"><a class="modal-close btn-flat">Close</a></div></div></section><section class="scrollspy" id="4324ac67-a115-4803-9e09-c24ac590d245" data-section-level="2" data-section-text="Deprecating coupled variables"><h2 id="deprecating-coupled-variables">Deprecating coupled variables</h2><p>The <code>InputParameters</code> class provides a convenient method for deprecating coupled variable names called <code>addDeprecatedCoupledVar</code>. The method takes three arguments. The first corresponds to the deprecated name; the second argument is the new, blessed name that users should use. This name should have a corresponding <code>params.addCoupledVar(&#x27;blessed_name&#x27;, &#x27;blessed_name_doc_string&#x27;)</code> in the relevant <code>Class::validParams()</code> block. The final optional argument is the date that the deprecated variable name will be removed. </p></section></section></div><div class="col hide-on-med-and-down l2"><div class="toc-wrapper pin-top"><ul class="section table-of-contents"><li><a href="#14da2ce5-ecde-4dbf-b5f3-0f9870098288" class="tooltipped" data-position="left" data-tooltip="Applying or Transferring Common Parameters">Applying or Transferring Common Parameters</a></li><li><a href="#ee3b2381-e2cb-45c2-a33d-104cb80bcb37" class="tooltipped" data-position="left" data-tooltip="Range Checked Parameters">Range Checked Parameters</a></li><li><a href="#4324ac67-a115-4803-9e09-c24ac590d245" class="tooltipped" data-position="left" data-tooltip="Deprecating coupled variables">Deprecating coupled variables</a></li></ul></div></div></div></div></main></div></body><script type="text/javascript" src="../../contrib/materialize/materialize.min.js"></script><script type="text/javascript" src="../../contrib/clipboard/clipboard.min.js"></script><script type="text/javascript" src="../../contrib/prism/prism.min.js"></script><script type="text/javascript" src="../../js/init.js"></script><script type="text/javascript" src="../../js/navigation.js"></script><script type="text/javascript" src="../../contrib/fuse/fuse.min.js"></script><script type="text/javascript" src="../../js/search_index.js"></script><script type="text/javascript" src="../../js/sqa_moose.js"></script>
+
+template &lt;typename T&gt;
+bool
+InputParameters::isType(const std::string &amp; name) const
+{
+  if (!_params.count(name))
+    mooseError(&quot;Parameter \&quot;&quot;, name, &quot;\&quot; is not valid.&quot;);
+  return have_parameter&lt;T&gt;(name);
+}
+</code></pre></div><div class="modal-footer"><a class="modal-close btn-flat">Close</a></div></div></div></div></div></main></div></body><script type="text/javascript" src="../../contrib/materialize/materialize.min.js"></script><script type="text/javascript" src="../../contrib/clipboard/clipboard.min.js"></script><script type="text/javascript" src="../../contrib/prism/prism.min.js"></script><script type="text/javascript" src="../../js/init.js"></script><script type="text/javascript" src="../../js/navigation.js"></script><script type="text/javascript" src="../../contrib/fuse/fuse.min.js"></script><script type="text/javascript" src="../../js/search_index.js"></script><script type="text/javascript" src="../../js/sqa_moose.js"></script>

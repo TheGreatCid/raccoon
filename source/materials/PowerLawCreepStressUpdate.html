@@ -1,4 +1,4 @@
-<!DOCTYPE html><head><meta charset="UTF-8"><title>PowerLawCreepStressUpdate.md|RACCOON</title><link rel="icon" type="image/x-icon" href="../../media/raccoon_icon.png" sizes="16x16 32x32 64x64 128x128"></link><link href="../../contrib/materialize/materialize.min.css" type="text/css" rel="stylesheet" media="screen,projection"></link><link href="../../contrib/prism/prism.min.css" type="text/css" rel="stylesheet"></link><link href="../../css/moose.css" type="text/css" rel="stylesheet"></link><link href="../../css/alert_moose.css" type="text/css" rel="stylesheet"></link><link href="../../contrib/katex/katex.min.css" type="text/css" rel="stylesheet"></link><link href="../../css/katex_moose.css" type="text/css" rel="stylesheet"></link><link href="../../css/content_moose.css" type="text/css" rel="stylesheet"></link><link href="../../css/sqa_moose.css" type="text/css" rel="stylesheet"></link><script type="text/javascript" src="../../contrib/jquery/jquery.min.js"></script><script type="text/javascript" src="../../contrib/katex/katex.min.js"></script><script type="text/javascript" src="../../contrib/plotly/plotly.min.js"></script></head><body><div class="page-wrap"><header><nav><div class="nav-wrapper container"><a href="https://hugary1995.github.io/raccoon/index.html" class="left moose-logo hide-on-med-and-down">RACCOON</a><a href="https://github.com/hugary1995/raccoon" class="right"><img src="../../media/framework/github-logo.png" class="github-mark"></img><img src="../../media/framework/github-mark.png" class="github-logo"></img></a><ul class="right hide-on-med-and-down"><li><a href="../../install/index.html">Install</a></li><li><a href="../../theory/index.html">Theory</a></li><li><a href="../../modules/index.html">Modules</a></li><li><a href="../../syntax/index.html">Syntax</a></li><li><a href="../../contribute/index.html">Contribute</a></li></ul><a href="#" class="sidenav-trigger" data-target="98544c1f-617d-4b1f-ae92-ad9181ad7ff5"><i class="material-icons">menu</i></a><ul class="sidenav" id="98544c1f-617d-4b1f-ae92-ad9181ad7ff5"><li><a href="../../install/index.html">Install</a></li><li><a href="../../theory/index.html">Theory</a></li><li><a href="../../modules/index.html">Modules</a></li><li><a href="../../syntax/index.html">Syntax</a></li><li><a href="../../contribute/index.html">Contribute</a></li></ul><a href="#moose-search" class="modal-trigger"><i class="material-icons">search</i></a></div></nav><div class="modal modal-fixed-footer moose-search-modal" id="moose-search"><div class="modal-content container moose-search-modal-content"><div class="row"><div class="col l12"><div class="input-field"><input type_="text" onkeyup="mooseSearch()" placeholder="https://hugary1995.github.io/raccoon/index.html" id="moose-search-box"></input></div></div><div><div class="col s12" id="moose-search-results"></div></div></div></div><div class="modal-footer"><a href="#!" class="modal-close btn-flat">Close</a></div></div></header><main class="main"><div class="container"><div class="row"><div class="col hide-on-med-and-down l12"><nav class="breadcrumb-nav"><div class="nav-wrapper"><a href=".." class="breadcrumb">source</a><span class="breadcrumb">materials</span><a href="#" class="breadcrumb">PowerLawCreepStressUpdate</a></div></nav></div></div><div class="row"><div class="moose-content col s12 m12 l10"><section id="b535e123-205a-43b5-952c-d1e0c226dd3b" data-section-level="1" data-section-text="Power Law Creep Stress Update"><h1 id="power-law-creep-stress-update">Power Law Creep Stress Update</h1><p>This class uses the stress update material in a radial return isotropic power law creep model.  This class can be used in conjunction with other creep and plasticity materials for more complex simulations.</p><section class="scrollspy" id="af5d3998-5281-45b3-9eda-d8c77b5883c5" data-section-level="2" data-section-text="Description"><h2 id="description">Description</h2><p>In this numerical approach, a trial stress is calculated at the start of each simulation time increment; the trial stress calculation assumed all of the new strain increment is elastic strain:</p><p><span class="moose-katex-block-equation"><span class="moose-katex-equation table-cell" id="moose-equation-440f3363-28f1-42cb-a498-d0e3a590bae6"></span><script>var element = document.getElementById("moose-equation-440f3363-28f1-42cb-a498-d0e3a590bae6");katex.render("\\sigma_{trial} = C_{ijkl} \\left( \\Delta \\epsilon_{assumed-elastic} + \\epsilon_{elastic}^{old} \\right)", element, {displayMode:true,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\divergence":"\\nabla \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\diff":"\\text{ d}#1","\\total":"\\text{total}","\\internal":"\\text{internal}","\\external":"\\text{external}","\\elastic":"\\text{elastic}","\\fracture":"\\text{fracture}","\\critical":"\\text{critical}","\\activeenergy":"{\\left< A \\right>}","\\inactiveenergy":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\xstress":"\\widetilde{\\stress}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\grad":"\\bs{\\nabla}"}});</script></span></p><p>The algorithms checks to see if the trial stress state is outside of the yield surface, as shown in the figure to the right. If the stress state is outside of the yield surface, the algorithm recomputes the scalar effective inelastic strain required to return the stress state to the yield surface. This approach is given the name Radial Return because the yield surface used is the <a href="https://en.wikipedia.org/wiki/Von_Mises_yield_criterion">von Mises yield surface</a>: in the <a href="https://en.wikipedia.org/wiki/Cauchy_stress_tensor#Stress_deviator_tensor">devitoric stress space</a>, this yield surface has the shape of a circle, and the scalar inelastic strain is assumed to always be directed at the circle center.</p><section id="881890d5-5642-4de0-a5db-f19b6415f691" data-section-level="3" data-section-text="Recompute Iterations on the Effective Plastic Strain Increment"><h3 id="recompute-iterations-on-the-effective-plastic-strain-increment">Recompute Iterations on the Effective Plastic Strain Increment</h3><p>The recompute radial return materials each individually calculate, using the <a href="http://mathworld.wolfram.com/NewtonsMethod.html">Newton Method</a>, the amount of effective inelastic strain required to return the stress state to the yield surface.</p><p><span class="moose-katex-block-equation"><span class="moose-katex-equation table-cell" id="moose-equation-108f8da5-09d5-49d9-876d-ad6f71920441"></span><script>var element = document.getElementById("moose-equation-108f8da5-09d5-49d9-876d-ad6f71920441");katex.render("\\Delta p^{(t+1)} = \\Delta p^t + d \\Delta p", element, {displayMode:true,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\divergence":"\\nabla \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\diff":"\\text{ d}#1","\\total":"\\text{total}","\\internal":"\\text{internal}","\\external":"\\text{external}","\\elastic":"\\text{elastic}","\\fracture":"\\text{fracture}","\\critical":"\\text{critical}","\\activeenergy":"{\\left< A \\right>}","\\inactiveenergy":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\xstress":"\\widetilde{\\stress}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\grad":"\\bs{\\nabla}"}});</script></span></p><p>where the change in the iterative effective inelastic strain is defined as the yield surface over the derivative of the yield surface with respect to the inelastic strain increment. </p><p>The increment of inelastic strain is computed from the creep rate in this class. <span class="moose-katex-block-equation"><span class="moose-katex-equation table-cell" id="moose-equation-abce8bae-9371-4ac6-bad3-5ba2667e2ec7"></span><span class="moose-katex-equation-number">(1)</span><script>var element = document.getElementById("moose-equation-abce8bae-9371-4ac6-bad3-5ba2667e2ec7");katex.render("     \\dot{\\epsilon} = \\left( \\sigma^{trial}_{effective} - 3 G \\Delta p \\right)^n exp \\left( \\frac{-Q}{RT} \\right) \\left(t - t_o \\right)^m", element, {displayMode:true,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\divergence":"\\nabla \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\diff":"\\text{ d}#1","\\total":"\\text{total}","\\internal":"\\text{internal}","\\external":"\\text{external}","\\elastic":"\\text{elastic}","\\fracture":"\\text{fracture}","\\critical":"\\text{critical}","\\activeenergy":"{\\left< A \\right>}","\\inactiveenergy":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\xstress":"\\widetilde{\\stress}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\grad":"\\bs{\\nabla}"}});</script></span> where <span class="moose-katex-inline-equation" id="moose-equation-cb5da717-ba41-4a2e-b6d8-f3e97d194489"><script>var element = document.getElementById("moose-equation-cb5da717-ba41-4a2e-b6d8-f3e97d194489");katex.render("\\sigma^{trial}_{effective}", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\divergence":"\\nabla \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\diff":"\\text{ d}#1","\\total":"\\text{total}","\\internal":"\\text{internal}","\\external":"\\text{external}","\\elastic":"\\text{elastic}","\\fracture":"\\text{fracture}","\\critical":"\\text{critical}","\\activeenergy":"{\\left< A \\right>}","\\inactiveenergy":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\xstress":"\\widetilde{\\stress}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\grad":"\\bs{\\nabla}"}});</script></span> is the scalar von Mises trial stress, <span class="moose-katex-inline-equation" id="moose-equation-8a9cad2b-a873-473a-aff2-3285b9d9fc63"><script>var element = document.getElementById("moose-equation-8a9cad2b-a873-473a-aff2-3285b9d9fc63");katex.render("G", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\divergence":"\\nabla \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\diff":"\\text{ d}#1","\\total":"\\text{total}","\\internal":"\\text{internal}","\\external":"\\text{external}","\\elastic":"\\text{elastic}","\\fracture":"\\text{fracture}","\\critical":"\\text{critical}","\\activeenergy":"{\\left< A \\right>}","\\inactiveenergy":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\xstress":"\\widetilde{\\stress}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\grad":"\\bs{\\nabla}"}});</script></span> is the isotropic shear modulus, <span class="moose-katex-inline-equation" id="moose-equation-4520c22a-26dd-4152-80fe-2acc5d6fecc3"><script>var element = document.getElementById("moose-equation-4520c22a-26dd-4152-80fe-2acc5d6fecc3");katex.render("Q", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\divergence":"\\nabla \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\diff":"\\text{ d}#1","\\total":"\\text{total}","\\internal":"\\text{internal}","\\external":"\\text{external}","\\elastic":"\\text{elastic}","\\fracture":"\\text{fracture}","\\critical":"\\text{critical}","\\activeenergy":"{\\left< A \\right>}","\\inactiveenergy":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\xstress":"\\widetilde{\\stress}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\grad":"\\bs{\\nabla}"}});</script></span> is the activation energy, <span class="moose-katex-inline-equation" id="moose-equation-31a07dd2-280d-4c25-a001-8fc69bf1957b"><script>var element = document.getElementById("moose-equation-31a07dd2-280d-4c25-a001-8fc69bf1957b");katex.render("R", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\divergence":"\\nabla \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\diff":"\\text{ d}#1","\\total":"\\text{total}","\\internal":"\\text{internal}","\\external":"\\text{external}","\\elastic":"\\text{elastic}","\\fracture":"\\text{fracture}","\\critical":"\\text{critical}","\\activeenergy":"{\\left< A \\right>}","\\inactiveenergy":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\xstress":"\\widetilde{\\stress}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\grad":"\\bs{\\nabla}"}});</script></span> is the universal gas constant, <span class="moose-katex-inline-equation" id="moose-equation-0bd85c95-ab6b-4f0f-b174-86340b42a721"><script>var element = document.getElementById("moose-equation-0bd85c95-ab6b-4f0f-b174-86340b42a721");katex.render("T", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\divergence":"\\nabla \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\diff":"\\text{ d}#1","\\total":"\\text{total}","\\internal":"\\text{internal}","\\external":"\\text{external}","\\elastic":"\\text{elastic}","\\fracture":"\\text{fracture}","\\critical":"\\text{critical}","\\activeenergy":"{\\left< A \\right>}","\\inactiveenergy":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\xstress":"\\widetilde{\\stress}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\grad":"\\bs{\\nabla}"}});</script></span> is the temperature, <span class="moose-katex-inline-equation" id="moose-equation-7decb383-3955-474d-bded-e3299524aff0"><script>var element = document.getElementById("moose-equation-7decb383-3955-474d-bded-e3299524aff0");katex.render("t", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\divergence":"\\nabla \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\diff":"\\text{ d}#1","\\total":"\\text{total}","\\internal":"\\text{internal}","\\external":"\\text{external}","\\elastic":"\\text{elastic}","\\fracture":"\\text{fracture}","\\critical":"\\text{critical}","\\activeenergy":"{\\left< A \\right>}","\\inactiveenergy":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\xstress":"\\widetilde{\\stress}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\grad":"\\bs{\\nabla}"}});</script></span> and <span class="moose-katex-inline-equation" id="moose-equation-7099160b-a5ff-4654-8a0f-804ab73996b7"><script>var element = document.getElementById("moose-equation-7099160b-a5ff-4654-8a0f-804ab73996b7");katex.render("t_o", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\divergence":"\\nabla \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\diff":"\\text{ d}#1","\\total":"\\text{total}","\\internal":"\\text{internal}","\\external":"\\text{external}","\\elastic":"\\text{elastic}","\\fracture":"\\text{fracture}","\\critical":"\\text{critical}","\\activeenergy":"{\\left< A \\right>}","\\inactiveenergy":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\xstress":"\\widetilde{\\stress}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\grad":"\\bs{\\nabla}"}});</script></span> are the current and initial times, respectively, and <span class="moose-katex-inline-equation" id="moose-equation-329183a5-9ad2-4f7e-a6da-14ec2004216a"><script>var element = document.getElementById("moose-equation-329183a5-9ad2-4f7e-a6da-14ec2004216a");katex.render("n", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\divergence":"\\nabla \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\diff":"\\text{ d}#1","\\total":"\\text{total}","\\internal":"\\text{internal}","\\external":"\\text{external}","\\elastic":"\\text{elastic}","\\fracture":"\\text{fracture}","\\critical":"\\text{critical}","\\activeenergy":"{\\left< A \\right>}","\\inactiveenergy":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\xstress":"\\widetilde{\\stress}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\grad":"\\bs{\\nabla}"}});</script></span> and <span class="moose-katex-inline-equation" id="moose-equation-3dc02b7e-a03f-4bc4-8861-63e4a41924fe"><script>var element = document.getElementById("moose-equation-3dc02b7e-a03f-4bc4-8861-63e4a41924fe");katex.render("m", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\divergence":"\\nabla \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\diff":"\\text{ d}#1","\\total":"\\text{total}","\\internal":"\\text{internal}","\\external":"\\text{external}","\\elastic":"\\text{elastic}","\\fracture":"\\text{fracture}","\\critical":"\\text{critical}","\\activeenergy":"{\\left< A \\right>}","\\inactiveenergy":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\xstress":"\\widetilde{\\stress}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\grad":"\\bs{\\nabla}"}});</script></span> are exponent values.</p><p>This class calculates an effective trial stress, an effective creep strain rate increment and the derivative of the creep strain rate, and an effective scalar inelastic strain increment; these values are passed to the <a href="RadialReturnStressUpdate.html">RadialReturnStressUpdate</a> to compute the radial return stress increment.  This isotropic plasticity class also computes the plastic strain as a stateful material property.</p><p>This class is based on the implicit integration algorithm in <a href="#dunne2005introduction">Dunne and Petrinic (2005)</a> pg. 146 - 149.</p></section></section><section class="scrollspy" id="8cd6200d-0a80-4ba0-a209-d37de7bff9dd" data-section-level="2" data-section-text="Example Input File"><h2 id="example-input-file">Example Input File</h2><pre class="moose-pre"><code class="language-text">[./powerlawcrp]
+<!DOCTYPE html><head><meta charset="UTF-8"><title>Power Law Creep Stress Update | RACCOON</title><link rel="icon" type="image/x-icon" href="../../media/raccoon_icon.png" sizes="16x16 32x32 64x64 128x128"></link><link href="../../contrib/materialize/materialize.min.css" type="text/css" rel="stylesheet" media="screen,projection"></link><link href="../../contrib/prism/prism.min.css" type="text/css" rel="stylesheet"></link><link href="../../css/moose.css" type="text/css" rel="stylesheet"></link><link href="../../css/devel_moose.css" type="text/css" rel="stylesheet"></link><link href="../../css/alert_moose.css" type="text/css" rel="stylesheet"></link><link href="../../css/content_moose.css" type="text/css" rel="stylesheet"></link><link href="../../css/sqa_moose.css" type="text/css" rel="stylesheet"></link><link href="../../contrib/katex/katex.min.css" type="text/css" rel="stylesheet"></link><link href="../../css/katex_moose.css" type="text/css" rel="stylesheet"></link><script type="text/javascript" src="../../contrib/jquery/jquery.min.js"></script><script type="text/javascript" src="../../contrib/katex/katex.min.js"></script></head><body><div class="page-wrap"><header><nav><div class="nav-wrapper container"><a class="left moose-logo hide-on-med-and-down">RACCOON</a><a href="https://github.com/hugary1995/raccoon" class="right"><img src="../../media/framework/github-logo.png" class="github-mark"></img><img src="../../media/framework/github-mark.png" class="github-logo"></img></a><ul class="right hide-on-med-and-down"><li><a href="#!" class="dropdown-trigger" data-target="8d5bc1e2-1dbd-4d26-a996-be8d0947024a" data-constrainWidth="false">Getting Started<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="7a70fcb2-6e34-4ecd-bcbc-92b4259dade5" data-constrainWidth="false">Tutorials<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="adc5ae9a-5c1e-47aa-864f-227b1641f0d9" data-constrainWidth="false">Theory<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="b81d8161-c4b7-48ce-9cee-122caa916a46" data-constrainWidth="false">Documentation<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="../../contribute/index.html">Contribute</a></li></ul><a href="#" class="sidenav-trigger" data-target="1c4e4047-e56c-49f0-b9b5-11ffad82147f"><i class="material-icons">menu</i></a><ul class="sidenav" id="1c4e4047-e56c-49f0-b9b5-11ffad82147f"><li><a href="#!" class="dropdown-trigger" data-target="b6d3806b-c4bb-4271-88f6-8122223a99af" data-constrainWidth="false">Getting Started<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="41ffe37c-455d-41a8-b209-56654da39bcd" data-constrainWidth="false">Tutorials<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="6acf0ba3-1921-4041-b2a8-3414f10865a9" data-constrainWidth="false">Theory<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="5a220e57-cf62-46a5-a385-3d71e49bd019" data-constrainWidth="false">Documentation<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="../../contribute/index.html">Contribute</a></li></ul><a href="#moose-search" class="modal-trigger"><i class="material-icons">search</i></a></div><ul class="dropdown-content" id="8d5bc1e2-1dbd-4d26-a996-be8d0947024a"><li><a href="../../getting_started/install.html">Install RACCOON</a></li><li><a href="../../getting_started/update.html">Update RACCOON</a></li><li><a href="../../getting_started/running.html">Running your first model</a></li><li><a href="../../getting_started/paraview.html">Visualization</a></li><li><a href="../../getting_started/ide.html">Code development</a></li></ul><ul class="dropdown-content" id="7a70fcb2-6e34-4ecd-bcbc-92b4259dade5"><li><a href="../../tutorials/01_small_deformation_elasticity.html">1. Small deformation</a></li><li><a href="../../tutorials/02_mode1_brittle_fracture.html">2. Mode-I fracture</a></li><li><a href="../../tutorials/03_mode2_brittle_fracture.html">3. Mode-II fracture</a></li><li><a href="../../tutorials/04_fiber_reinforced_matrix.html">4. Fiber-reinforced matrix</a></li><li><a href="../../tutorials/05_soil_desiccation.html">5. Soil desiccation</a></li><li><a href="../../tutorials/06_large_deformation_elasticity.html">6. Large deformation</a></li><li><a href="../../tutorials/07_elastoplasticity.html">7. Elastoplasticity</a></li><li><a href="../../tutorials/08_ductile_fracture.html">8. Ductile fracture</a></li><li><a href="../../tutorials/09_three_point_bending.html">9. Three-point bending</a></li><li><a href="../../tutorials/10_quenching_bibeam.html">10. Quenching of bi-beam</a></li><li><a href="../../tutorials/11_adaptivity.html">11. Adaptive mesh refinement</a></li></ul><ul class="dropdown-content" id="adc5ae9a-5c1e-47aa-864f-227b1641f0d9"><li><a href="../../theory/intro.html">Introduction</a></li><li><a href="../../theory/kinematics.html">State variables and kinematics</a></li><li><a href="../../theory/thermodynamics.html">Thermodynamics</a></li><li><a href="../../theory/minimization.html">The minimization problem</a></li><li><a href="../../theory/constitutive_models.html">Constitutive Models</a></li></ul><ul class="dropdown-content" id="b81d8161-c4b7-48ce-9cee-122caa916a46"><li><a href="../../modules/index.html">Physics modules</a></li><li><a href="../../syntax/index.html">Complete syntax</a></li><li><a href="../../syntax/raccoon.html">RACCOON syntax</a></li><li><a href="../../syntax/tensor_mechanics.html">Tensor mechanics syntax</a></li><li><a href="../../syntax/phase_field.html">Phase field syntax</a></li><li><a href="../../syntax/heat_conduction.html">Heat conduction syntax</a></li></ul><ul class="dropdown-content" id="b6d3806b-c4bb-4271-88f6-8122223a99af"><li><a href="../../getting_started/install.html">Install RACCOON</a></li><li><a href="../../getting_started/update.html">Update RACCOON</a></li><li><a href="../../getting_started/running.html">Running your first model</a></li><li><a href="../../getting_started/paraview.html">Visualization</a></li><li><a href="../../getting_started/ide.html">Code development</a></li></ul><ul class="dropdown-content" id="41ffe37c-455d-41a8-b209-56654da39bcd"><li><a href="../../tutorials/01_small_deformation_elasticity.html">1. Small deformation</a></li><li><a href="../../tutorials/02_mode1_brittle_fracture.html">2. Mode-I fracture</a></li><li><a href="../../tutorials/03_mode2_brittle_fracture.html">3. Mode-II fracture</a></li><li><a href="../../tutorials/04_fiber_reinforced_matrix.html">4. Fiber-reinforced matrix</a></li><li><a href="../../tutorials/05_soil_desiccation.html">5. Soil desiccation</a></li><li><a href="../../tutorials/06_large_deformation_elasticity.html">6. Large deformation</a></li><li><a href="../../tutorials/07_elastoplasticity.html">7. Elastoplasticity</a></li><li><a href="../../tutorials/08_ductile_fracture.html">8. Ductile fracture</a></li><li><a href="../../tutorials/09_three_point_bending.html">9. Three-point bending</a></li><li><a href="../../tutorials/10_quenching_bibeam.html">10. Quenching of bi-beam</a></li><li><a href="../../tutorials/11_adaptivity.html">11. Adaptive mesh refinement</a></li></ul><ul class="dropdown-content" id="6acf0ba3-1921-4041-b2a8-3414f10865a9"><li><a href="../../theory/intro.html">Introduction</a></li><li><a href="../../theory/kinematics.html">State variables and kinematics</a></li><li><a href="../../theory/thermodynamics.html">Thermodynamics</a></li><li><a href="../../theory/minimization.html">The minimization problem</a></li><li><a href="../../theory/constitutive_models.html">Constitutive Models</a></li></ul><ul class="dropdown-content" id="5a220e57-cf62-46a5-a385-3d71e49bd019"><li><a href="../../modules/index.html">Physics modules</a></li><li><a href="../../syntax/index.html">Complete syntax</a></li><li><a href="../../syntax/raccoon.html">RACCOON syntax</a></li><li><a href="../../syntax/tensor_mechanics.html">Tensor mechanics syntax</a></li><li><a href="../../syntax/phase_field.html">Phase field syntax</a></li><li><a href="../../syntax/heat_conduction.html">Heat conduction syntax</a></li></ul></nav><div class="modal modal-fixed-footer moose-search-modal" id="moose-search"><div class="modal-content container moose-search-modal-content"><div class="row"><div class="col l12"><div class="input-field"><input type_="text" onkeyup="mooseSearch()" id="moose-search-box"></input></div></div><div><div class="col s12" id="moose-search-results"></div></div></div></div><div class="modal-footer"><a href="#!" class="modal-close btn-flat">Close</a></div></div></header><main class="main"><div class="container"><div class="row"><div class="moose-content col s12 m12 l12"><section id="38335698-e860-46ab-a4a7-dddb0eaa18d7" data-section-level="1" data-section-text="Power Law Creep Stress Update"><h1 id="power-law-creep-stress-update">Power Law Creep Stress Update</h1><p>This class uses the stress update material in a radial return isotropic power law creep model.  This class can be used in conjunction with other creep and plasticity materials for more complex simulations.</p><section id="b37b96f1-dc7e-4099-808c-cee61149a110" data-section-level="2" data-section-text="Description"><h2 id="description">Description</h2><p>In this numerical approach, a trial stress is calculated at the start of each simulation time increment; the trial stress calculation assumed all of the new strain increment is elastic strain:</p><p><span class="moose-katex-block-equation"><span class="moose-katex-equation table-cell" id="moose-equation-a9a88ba5-23aa-4dd6-a6f4-258c18f0101e"></span><script>var element = document.getElementById("moose-equation-a9a88ba5-23aa-4dd6-a6f4-258c18f0101e");katex.render("\\sigma_{trial} = C_{ijkl} \\left( \\Delta \\epsilon_{assumed-elastic} + \\epsilon_{elastic}^{old} \\right)", element, {displayMode:true,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span></p><p>The algorithms checks to see if the trial stress state is outside of the yield surface, as shown in the figure to the right. If the stress state is outside of the yield surface, the algorithm recomputes the scalar effective inelastic strain required to return the stress state to the yield surface. This approach is given the name Radial Return because the yield surface used is the <a href="https://en.wikipedia.org/wiki/Von_Mises_yield_criterion">von Mises yield surface</a>: in the <a href="https://en.wikipedia.org/wiki/Cauchy_stress_tensor#Stress_deviator_tensor">devitoric stress space</a>, this yield surface has the shape of a circle, and the scalar inelastic strain is assumed to always be directed at the circle center.</p><section id="0d3c713c-08fd-43ba-84c8-f2614ec11124" data-section-level="3" data-section-text="Recompute Iterations on the Effective Plastic Strain Increment"><h3 id="recompute-iterations-on-the-effective-plastic-strain-increment">Recompute Iterations on the Effective Plastic Strain Increment</h3><p>The recompute radial return materials each individually calculate, using the <a href="http://mathworld.wolfram.com/NewtonsMethod.html">Newton Method</a>, the amount of effective inelastic strain required to return the stress state to the yield surface.</p><p><span class="moose-katex-block-equation"><span class="moose-katex-equation table-cell" id="moose-equation-34885880-814e-413f-be66-da01502bb13e"></span><script>var element = document.getElementById("moose-equation-34885880-814e-413f-be66-da01502bb13e");katex.render("\\Delta p^{(t+1)} = \\Delta p^t + d \\Delta p", element, {displayMode:true,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span></p><p>where the change in the iterative effective inelastic strain is defined as the yield surface over the derivative of the yield surface with respect to the inelastic strain increment. </p><p>The increment of inelastic strain is computed from the creep rate in this class. <span class="moose-katex-block-equation"><span class="moose-katex-equation table-cell" id="moose-equation-46f747e6-6bac-4aa3-89c6-8d0d1a86b470"></span><span class="moose-katex-equation-number">(1)</span><script>var element = document.getElementById("moose-equation-46f747e6-6bac-4aa3-89c6-8d0d1a86b470");katex.render("     \\dot{\\epsilon} = \\left( \\sigma^{trial}_{effective} - 3 G \\Delta p \\right)^n exp \\left( \\frac{-Q}{RT} \\right) \\left(t - t_o \\right)^m", element, {displayMode:true,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span> where <span class="moose-katex-inline-equation" id="moose-equation-2f2debdf-bb33-4bba-a9f1-212da7b0cab9"><script>var element = document.getElementById("moose-equation-2f2debdf-bb33-4bba-a9f1-212da7b0cab9");katex.render("\\sigma^{trial}_{effective}", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span> is the scalar von Mises trial stress, <span class="moose-katex-inline-equation" id="moose-equation-fbb0d6e8-d7b5-4294-9504-6e2992ba8ace"><script>var element = document.getElementById("moose-equation-fbb0d6e8-d7b5-4294-9504-6e2992ba8ace");katex.render("G", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span> is the isotropic shear modulus, <span class="moose-katex-inline-equation" id="moose-equation-1ef8accc-f7bc-4a21-96b2-43ff5936e54d"><script>var element = document.getElementById("moose-equation-1ef8accc-f7bc-4a21-96b2-43ff5936e54d");katex.render("Q", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span> is the activation energy, <span class="moose-katex-inline-equation" id="moose-equation-88049287-5104-4d7f-b78f-977acbdb7e96"><script>var element = document.getElementById("moose-equation-88049287-5104-4d7f-b78f-977acbdb7e96");katex.render("R", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span> is the universal gas constant, <span class="moose-katex-inline-equation" id="moose-equation-028544b2-98e8-43e3-8273-dbf7831c08ff"><script>var element = document.getElementById("moose-equation-028544b2-98e8-43e3-8273-dbf7831c08ff");katex.render("T", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span> is the temperature, <span class="moose-katex-inline-equation" id="moose-equation-618e94df-ac5f-4d11-bf39-a2d8e3885d18"><script>var element = document.getElementById("moose-equation-618e94df-ac5f-4d11-bf39-a2d8e3885d18");katex.render("t", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span> and <span class="moose-katex-inline-equation" id="moose-equation-1d02d248-4744-4202-b0e5-8e32c63c1ecb"><script>var element = document.getElementById("moose-equation-1d02d248-4744-4202-b0e5-8e32c63c1ecb");katex.render("t_o", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span> are the current and initial times, respectively, and <span class="moose-katex-inline-equation" id="moose-equation-2a98c23d-56ac-4f23-8bd1-0a0927f01c2f"><script>var element = document.getElementById("moose-equation-2a98c23d-56ac-4f23-8bd1-0a0927f01c2f");katex.render("n", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span> and <span class="moose-katex-inline-equation" id="moose-equation-55b8eb56-1357-42a3-815d-4d7283f47ee8"><script>var element = document.getElementById("moose-equation-55b8eb56-1357-42a3-815d-4d7283f47ee8");katex.render("m", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span> are exponent values.</p><p>This class calculates an effective trial stress, an effective creep strain rate increment and the derivative of the creep strain rate, and an effective scalar inelastic strain increment; these values are passed to the <a href="RadialReturnStressUpdate.html">RadialReturnStressUpdate</a> to compute the radial return stress increment.  This isotropic plasticity class also computes the plastic strain as a stateful material property.</p><p>This class is based on the implicit integration algorithm in <a href="#dunne2005introduction">Dunne and Petrinic (2005)</a> pg. 146 - 149.</p></section></section><section id="2698cc4d-3173-42fa-a0e4-23e3ff2bce3d" data-section-level="2" data-section-text="Example Input File"><h2 id="example-input-file">Example Input File</h2><pre class="moose-pre" style="max-height:350px;"><code class="language-text">[./powerlawcrp]
   type = PowerLawCreepStressUpdate
   block = 1
   coefficient = 3.125e-14
@@ -7,757 +7,757 @@
   activation_energy = 0.0
   max_inelastic_increment = 0.01
 [../]
-</code></pre><a href="#a3b829c1-1d5b-4434-a039-2bf58589155c" class="modal-trigger">(moose/modules/tensor_mechanics/test/tests/material_limit_time_step/creep/nafems_test5a_lim.i)</a><div class="modal moose-modal" id="a3b829c1-1d5b-4434-a039-2bf58589155c"><div class="modal-content"><h4>/home/travis/build/hugary1995/raccoon/moose/modules/tensor_mechanics/test/tests/material_limit_time_step/creep/nafems_test5a_lim.i</h4><pre class="moose-pre"><code class="language-text">[GlobalParams]
-  temperature = temp
-  order = FIRST
-  family = LAGRANGE
-  volumetric_locking_correction = true
-  displacements = &#x27;disp_x disp_y&#x27;
-[]
-
-[Mesh]
-  file = plane1_mesh.e
-[]
-
-[Problem]
-  type = ReferenceResidualProblem
-  extra_tag_vectors = &#x27;ref&#x27;
-  reference_vector = &#x27;ref&#x27;
-  group_variables = &#x27;disp_x disp_y&#x27;
-[]
-
-[Variables]
-  [./disp_x]
-  [../]
-  [./disp_y]
-  [../]
-[]
-
-[AuxVariables]
-  [./temp]
-    initial_condition = 1500.0
-  [../]
-  [./creep]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./stress_xx]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./stress_yy]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./stress_zz]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./vonmises]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./pressure]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./invariant3]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./creep_strain_xx]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./creep_strain_yy]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./creep_strain_zz]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./creep_strain_xy]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./elastic_strain_xx]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./elastic_strain_yy]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./elastic_strain_zz]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-[]
-
-[Kernels]
-  [./TensorMechanics]
-    use_displaced_mesh = true
-    extra_vector_tags = &#x27;ref&#x27;
-  [../]
-[]
-
-[AuxKernels]
-  [./creep_aux]
-    type = MaterialRealAux
-    property = effective_creep_strain
-    variable = creep
-  [../]
-  [./stress_xx]
-    type = RankTwoAux
-    rank_two_tensor = stress
-    variable = stress_xx
-    index_i = 0
-    index_j = 0
-  [../]
-  [./stress_yy]
-    type = RankTwoAux
-    rank_two_tensor = stress
-    variable = stress_yy
-    index_i = 1
-    index_j = 1
-  [../]
-  [./stress_zz]
-    type = RankTwoAux
-    rank_two_tensor = stress
-    variable = stress_zz
-    index_i = 2
-    index_j = 2
-  [../]
-  [./vonmises]
-    type = RankTwoScalarAux
-    rank_two_tensor = stress
-    variable = vonmises
-    scalar_type = VonMisesStress
-  [../]
-  [./pressure]
-    type = RankTwoScalarAux
-    rank_two_tensor = stress
-    variable = pressure
-    scalar_type = Hydrostatic
-  [../]
-  [./invariant3]
-    type = RankTwoScalarAux
-    rank_two_tensor = stress
-    variable = invariant3
-    scalar_type = ThirdInvariant
-  [../]
-  [./creep_strain_xx]
-    type = RankTwoAux
-    rank_two_tensor = creep_strain
-    variable = creep_strain_xx
-    index_i = 0
-    index_j = 0
-  [../]
-  [./creep_strain_yy]
-    type = RankTwoAux
-    rank_two_tensor = creep_strain
-    variable = creep_strain_yy
-    index_i = 1
-    index_j = 1
-  [../]
-  [./creep_strain_zz]
-    type = RankTwoAux
-    rank_two_tensor = creep_strain
-    variable = creep_strain_zz
-    index_i = 2
-    index_j = 2
-  [../]
-  [./creep_strain_xy]
-    type = RankTwoAux
-    rank_two_tensor = creep_strain
-    variable = creep_strain_xy
-    index_i = 0
-    index_j = 1
-  [../]
-  [./elastic_str_xx_aux]
-    type = RankTwoAux
-    rank_two_tensor = elastic_strain
-    variable = elastic_strain_xx
-    index_i = 0
-    index_j = 0
-  [../]
-  [./elastic_str_yy_aux]
-    type = RankTwoAux
-    rank_two_tensor = elastic_strain
-    variable = elastic_strain_yy
-    index_i = 1
-    index_j = 1
-  [../]
-  [./elastic_str_zz_aux]
-    type = RankTwoAux
-    rank_two_tensor = elastic_strain
-    variable = elastic_strain_zz
-    index_i = 2
-    index_j = 2
-  [../]
-[]
-
-[BCs]
-  [./bot_y]
-    type = DirichletBC
-    variable = disp_y
-    boundary = 1
-    value = 0.0
-  [../]
-  [./side_x]
-    type = DirichletBC
-    variable = disp_x
-    boundary = 2
-    value = 0.0
-  [../]
-  [./top_press]
-    type = Pressure
-    variable = disp_y
-    boundary = 3
-    component = 1
-    factor = -100.0
-  [../]
-  [./side_press]
-    type = Pressure
-    variable = disp_x
-    boundary = 4
-    component = 0
-    factor = -200.0
-  [../]
-[]
-
-[Materials]
-  [./elasticity_tensor]
-    type = ComputeIsotropicElasticityTensor
-    block = 1
-    youngs_modulus = 200e3
-    poissons_ratio = 0.3
-  [../]
-  [./strain]
-    type = ComputePlaneFiniteStrain
-    block = 1
-  [../]
-  [./radial_return_stress]
-    type = ComputeMultipleInelasticStress
-    block = 1
-    inelastic_models = &#x27;powerlawcrp&#x27;
-  [../]
-  [./powerlawcrp]
-    type = PowerLawCreepStressUpdate
-    block = 1
-    coefficient = 3.125e-14
-    n_exponent = 5.0
-    m_exponent = 0.0
-    activation_energy = 0.0
-    max_inelastic_increment = 0.01
-  [../]
-[]
-
-[Executioner]
-  type = Transient
-
-  solve_type = &#x27;PJFNK&#x27;
-
-  petsc_options_iname = &#x27;-pc_type -pc_factor_mat_solver_package&#x27;
-  petsc_options_value = &#x27; lu       superlu_dist&#x27;
-
-  line_search = &#x27;none&#x27;
-
-  l_max_its = 50
-  nl_max_its = 100
-  end_time = 1000.0
-  num_steps = 10000
-  l_tol = 1e-3
-
-  [./TimeStepper]
-    type = IterationAdaptiveDT
-    dt = 1e-6
-    time_t = &#x27;1e-6  2e-6 3e-6 5e-6 9e-6 1.7e-5 3.3e-5 6.5e-5 1.29e-4 2.57e-4 5.13e-4 1.025e-3 2.049e-3 4.097e-3 8.193e-3 1.638e-2 3.276e-2 5.734e-2 0.106 0.180 0.291 0.457 0.706 1.08 1.64 2.48 3.74 5.63 8.46 12.7 19.1 28.7 43.0 64.5 108.0 194.0 366.0 710.0 1000.0&#x27;
-    time_dt = &#x27;1e-6 1e-6 2e-6 4e-6 8e-6 1.6e-5 3.2e-5 6.4e-5 1.28e-4 2.56e-4 5.12e-4 1.024e-3 2.048e-3 4.096e-3 8.192e-3 1.6384e-2 2.458e-2 4.915e-2 7.40e-2 0.111 0.166 0.249 0.374 0.560 0.840 1.26 1.89 2.83 4.25 6.40 9.6 14.3 21.5 43.0 86.1 172.0 344.0 290.0 290.0&#x27;
-    optimal_iterations = 30
-    iteration_window = 9
-    growth_factor = 2.0
-    cutback_factor = 0.5
-    timestep_limiting_postprocessor = matl_ts_min
-  [../]
-[]
-
-[Postprocessors]
-  [./matl_ts_min]
-    type = MaterialTimeStepPostprocessor
-  [../]
-  [./sigma_xx]
-    type = ElementAverageValue
-    variable = stress_xx
-  [../]
-  [./sigma_yy]
-    type = ElementAverageValue
-    variable = stress_yy
-  [../]
-  [./sigma_zz]
-    type = ElementAverageValue
-    variable = stress_zz
-  [../]
-  [./vonmises]
-    type = ElementAverageValue
-    variable = vonmises
-  [../]
-  [./pressure]
-    type = ElementAverageValue
-    variable = pressure
-  [../]
-  [./invariant3]
-    type = ElementAverageValue
-    variable = invariant3
-  [../]
-  [./eps_crp_xx]
-    type = ElementAverageValue
-    variable = creep_strain_xx
-  [../]
-  [./eps_crp_yy]
-    type = ElementAverageValue
-    variable = creep_strain_yy
-  [../]
-  [./eps_crp_zz]
-    type = ElementAverageValue
-    variable = creep_strain_zz
-  [../]
-  [./eps_crp_mag]
-    type = ElementAverageValue
-    variable = creep
-  [../]
-  [./disp_x2]
-    type = NodalVariableValue
-    nodeid = 1
-    variable = disp_x
-  [../]
-  [./disp_x3]
-    type = NodalVariableValue
-    nodeid = 2
-    variable = disp_x
-  [../]
-  [./disp_y3]
-    type = NodalVariableValue
-    nodeid = 2
-    variable = disp_y
-  [../]
-  [./disp_y4]
-    type = NodalVariableValue
-    nodeid = 3
-    variable = disp_y
-  [../]
-  [./_dt]
-    type = TimestepSize
-  [../]
-  [./elas_str_xx]
-    type = ElementAverageValue
-    variable = elastic_strain_xx
-  [../]
-  [./elas_str_yy]
-    type = ElementAverageValue
-    variable = elastic_strain_yy
-  [../]
-  [./elas_str_zz]
-    type = ElementAverageValue
-    variable = elastic_strain_zz
-  [../]
-[]
-
-[Outputs]
-  print_linear_residuals = true
-  perf_graph = true
-  csv = true
-  [./out]
-    type = Exodus
-    elemental_as_nodal = true
-  [../]
-  [./console]
-    type = Console
-    max_rows = 25
-  [../]
-[]
-</code></pre></div><div class="modal-footer"><a class="modal-close btn-flat">Close</a></div></div><p><code>PowerLawCreepStressUpdate</code> must be run in conjunction with the inelastic strain return mapping stress calculator as shown below:</p><pre class="moose-pre"><code class="language-text">[./radial_return_stress]
+</code></pre><a class="moose-source-filename tooltipped modal-trigger" href="#27507631-5f1f-43ee-a596-37e5c4313658">(moose/modules/tensor_mechanics/test/tests/material_limit_time_step/creep/nafems_test5a_lim.i)</a><p><code>PowerLawCreepStressUpdate</code> must be run in conjunction with the inelastic strain return mapping stress calculator as shown below:</p><pre class="moose-pre" style="max-height:350px;"><code class="language-text">[./radial_return_stress]
   type = ComputeMultipleInelasticStress
   block = 1
   inelastic_models = &#x27;powerlawcrp&#x27;
 [../]
-</code></pre><a href="#0d51bfed-3287-44f6-8e55-75581b9c3851" class="modal-trigger">(moose/modules/tensor_mechanics/test/tests/material_limit_time_step/creep/nafems_test5a_lim.i)</a><div class="modal moose-modal" id="0d51bfed-3287-44f6-8e55-75581b9c3851"><div class="modal-content"><h4>/home/travis/build/hugary1995/raccoon/moose/modules/tensor_mechanics/test/tests/material_limit_time_step/creep/nafems_test5a_lim.i</h4><pre class="moose-pre"><code class="language-text">[GlobalParams]
-  temperature = temp
-  order = FIRST
-  family = LAGRANGE
-  volumetric_locking_correction = true
-  displacements = &#x27;disp_x disp_y&#x27;
-[]
-
-[Mesh]
-  file = plane1_mesh.e
-[]
-
-[Problem]
-  type = ReferenceResidualProblem
-  extra_tag_vectors = &#x27;ref&#x27;
-  reference_vector = &#x27;ref&#x27;
-  group_variables = &#x27;disp_x disp_y&#x27;
-[]
-
-[Variables]
-  [./disp_x]
-  [../]
-  [./disp_y]
-  [../]
-[]
-
-[AuxVariables]
-  [./temp]
-    initial_condition = 1500.0
-  [../]
-  [./creep]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./stress_xx]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./stress_yy]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./stress_zz]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./vonmises]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./pressure]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./invariant3]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./creep_strain_xx]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./creep_strain_yy]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./creep_strain_zz]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./creep_strain_xy]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./elastic_strain_xx]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./elastic_strain_yy]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-  [./elastic_strain_zz]
-    order = CONSTANT
-    family = MONOMIAL
-  [../]
-[]
-
-[Kernels]
-  [./TensorMechanics]
-    use_displaced_mesh = true
-    extra_vector_tags = &#x27;ref&#x27;
-  [../]
-[]
-
-[AuxKernels]
-  [./creep_aux]
-    type = MaterialRealAux
-    property = effective_creep_strain
-    variable = creep
-  [../]
-  [./stress_xx]
-    type = RankTwoAux
-    rank_two_tensor = stress
-    variable = stress_xx
-    index_i = 0
-    index_j = 0
-  [../]
-  [./stress_yy]
-    type = RankTwoAux
-    rank_two_tensor = stress
-    variable = stress_yy
-    index_i = 1
-    index_j = 1
-  [../]
-  [./stress_zz]
-    type = RankTwoAux
-    rank_two_tensor = stress
-    variable = stress_zz
-    index_i = 2
-    index_j = 2
-  [../]
-  [./vonmises]
-    type = RankTwoScalarAux
-    rank_two_tensor = stress
-    variable = vonmises
-    scalar_type = VonMisesStress
-  [../]
-  [./pressure]
-    type = RankTwoScalarAux
-    rank_two_tensor = stress
-    variable = pressure
-    scalar_type = Hydrostatic
-  [../]
-  [./invariant3]
-    type = RankTwoScalarAux
-    rank_two_tensor = stress
-    variable = invariant3
-    scalar_type = ThirdInvariant
-  [../]
-  [./creep_strain_xx]
-    type = RankTwoAux
-    rank_two_tensor = creep_strain
-    variable = creep_strain_xx
-    index_i = 0
-    index_j = 0
-  [../]
-  [./creep_strain_yy]
-    type = RankTwoAux
-    rank_two_tensor = creep_strain
-    variable = creep_strain_yy
-    index_i = 1
-    index_j = 1
-  [../]
-  [./creep_strain_zz]
-    type = RankTwoAux
-    rank_two_tensor = creep_strain
-    variable = creep_strain_zz
-    index_i = 2
-    index_j = 2
-  [../]
-  [./creep_strain_xy]
-    type = RankTwoAux
-    rank_two_tensor = creep_strain
-    variable = creep_strain_xy
-    index_i = 0
-    index_j = 1
-  [../]
-  [./elastic_str_xx_aux]
-    type = RankTwoAux
-    rank_two_tensor = elastic_strain
-    variable = elastic_strain_xx
-    index_i = 0
-    index_j = 0
-  [../]
-  [./elastic_str_yy_aux]
-    type = RankTwoAux
-    rank_two_tensor = elastic_strain
-    variable = elastic_strain_yy
-    index_i = 1
-    index_j = 1
-  [../]
-  [./elastic_str_zz_aux]
-    type = RankTwoAux
-    rank_two_tensor = elastic_strain
-    variable = elastic_strain_zz
-    index_i = 2
-    index_j = 2
-  [../]
-[]
-
-[BCs]
-  [./bot_y]
-    type = DirichletBC
-    variable = disp_y
-    boundary = 1
-    value = 0.0
-  [../]
-  [./side_x]
-    type = DirichletBC
-    variable = disp_x
-    boundary = 2
-    value = 0.0
-  [../]
-  [./top_press]
-    type = Pressure
-    variable = disp_y
-    boundary = 3
-    component = 1
-    factor = -100.0
-  [../]
-  [./side_press]
-    type = Pressure
-    variable = disp_x
-    boundary = 4
-    component = 0
-    factor = -200.0
-  [../]
-[]
-
-[Materials]
-  [./elasticity_tensor]
-    type = ComputeIsotropicElasticityTensor
-    block = 1
-    youngs_modulus = 200e3
-    poissons_ratio = 0.3
-  [../]
-  [./strain]
-    type = ComputePlaneFiniteStrain
-    block = 1
-  [../]
-  [./radial_return_stress]
-    type = ComputeMultipleInelasticStress
-    block = 1
-    inelastic_models = &#x27;powerlawcrp&#x27;
-  [../]
-  [./powerlawcrp]
-    type = PowerLawCreepStressUpdate
-    block = 1
-    coefficient = 3.125e-14
-    n_exponent = 5.0
-    m_exponent = 0.0
-    activation_energy = 0.0
-    max_inelastic_increment = 0.01
-  [../]
-[]
-
-[Executioner]
-  type = Transient
-
-  solve_type = &#x27;PJFNK&#x27;
-
-  petsc_options_iname = &#x27;-pc_type -pc_factor_mat_solver_package&#x27;
-  petsc_options_value = &#x27; lu       superlu_dist&#x27;
-
-  line_search = &#x27;none&#x27;
-
-  l_max_its = 50
-  nl_max_its = 100
-  end_time = 1000.0
-  num_steps = 10000
-  l_tol = 1e-3
-
-  [./TimeStepper]
-    type = IterationAdaptiveDT
-    dt = 1e-6
-    time_t = &#x27;1e-6  2e-6 3e-6 5e-6 9e-6 1.7e-5 3.3e-5 6.5e-5 1.29e-4 2.57e-4 5.13e-4 1.025e-3 2.049e-3 4.097e-3 8.193e-3 1.638e-2 3.276e-2 5.734e-2 0.106 0.180 0.291 0.457 0.706 1.08 1.64 2.48 3.74 5.63 8.46 12.7 19.1 28.7 43.0 64.5 108.0 194.0 366.0 710.0 1000.0&#x27;
-    time_dt = &#x27;1e-6 1e-6 2e-6 4e-6 8e-6 1.6e-5 3.2e-5 6.4e-5 1.28e-4 2.56e-4 5.12e-4 1.024e-3 2.048e-3 4.096e-3 8.192e-3 1.6384e-2 2.458e-2 4.915e-2 7.40e-2 0.111 0.166 0.249 0.374 0.560 0.840 1.26 1.89 2.83 4.25 6.40 9.6 14.3 21.5 43.0 86.1 172.0 344.0 290.0 290.0&#x27;
-    optimal_iterations = 30
-    iteration_window = 9
-    growth_factor = 2.0
-    cutback_factor = 0.5
-    timestep_limiting_postprocessor = matl_ts_min
-  [../]
-[]
-
-[Postprocessors]
-  [./matl_ts_min]
-    type = MaterialTimeStepPostprocessor
-  [../]
-  [./sigma_xx]
-    type = ElementAverageValue
-    variable = stress_xx
-  [../]
-  [./sigma_yy]
-    type = ElementAverageValue
-    variable = stress_yy
-  [../]
-  [./sigma_zz]
-    type = ElementAverageValue
-    variable = stress_zz
-  [../]
-  [./vonmises]
-    type = ElementAverageValue
-    variable = vonmises
-  [../]
-  [./pressure]
-    type = ElementAverageValue
-    variable = pressure
-  [../]
-  [./invariant3]
-    type = ElementAverageValue
-    variable = invariant3
-  [../]
-  [./eps_crp_xx]
-    type = ElementAverageValue
-    variable = creep_strain_xx
-  [../]
-  [./eps_crp_yy]
-    type = ElementAverageValue
-    variable = creep_strain_yy
-  [../]
-  [./eps_crp_zz]
-    type = ElementAverageValue
-    variable = creep_strain_zz
-  [../]
-  [./eps_crp_mag]
-    type = ElementAverageValue
-    variable = creep
-  [../]
-  [./disp_x2]
-    type = NodalVariableValue
-    nodeid = 1
-    variable = disp_x
-  [../]
-  [./disp_x3]
-    type = NodalVariableValue
-    nodeid = 2
-    variable = disp_x
-  [../]
-  [./disp_y3]
-    type = NodalVariableValue
-    nodeid = 2
-    variable = disp_y
-  [../]
-  [./disp_y4]
-    type = NodalVariableValue
-    nodeid = 3
-    variable = disp_y
-  [../]
-  [./_dt]
-    type = TimestepSize
-  [../]
-  [./elas_str_xx]
-    type = ElementAverageValue
-    variable = elastic_strain_xx
-  [../]
-  [./elas_str_yy]
-    type = ElementAverageValue
-    variable = elastic_strain_yy
-  [../]
-  [./elas_str_zz]
-    type = ElementAverageValue
-    variable = elastic_strain_zz
-  [../]
-[]
-
-[Outputs]
-  print_linear_residuals = true
-  perf_graph = true
-  csv = true
-  [./out]
-    type = Exodus
-    elemental_as_nodal = true
-  [../]
-  [./console]
-    type = Console
-    max_rows = 25
-  [../]
-[]
-</code></pre></div><div class="modal-footer"><a class="modal-close btn-flat">Close</a></div></div></section><section class="scrollspy" id="be30d5f0-9be2-435f-8a7c-6afc35842948" data-section-level="2" data-section-text="Input Parameters"><h2 id="input-parameters">Input Parameters</h2><section id="2f1e2a06-53f8-4eee-abbf-ecd44217b539" data-section-level="3" data-section-text="Required Parameters" data-details-open="open"><details class="moose-section-content" open="open"><ul class="collapsible" data-collapsible="expandable"><li><div class="collapsible-header"><span class="moose-parameter-name">activation_energy</span><span class="moose-parameter-header-description">Activation energy</span></div><div class="collapsible-body"><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Activation energy</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">coefficient</span><span class="moose-parameter-header-description">Leading coefficient in power-law equation</span></div><div class="collapsible-body"><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Leading coefficient in power-law equation</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">n_exponent</span><span class="moose-parameter-header-description">Exponent on effective stress in power-law equation</span></div><div class="collapsible-body"><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Exponent on effective stress in power-law equation</p></div></li></ul><summary><h3 data-details-open="open"><span class="moose-section-icon"></span>Required Parameters</h3></summary></details></section><section id="661fff42-851b-4ac2-854b-eb1e8c6748f0" data-section-level="3" data-section-text="Optional Parameters" data-details-open="open"><details class="moose-section-content" open="open"><ul class="collapsible" data-collapsible="expandable"><li><div class="collapsible-header"><span class="moose-parameter-name">absolute_tolerance</span><span class="moose-parameter-header-default">1e-11</span><span class="moose-parameter-header-description">Absolute convergence tolerance for Newton iteration</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>1e-11</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Absolute convergence tolerance for Newton iteration</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">acceptable_multiplier</span><span class="moose-parameter-header-default">10</span><span class="moose-parameter-header-description">Factor applied to relative and absolute tolerance for acceptable convergence if iterations are no longer making progress</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>10</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Factor applied to relative and absolute tolerance for acceptable convergence if iterations are no longer making progress</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">base_name</span><span class="moose-parameter-header-description">Optional parameter that defines a prefix for all material properties related to this stress update model. This allows for multiple models of the same type to be used without naming conflicts.</span></div><div class="collapsible-body"><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>std::string</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Optional parameter that defines a prefix for all material properties related to this stress update model. This allows for multiple models of the same type to be used without naming conflicts.</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">block</span><span class="moose-parameter-header-description">The list of block ids (SubdomainID) that this object will be applied</span></div><div class="collapsible-body"><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>std::vector&lt;SubdomainName&gt;</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>The list of block ids (SubdomainID) that this object will be applied</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">boundary</span><span class="moose-parameter-header-description">The list of boundary IDs from the mesh where this boundary condition applies</span></div><div class="collapsible-body"><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>std::vector&lt;BoundaryName&gt;</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>The list of boundary IDs from the mesh where this boundary condition applies</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">constant_on</span><span class="moose-parameter-header-default">NONE</span><span class="moose-parameter-header-description">When ELEMENT, MOOSE will only call computeQpProperties() for the 0th quadrature point, and then copy that value to the other qps.When SUBDOMAIN, MOOSE will only call computeQpProperties() for the 0th quadrature point, and then copy that value to the other qps. Evaluations on element qps will be skipped</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>NONE</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>MooseEnum</p><p class="moose-parameter-description-options"><span>Options:</span>NONE ELEMENT SUBDOMAIN</p><p class="moose-parameter-description"><span>Description:</span>When ELEMENT, MOOSE will only call computeQpProperties() for the 0th quadrature point, and then copy that value to the other qps.When SUBDOMAIN, MOOSE will only call computeQpProperties() for the 0th quadrature point, and then copy that value to the other qps. Evaluations on element qps will be skipped</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">gas_constant</span><span class="moose-parameter-header-default">8.3143</span><span class="moose-parameter-header-description">Universal gas constant</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>8.3143</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Universal gas constant</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">m_exponent</span><span class="moose-parameter-header-default">0</span><span class="moose-parameter-header-description">Exponent on time in power-law equation</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>0</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Exponent on time in power-law equation</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">max_inelastic_increment</span><span class="moose-parameter-header-default">0.0001</span><span class="moose-parameter-header-description">The maximum inelastic strain increment allowed in a time step</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>0.0001</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>The maximum inelastic strain increment allowed in a time step</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">relative_tolerance</span><span class="moose-parameter-header-default">1e-08</span><span class="moose-parameter-header-description">Relative convergence tolerance for Newton iteration</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>1e-08</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Relative convergence tolerance for Newton iteration</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">start_time</span><span class="moose-parameter-header-default">0</span><span class="moose-parameter-header-description">Start time (if not zero)</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>0</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Start time (if not zero)</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">temperature</span><span class="moose-parameter-header-description">Coupled temperature</span></div><div class="collapsible-body"><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>std::vector&lt;VariableName&gt;</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Coupled temperature</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">use_substep</span><span class="moose-parameter-header-default">False</span><span class="moose-parameter-header-description">Whether to use substepping</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>False</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>bool</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Whether to use substepping</p></div></li></ul><summary><h3 data-details-open="open"><span class="moose-section-icon"></span>Optional Parameters</h3></summary></details></section><section id="954e893e-4010-4034-82a4-d644712651a9" data-section-level="3" data-section-text="Advanced Parameters" data-details-open="close"><details class="moose-section-content"><ul class="collapsible" data-collapsible="expandable"><li><div class="collapsible-header"><span class="moose-parameter-name">control_tags</span><span class="moose-parameter-header-description">Adds user-defined labels for accessing object parameters via control logic.</span></div><div class="collapsible-body"><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>std::vector&lt;std::string&gt;</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Adds user-defined labels for accessing object parameters via control logic.</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">effective_inelastic_strain_name</span><span class="moose-parameter-header-default">effective_creep_strain</span><span class="moose-parameter-header-description">Name of the material property that stores the effective inelastic strain</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>effective_creep_strain</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>std::string</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Name of the material property that stores the effective inelastic strain</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">enable</span><span class="moose-parameter-header-default">True</span><span class="moose-parameter-header-description">Set the enabled status of the MooseObject.</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>True</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>bool</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Set the enabled status of the MooseObject.</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">implicit</span><span class="moose-parameter-header-default">True</span><span class="moose-parameter-header-description">Determines whether this object is calculated using an implicit or explicit form</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>True</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>bool</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Determines whether this object is calculated using an implicit or explicit form</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">seed</span><span class="moose-parameter-header-default">0</span><span class="moose-parameter-header-description">The seed for the master random number generator</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>0</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>unsigned int</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>The seed for the master random number generator</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">substep_strain_tolerance</span><span class="moose-parameter-header-default">0.1</span><span class="moose-parameter-header-description">Maximum ratio of the initial elastic strain increment at start of the return mapping solve to the maximum inelastic strain allowable in a single substep. Reduce this value to increase the number of substeps</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>0.1</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Maximum ratio of the initial elastic strain increment at start of the return mapping solve to the maximum inelastic strain allowable in a single substep. Reduce this value to increase the number of substeps</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">use_displaced_mesh</span><span class="moose-parameter-header-default">False</span><span class="moose-parameter-header-description">Whether or not this object should use the displaced mesh for computation.  Note that in the case this is true but no displacements are provided in the Mesh block the undisplaced mesh will still be used.</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>False</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>bool</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Whether or not this object should use the displaced mesh for computation.  Note that in the case this is true but no displacements are provided in the Mesh block the undisplaced mesh will still be used.</p></div></li></ul><summary><h3 data-details-open="close"><span class="moose-section-icon"></span>Advanced Parameters</h3></summary></details></section><section id="76f836fa-61a5-4c07-a25a-c882eeb5ddec" data-section-level="3" data-section-text="Debug Parameters" data-details-open="close"><details class="moose-section-content"><ul class="collapsible" data-collapsible="expandable"><li><div class="collapsible-header"><span class="moose-parameter-name">internal_solve_full_iteration_history</span><span class="moose-parameter-header-default">False</span><span class="moose-parameter-header-description">Set true to output full internal Newton iteration history at times determined by `internal_solve_output_on`. If false, only a summary is output.</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>False</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>bool</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Set true to output full internal Newton iteration history at times determined by `internal_solve_output_on`. If false, only a summary is output.</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">internal_solve_output_on</span><span class="moose-parameter-header-default">on_error</span><span class="moose-parameter-header-description">When to output internal Newton solve information</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>on_error</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>MooseEnum</p><p class="moose-parameter-description-options"><span>Options:</span>never on_error always</p><p class="moose-parameter-description"><span>Description:</span>When to output internal Newton solve information</p></div></li></ul><summary><h3 data-details-open="close"><span class="moose-section-icon"></span>Debug Parameters</h3></summary></details></section><section id="7fceb9ea-17ef-49a8-a5a0-f0848e61cbc2" data-section-level="3" data-section-text="Outputs Parameters" data-details-open="close"><details class="moose-section-content"><ul class="collapsible" data-collapsible="expandable"><li><div class="collapsible-header"><span class="moose-parameter-name">output_properties</span><span class="moose-parameter-header-description">List of material properties, from this material, to output (outputs must also be defined to an output type)</span></div><div class="collapsible-body"><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>std::vector&lt;std::string&gt;</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>List of material properties, from this material, to output (outputs must also be defined to an output type)</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">outputs</span><span class="moose-parameter-header-default">none </span><span class="moose-parameter-header-description">Vector of output names were you would like to restrict the output of variables(s) associated with this object</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>none </p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>std::vector&lt;OutputName&gt;</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Vector of output names were you would like to restrict the output of variables(s) associated with this object</p></div></li></ul><summary><h3 data-details-open="close"><span class="moose-section-icon"></span>Outputs Parameters</h3></summary></details></section></section><section class="scrollspy" id="dbe5f7b0-de76-4314-8978-7a921a127c6d" data-section-level="2" data-section-text="References"><h2 id="references">References</h2><div class="moose-bibliography"><ol><li id="dunne2005introduction">Fionn Dunne and Nik Petrinic.
+</code></pre><a class="moose-source-filename tooltipped modal-trigger" href="#2979b9ad-6972-4d9f-a70a-97c93db6063b">(moose/modules/tensor_mechanics/test/tests/material_limit_time_step/creep/nafems_test5a_lim.i)</a></section><section id="27128c6e-4387-4031-bf50-7e3bd50d9cda" data-section-level="2" data-section-text="Input Parameters"><h2 id="input-parameters">Input Parameters</h2><section id="aba1425b-251d-42bb-b3f3-771fb6be7cf9" data-section-level="3" data-section-text="Required Parameters" data-details-open="open"><details class="moose-section-content" open="open"><ul class="collapsible" data-collapsible="expandable"><li><div class="collapsible-header"><span class="moose-parameter-name">activation_energy</span><span class="moose-parameter-header-description">Activation energy</span></div><div class="collapsible-body"><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Activation energy</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">coefficient</span><span class="moose-parameter-header-description">Leading coefficient in power-law equation</span></div><div class="collapsible-body"><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Leading coefficient in power-law equation</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">n_exponent</span><span class="moose-parameter-header-description">Exponent on effective stress in power-law equation</span></div><div class="collapsible-body"><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Exponent on effective stress in power-law equation</p></div></li></ul><summary><h3 data-details-open="open"><span class="moose-section-icon"></span>Required Parameters</h3></summary></details></section><section id="cd35fede-ca05-4c5d-9d2a-e6817ba23ef0" data-section-level="3" data-section-text="Optional Parameters" data-details-open="open"><details class="moose-section-content" open="open"><ul class="collapsible" data-collapsible="expandable"><li><div class="collapsible-header"><span class="moose-parameter-name">absolute_tolerance</span><span class="moose-parameter-header-default">1e-11</span><span class="moose-parameter-header-description">Absolute convergence tolerance for Newton iteration</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>1e-11</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Absolute convergence tolerance for Newton iteration</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">acceptable_multiplier</span><span class="moose-parameter-header-default">10</span><span class="moose-parameter-header-description">Factor applied to relative and absolute tolerance for acceptable convergence if iterations are no longer making progress</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>10</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Factor applied to relative and absolute tolerance for acceptable convergence if iterations are no longer making progress</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">base_name</span><span class="moose-parameter-header-description">Optional parameter that defines a prefix for all material properties related to this stress update model. This allows for multiple models of the same type to be used without naming conflicts.</span></div><div class="collapsible-body"><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>std::string</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Optional parameter that defines a prefix for all material properties related to this stress update model. This allows for multiple models of the same type to be used without naming conflicts.</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">block</span><span class="moose-parameter-header-description">The list of block ids (SubdomainID) that this object will be applied</span></div><div class="collapsible-body"><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>std::vector&lt;SubdomainName&gt;</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>The list of block ids (SubdomainID) that this object will be applied</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">boundary</span><span class="moose-parameter-header-description">The list of boundary IDs from the mesh where this boundary condition applies</span></div><div class="collapsible-body"><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>std::vector&lt;BoundaryName&gt;</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>The list of boundary IDs from the mesh where this boundary condition applies</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">constant_on</span><span class="moose-parameter-header-default">NONE</span><span class="moose-parameter-header-description">When ELEMENT, MOOSE will only call computeQpProperties() for the 0th quadrature point, and then copy that value to the other qps.When SUBDOMAIN, MOOSE will only call computeQpProperties() for the 0th quadrature point, and then copy that value to the other qps. Evaluations on element qps will be skipped</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>NONE</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>MooseEnum</p><p class="moose-parameter-description-options"><span>Options:</span>NONE, ELEMENT, SUBDOMAIN</p><p class="moose-parameter-description"><span>Description:</span>When ELEMENT, MOOSE will only call computeQpProperties() for the 0th quadrature point, and then copy that value to the other qps.When SUBDOMAIN, MOOSE will only call computeQpProperties() for the 0th quadrature point, and then copy that value to the other qps. Evaluations on element qps will be skipped</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">gas_constant</span><span class="moose-parameter-header-default">8.3143</span><span class="moose-parameter-header-description">Universal gas constant</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>8.3143</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Universal gas constant</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">m_exponent</span><span class="moose-parameter-header-default">0</span><span class="moose-parameter-header-description">Exponent on time in power-law equation</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>0</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Exponent on time in power-law equation</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">max_inelastic_increment</span><span class="moose-parameter-header-default">0.0001</span><span class="moose-parameter-header-description">The maximum inelastic strain increment allowed in a time step</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>0.0001</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>The maximum inelastic strain increment allowed in a time step</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">relative_tolerance</span><span class="moose-parameter-header-default">1e-08</span><span class="moose-parameter-header-description">Relative convergence tolerance for Newton iteration</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>1e-08</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Relative convergence tolerance for Newton iteration</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">start_time</span><span class="moose-parameter-header-default">0</span><span class="moose-parameter-header-description">Start time (if not zero)</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>0</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Start time (if not zero)</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">temperature</span><span class="moose-parameter-header-description">Coupled temperature</span></div><div class="collapsible-body"><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>std::vector&lt;VariableName&gt;</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Coupled temperature</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">use_substep</span><span class="moose-parameter-header-default">False</span><span class="moose-parameter-header-description">Whether to use substepping</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>False</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>bool</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Whether to use substepping</p></div></li></ul><summary><h3 data-details-open="open"><span class="moose-section-icon"></span>Optional Parameters</h3></summary></details></section><section id="7e1afab4-4cd8-4c8a-b22f-59eb6e93ca77" data-section-level="3" data-section-text="Advanced Parameters" data-details-open="close"><details class="moose-section-content"><ul class="collapsible" data-collapsible="expandable"><li><div class="collapsible-header"><span class="moose-parameter-name">apply_strain</span><span class="moose-parameter-header-default">True</span><span class="moose-parameter-header-description">Flag to apply strain. Used for testing.</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>True</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>bool</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Flag to apply strain. Used for testing.</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">control_tags</span><span class="moose-parameter-header-description">Adds user-defined labels for accessing object parameters via control logic.</span></div><div class="collapsible-body"><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>std::vector&lt;std::string&gt;</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Adds user-defined labels for accessing object parameters via control logic.</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">effective_inelastic_strain_name</span><span class="moose-parameter-header-default">effective_creep_strain</span><span class="moose-parameter-header-description">Name of the material property that stores the effective inelastic strain</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>effective_creep_strain</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>std::string</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Name of the material property that stores the effective inelastic strain</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">enable</span><span class="moose-parameter-header-default">True</span><span class="moose-parameter-header-description">Set the enabled status of the MooseObject.</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>True</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>bool</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Set the enabled status of the MooseObject.</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">implicit</span><span class="moose-parameter-header-default">True</span><span class="moose-parameter-header-description">Determines whether this object is calculated using an implicit or explicit form</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>True</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>bool</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Determines whether this object is calculated using an implicit or explicit form</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">seed</span><span class="moose-parameter-header-default">0</span><span class="moose-parameter-header-description">The seed for the master random number generator</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>0</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>unsigned int</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>The seed for the master random number generator</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">substep_strain_tolerance</span><span class="moose-parameter-header-default">0.1</span><span class="moose-parameter-header-description">Maximum ratio of the initial elastic strain increment at start of the return mapping solve to the maximum inelastic strain allowable in a single substep. Reduce this value to increase the number of substeps</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>0.1</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>double</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Maximum ratio of the initial elastic strain increment at start of the return mapping solve to the maximum inelastic strain allowable in a single substep. Reduce this value to increase the number of substeps</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">use_displaced_mesh</span><span class="moose-parameter-header-default">False</span><span class="moose-parameter-header-description">Whether or not this object should use the displaced mesh for computation.  Note that in the case this is true but no displacements are provided in the Mesh block the undisplaced mesh will still be used.</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>False</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>bool</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Whether or not this object should use the displaced mesh for computation.  Note that in the case this is true but no displacements are provided in the Mesh block the undisplaced mesh will still be used.</p></div></li></ul><summary><h3 data-details-open="close"><span class="moose-section-icon"></span>Advanced Parameters</h3></summary></details></section><section id="b46f90c0-1876-49af-9428-cc9a3705e8bb" data-section-level="3" data-section-text="Debug Parameters" data-details-open="close"><details class="moose-section-content"><ul class="collapsible" data-collapsible="expandable"><li><div class="collapsible-header"><span class="moose-parameter-name">internal_solve_full_iteration_history</span><span class="moose-parameter-header-default">False</span><span class="moose-parameter-header-description">Set true to output full internal Newton iteration history at times determined by `internal_solve_output_on`. If false, only a summary is output.</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>False</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>bool</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Set true to output full internal Newton iteration history at times determined by `internal_solve_output_on`. If false, only a summary is output.</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">internal_solve_output_on</span><span class="moose-parameter-header-default">on_error</span><span class="moose-parameter-header-description">When to output internal Newton solve information</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>on_error</p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>MooseEnum</p><p class="moose-parameter-description-options"><span>Options:</span>never, on_error, always</p><p class="moose-parameter-description"><span>Description:</span>When to output internal Newton solve information</p></div></li></ul><summary><h3 data-details-open="close"><span class="moose-section-icon"></span>Debug Parameters</h3></summary></details></section><section id="a7bd8909-cade-4f0d-9194-385207368c53" data-section-level="3" data-section-text="Outputs Parameters" data-details-open="close"><details class="moose-section-content"><ul class="collapsible" data-collapsible="expandable"><li><div class="collapsible-header"><span class="moose-parameter-name">output_properties</span><span class="moose-parameter-header-description">List of material properties, from this material, to output (outputs must also be defined to an output type)</span></div><div class="collapsible-body"><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>std::vector&lt;std::string&gt;</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>List of material properties, from this material, to output (outputs must also be defined to an output type)</p></div></li><li><div class="collapsible-header"><span class="moose-parameter-name">outputs</span><span class="moose-parameter-header-default">none </span><span class="moose-parameter-header-description">Vector of output names were you would like to restrict the output of variables(s) associated with this object</span></div><div class="collapsible-body"><p class="moose-parameter-description-default"><span>Default:</span>none </p><p class="moose-parameter-description-cpptype"><span>C++ Type:</span>std::vector&lt;OutputName&gt;</p><p class="moose-parameter-description-options"><span>Options:</span></p><p class="moose-parameter-description"><span>Description:</span>Vector of output names were you would like to restrict the output of variables(s) associated with this object</p></div></li></ul><summary><h3 data-details-open="close"><span class="moose-section-icon"></span>Outputs Parameters</h3></summary></details></section></section><section id="2ec5f1ec-544d-440c-aa26-dcc30b7d3b82" data-section-level="2" data-section-text="References"><h2 id="references">References</h2><div class="moose-bibliography"><ol><li id="dunne2005introduction">Fionn Dunne and Nik Petrinic.
 <em>Introduction to Computational Plasticity</em>.
-Oxford University Press on Demand, 2005.<a href="#df46d194-5016-4a0b-b3d0-dc60d239b0cd" class="modal-trigger moose-bibtex-modal" style="padding-left:10px;">[BibTeX]</a><div class="modal" id="df46d194-5016-4a0b-b3d0-dc60d239b0cd"><div class="modal-content"><pre style="line-height:1.25;"><code class="language-latex">@book{dunne2005introduction,
+Oxford University Press on Demand, 2005.<a href="#1a96cabe-b685-4884-8355-7156ba02a780" class="modal-trigger moose-bibtex-modal" style="padding-left:10px;">[BibTeX]</a><div class="modal" id="1a96cabe-b685-4884-8355-7156ba02a780"><div class="modal-content"><pre style="line-height:1.25;"><code class="language-latex">@book{dunne2005introduction,
     author = "Dunne, Fionn and Petrinic, Nik",
     title = "Introduction to Computational Plasticity",
     year = "2005",
     publisher = "Oxford University Press on Demand"
 }
-</code></pre></div></div></li></ol></div></section></section></div><div class="col hide-on-med-and-down l2"><div class="toc-wrapper pin-top"><ul class="section table-of-contents"><li><a href="#af5d3998-5281-45b3-9eda-d8c77b5883c5" class="tooltipped" data-position="left" data-tooltip="Description">Description</a></li><li><a href="#8cd6200d-0a80-4ba0-a209-d37de7bff9dd" class="tooltipped" data-position="left" data-tooltip="Example Input File">Example Input File</a></li><li><a href="#be30d5f0-9be2-435f-8a7c-6afc35842948" class="tooltipped" data-position="left" data-tooltip="Input Parameters">Input Parameters</a></li><li><a href="#dbe5f7b0-de76-4314-8978-7a921a127c6d" class="tooltipped" data-position="left" data-tooltip="References">References</a></li></ul></div></div></div></div></main></div></body><script type="text/javascript" src="../../contrib/materialize/materialize.min.js"></script><script type="text/javascript" src="../../contrib/clipboard/clipboard.min.js"></script><script type="text/javascript" src="../../contrib/prism/prism.min.js"></script><script type="text/javascript" src="../../js/init.js"></script><script type="text/javascript" src="../../js/navigation.js"></script><script type="text/javascript" src="../../contrib/fuse/fuse.min.js"></script><script type="text/javascript" src="../../js/search_index.js"></script><script type="text/javascript" src="../../js/sqa_moose.js"></script>
+</code></pre></div></div></li></ol></div></section></section><div class="moose-modal modal" id="27507631-5f1f-43ee-a596-37e5c4313658"><div class="modal-content"><h4>(moose/modules/tensor_mechanics/test/tests/material_limit_time_step/creep/nafems_test5a_lim.i)</h4><pre class="moose-pre"><code class="language-text">[GlobalParams]
+  temperature = temp
+  order = FIRST
+  family = LAGRANGE
+  volumetric_locking_correction = true
+  displacements = &#x27;disp_x disp_y&#x27;
+[]
+
+[Mesh]
+  file = plane1_mesh.e
+[]
+
+[Problem]
+  type = ReferenceResidualProblem
+  extra_tag_vectors = &#x27;ref&#x27;
+  reference_vector = &#x27;ref&#x27;
+  group_variables = &#x27;disp_x disp_y&#x27;
+[]
+
+[Variables]
+  [./disp_x]
+  [../]
+  [./disp_y]
+  [../]
+[]
+
+[AuxVariables]
+  [./temp]
+    initial_condition = 1500.0
+  [../]
+  [./creep]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./stress_xx]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./stress_yy]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./stress_zz]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./vonmises]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./pressure]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./invariant3]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./creep_strain_xx]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./creep_strain_yy]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./creep_strain_zz]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./creep_strain_xy]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./elastic_strain_xx]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./elastic_strain_yy]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./elastic_strain_zz]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+[]
+
+[Kernels]
+  [./TensorMechanics]
+    use_displaced_mesh = true
+    extra_vector_tags = &#x27;ref&#x27;
+  [../]
+[]
+
+[AuxKernels]
+  [./creep_aux]
+    type = MaterialRealAux
+    property = effective_creep_strain
+    variable = creep
+  [../]
+  [./stress_xx]
+    type = RankTwoAux
+    rank_two_tensor = stress
+    variable = stress_xx
+    index_i = 0
+    index_j = 0
+  [../]
+  [./stress_yy]
+    type = RankTwoAux
+    rank_two_tensor = stress
+    variable = stress_yy
+    index_i = 1
+    index_j = 1
+  [../]
+  [./stress_zz]
+    type = RankTwoAux
+    rank_two_tensor = stress
+    variable = stress_zz
+    index_i = 2
+    index_j = 2
+  [../]
+  [./vonmises]
+    type = RankTwoScalarAux
+    rank_two_tensor = stress
+    variable = vonmises
+    scalar_type = VonMisesStress
+  [../]
+  [./pressure]
+    type = RankTwoScalarAux
+    rank_two_tensor = stress
+    variable = pressure
+    scalar_type = Hydrostatic
+  [../]
+  [./invariant3]
+    type = RankTwoScalarAux
+    rank_two_tensor = stress
+    variable = invariant3
+    scalar_type = ThirdInvariant
+  [../]
+  [./creep_strain_xx]
+    type = RankTwoAux
+    rank_two_tensor = creep_strain
+    variable = creep_strain_xx
+    index_i = 0
+    index_j = 0
+  [../]
+  [./creep_strain_yy]
+    type = RankTwoAux
+    rank_two_tensor = creep_strain
+    variable = creep_strain_yy
+    index_i = 1
+    index_j = 1
+  [../]
+  [./creep_strain_zz]
+    type = RankTwoAux
+    rank_two_tensor = creep_strain
+    variable = creep_strain_zz
+    index_i = 2
+    index_j = 2
+  [../]
+  [./creep_strain_xy]
+    type = RankTwoAux
+    rank_two_tensor = creep_strain
+    variable = creep_strain_xy
+    index_i = 0
+    index_j = 1
+  [../]
+  [./elastic_str_xx_aux]
+    type = RankTwoAux
+    rank_two_tensor = elastic_strain
+    variable = elastic_strain_xx
+    index_i = 0
+    index_j = 0
+  [../]
+  [./elastic_str_yy_aux]
+    type = RankTwoAux
+    rank_two_tensor = elastic_strain
+    variable = elastic_strain_yy
+    index_i = 1
+    index_j = 1
+  [../]
+  [./elastic_str_zz_aux]
+    type = RankTwoAux
+    rank_two_tensor = elastic_strain
+    variable = elastic_strain_zz
+    index_i = 2
+    index_j = 2
+  [../]
+[]
+
+[BCs]
+  [./bot_y]
+    type = DirichletBC
+    variable = disp_y
+    boundary = 1
+    value = 0.0
+  [../]
+  [./side_x]
+    type = DirichletBC
+    variable = disp_x
+    boundary = 2
+    value = 0.0
+  [../]
+  [./top_press]
+    type = Pressure
+    variable = disp_y
+    boundary = 3
+    component = 1
+    factor = -100.0
+  [../]
+  [./side_press]
+    type = Pressure
+    variable = disp_x
+    boundary = 4
+    component = 0
+    factor = -200.0
+  [../]
+[]
+
+[Materials]
+  [./elasticity_tensor]
+    type = ComputeIsotropicElasticityTensor
+    block = 1
+    youngs_modulus = 200e3
+    poissons_ratio = 0.3
+  [../]
+  [./strain]
+    type = ComputePlaneFiniteStrain
+    block = 1
+  [../]
+  [./radial_return_stress]
+    type = ComputeMultipleInelasticStress
+    block = 1
+    inelastic_models = &#x27;powerlawcrp&#x27;
+  [../]
+  [./powerlawcrp]
+    type = PowerLawCreepStressUpdate
+    block = 1
+    coefficient = 3.125e-14
+    n_exponent = 5.0
+    m_exponent = 0.0
+    activation_energy = 0.0
+    max_inelastic_increment = 0.01
+  [../]
+[]
+
+[Executioner]
+  type = Transient
+
+  solve_type = &#x27;PJFNK&#x27;
+
+  petsc_options_iname = &#x27;-pc_type -pc_factor_mat_solver_package&#x27;
+  petsc_options_value = &#x27; lu       superlu_dist&#x27;
+
+  line_search = &#x27;none&#x27;
+
+  l_max_its = 50
+  nl_max_its = 100
+  end_time = 1000.0
+  num_steps = 10000
+  l_tol = 1e-3
+
+  [./TimeStepper]
+    type = IterationAdaptiveDT
+    dt = 1e-6
+    time_t = &#x27;1e-6  2e-6 3e-6 5e-6 9e-6 1.7e-5 3.3e-5 6.5e-5 1.29e-4 2.57e-4 5.13e-4 1.025e-3 2.049e-3 4.097e-3 8.193e-3 1.638e-2 3.276e-2 5.734e-2 0.106 0.180 0.291 0.457 0.706 1.08 1.64 2.48 3.74 5.63 8.46 12.7 19.1 28.7 43.0 64.5 108.0 194.0 366.0 710.0 1000.0&#x27;
+    time_dt = &#x27;1e-6 1e-6 2e-6 4e-6 8e-6 1.6e-5 3.2e-5 6.4e-5 1.28e-4 2.56e-4 5.12e-4 1.024e-3 2.048e-3 4.096e-3 8.192e-3 1.6384e-2 2.458e-2 4.915e-2 7.40e-2 0.111 0.166 0.249 0.374 0.560 0.840 1.26 1.89 2.83 4.25 6.40 9.6 14.3 21.5 43.0 86.1 172.0 344.0 290.0 290.0&#x27;
+    optimal_iterations = 30
+    iteration_window = 9
+    growth_factor = 2.0
+    cutback_factor = 0.5
+    timestep_limiting_postprocessor = matl_ts_min
+  [../]
+[]
+
+[Postprocessors]
+  [./matl_ts_min]
+    type = MaterialTimeStepPostprocessor
+  [../]
+  [./sigma_xx]
+    type = ElementAverageValue
+    variable = stress_xx
+  [../]
+  [./sigma_yy]
+    type = ElementAverageValue
+    variable = stress_yy
+  [../]
+  [./sigma_zz]
+    type = ElementAverageValue
+    variable = stress_zz
+  [../]
+  [./vonmises]
+    type = ElementAverageValue
+    variable = vonmises
+  [../]
+  [./pressure]
+    type = ElementAverageValue
+    variable = pressure
+  [../]
+  [./invariant3]
+    type = ElementAverageValue
+    variable = invariant3
+  [../]
+  [./eps_crp_xx]
+    type = ElementAverageValue
+    variable = creep_strain_xx
+  [../]
+  [./eps_crp_yy]
+    type = ElementAverageValue
+    variable = creep_strain_yy
+  [../]
+  [./eps_crp_zz]
+    type = ElementAverageValue
+    variable = creep_strain_zz
+  [../]
+  [./eps_crp_mag]
+    type = ElementAverageValue
+    variable = creep
+  [../]
+  [./disp_x2]
+    type = NodalVariableValue
+    nodeid = 1
+    variable = disp_x
+  [../]
+  [./disp_x3]
+    type = NodalVariableValue
+    nodeid = 2
+    variable = disp_x
+  [../]
+  [./disp_y3]
+    type = NodalVariableValue
+    nodeid = 2
+    variable = disp_y
+  [../]
+  [./disp_y4]
+    type = NodalVariableValue
+    nodeid = 3
+    variable = disp_y
+  [../]
+  [./_dt]
+    type = TimestepSize
+  [../]
+  [./elas_str_xx]
+    type = ElementAverageValue
+    variable = elastic_strain_xx
+  [../]
+  [./elas_str_yy]
+    type = ElementAverageValue
+    variable = elastic_strain_yy
+  [../]
+  [./elas_str_zz]
+    type = ElementAverageValue
+    variable = elastic_strain_zz
+  [../]
+[]
+
+[Outputs]
+  print_linear_residuals = true
+  perf_graph = true
+  csv = true
+  [./out]
+    type = Exodus
+    elemental_as_nodal = true
+  [../]
+  [./console]
+    type = Console
+    max_rows = 25
+  [../]
+[]
+</code></pre></div><div class="modal-footer"><a class="modal-close btn-flat">Close</a></div></div><div class="moose-modal modal" id="2979b9ad-6972-4d9f-a70a-97c93db6063b"><div class="modal-content"><h4>(moose/modules/tensor_mechanics/test/tests/material_limit_time_step/creep/nafems_test5a_lim.i)</h4><pre class="moose-pre"><code class="language-text">[GlobalParams]
+  temperature = temp
+  order = FIRST
+  family = LAGRANGE
+  volumetric_locking_correction = true
+  displacements = &#x27;disp_x disp_y&#x27;
+[]
+
+[Mesh]
+  file = plane1_mesh.e
+[]
+
+[Problem]
+  type = ReferenceResidualProblem
+  extra_tag_vectors = &#x27;ref&#x27;
+  reference_vector = &#x27;ref&#x27;
+  group_variables = &#x27;disp_x disp_y&#x27;
+[]
+
+[Variables]
+  [./disp_x]
+  [../]
+  [./disp_y]
+  [../]
+[]
+
+[AuxVariables]
+  [./temp]
+    initial_condition = 1500.0
+  [../]
+  [./creep]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./stress_xx]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./stress_yy]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./stress_zz]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./vonmises]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./pressure]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./invariant3]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./creep_strain_xx]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./creep_strain_yy]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./creep_strain_zz]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./creep_strain_xy]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./elastic_strain_xx]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./elastic_strain_yy]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+  [./elastic_strain_zz]
+    order = CONSTANT
+    family = MONOMIAL
+  [../]
+[]
+
+[Kernels]
+  [./TensorMechanics]
+    use_displaced_mesh = true
+    extra_vector_tags = &#x27;ref&#x27;
+  [../]
+[]
+
+[AuxKernels]
+  [./creep_aux]
+    type = MaterialRealAux
+    property = effective_creep_strain
+    variable = creep
+  [../]
+  [./stress_xx]
+    type = RankTwoAux
+    rank_two_tensor = stress
+    variable = stress_xx
+    index_i = 0
+    index_j = 0
+  [../]
+  [./stress_yy]
+    type = RankTwoAux
+    rank_two_tensor = stress
+    variable = stress_yy
+    index_i = 1
+    index_j = 1
+  [../]
+  [./stress_zz]
+    type = RankTwoAux
+    rank_two_tensor = stress
+    variable = stress_zz
+    index_i = 2
+    index_j = 2
+  [../]
+  [./vonmises]
+    type = RankTwoScalarAux
+    rank_two_tensor = stress
+    variable = vonmises
+    scalar_type = VonMisesStress
+  [../]
+  [./pressure]
+    type = RankTwoScalarAux
+    rank_two_tensor = stress
+    variable = pressure
+    scalar_type = Hydrostatic
+  [../]
+  [./invariant3]
+    type = RankTwoScalarAux
+    rank_two_tensor = stress
+    variable = invariant3
+    scalar_type = ThirdInvariant
+  [../]
+  [./creep_strain_xx]
+    type = RankTwoAux
+    rank_two_tensor = creep_strain
+    variable = creep_strain_xx
+    index_i = 0
+    index_j = 0
+  [../]
+  [./creep_strain_yy]
+    type = RankTwoAux
+    rank_two_tensor = creep_strain
+    variable = creep_strain_yy
+    index_i = 1
+    index_j = 1
+  [../]
+  [./creep_strain_zz]
+    type = RankTwoAux
+    rank_two_tensor = creep_strain
+    variable = creep_strain_zz
+    index_i = 2
+    index_j = 2
+  [../]
+  [./creep_strain_xy]
+    type = RankTwoAux
+    rank_two_tensor = creep_strain
+    variable = creep_strain_xy
+    index_i = 0
+    index_j = 1
+  [../]
+  [./elastic_str_xx_aux]
+    type = RankTwoAux
+    rank_two_tensor = elastic_strain
+    variable = elastic_strain_xx
+    index_i = 0
+    index_j = 0
+  [../]
+  [./elastic_str_yy_aux]
+    type = RankTwoAux
+    rank_two_tensor = elastic_strain
+    variable = elastic_strain_yy
+    index_i = 1
+    index_j = 1
+  [../]
+  [./elastic_str_zz_aux]
+    type = RankTwoAux
+    rank_two_tensor = elastic_strain
+    variable = elastic_strain_zz
+    index_i = 2
+    index_j = 2
+  [../]
+[]
+
+[BCs]
+  [./bot_y]
+    type = DirichletBC
+    variable = disp_y
+    boundary = 1
+    value = 0.0
+  [../]
+  [./side_x]
+    type = DirichletBC
+    variable = disp_x
+    boundary = 2
+    value = 0.0
+  [../]
+  [./top_press]
+    type = Pressure
+    variable = disp_y
+    boundary = 3
+    component = 1
+    factor = -100.0
+  [../]
+  [./side_press]
+    type = Pressure
+    variable = disp_x
+    boundary = 4
+    component = 0
+    factor = -200.0
+  [../]
+[]
+
+[Materials]
+  [./elasticity_tensor]
+    type = ComputeIsotropicElasticityTensor
+    block = 1
+    youngs_modulus = 200e3
+    poissons_ratio = 0.3
+  [../]
+  [./strain]
+    type = ComputePlaneFiniteStrain
+    block = 1
+  [../]
+  [./radial_return_stress]
+    type = ComputeMultipleInelasticStress
+    block = 1
+    inelastic_models = &#x27;powerlawcrp&#x27;
+  [../]
+  [./powerlawcrp]
+    type = PowerLawCreepStressUpdate
+    block = 1
+    coefficient = 3.125e-14
+    n_exponent = 5.0
+    m_exponent = 0.0
+    activation_energy = 0.0
+    max_inelastic_increment = 0.01
+  [../]
+[]
+
+[Executioner]
+  type = Transient
+
+  solve_type = &#x27;PJFNK&#x27;
+
+  petsc_options_iname = &#x27;-pc_type -pc_factor_mat_solver_package&#x27;
+  petsc_options_value = &#x27; lu       superlu_dist&#x27;
+
+  line_search = &#x27;none&#x27;
+
+  l_max_its = 50
+  nl_max_its = 100
+  end_time = 1000.0
+  num_steps = 10000
+  l_tol = 1e-3
+
+  [./TimeStepper]
+    type = IterationAdaptiveDT
+    dt = 1e-6
+    time_t = &#x27;1e-6  2e-6 3e-6 5e-6 9e-6 1.7e-5 3.3e-5 6.5e-5 1.29e-4 2.57e-4 5.13e-4 1.025e-3 2.049e-3 4.097e-3 8.193e-3 1.638e-2 3.276e-2 5.734e-2 0.106 0.180 0.291 0.457 0.706 1.08 1.64 2.48 3.74 5.63 8.46 12.7 19.1 28.7 43.0 64.5 108.0 194.0 366.0 710.0 1000.0&#x27;
+    time_dt = &#x27;1e-6 1e-6 2e-6 4e-6 8e-6 1.6e-5 3.2e-5 6.4e-5 1.28e-4 2.56e-4 5.12e-4 1.024e-3 2.048e-3 4.096e-3 8.192e-3 1.6384e-2 2.458e-2 4.915e-2 7.40e-2 0.111 0.166 0.249 0.374 0.560 0.840 1.26 1.89 2.83 4.25 6.40 9.6 14.3 21.5 43.0 86.1 172.0 344.0 290.0 290.0&#x27;
+    optimal_iterations = 30
+    iteration_window = 9
+    growth_factor = 2.0
+    cutback_factor = 0.5
+    timestep_limiting_postprocessor = matl_ts_min
+  [../]
+[]
+
+[Postprocessors]
+  [./matl_ts_min]
+    type = MaterialTimeStepPostprocessor
+  [../]
+  [./sigma_xx]
+    type = ElementAverageValue
+    variable = stress_xx
+  [../]
+  [./sigma_yy]
+    type = ElementAverageValue
+    variable = stress_yy
+  [../]
+  [./sigma_zz]
+    type = ElementAverageValue
+    variable = stress_zz
+  [../]
+  [./vonmises]
+    type = ElementAverageValue
+    variable = vonmises
+  [../]
+  [./pressure]
+    type = ElementAverageValue
+    variable = pressure
+  [../]
+  [./invariant3]
+    type = ElementAverageValue
+    variable = invariant3
+  [../]
+  [./eps_crp_xx]
+    type = ElementAverageValue
+    variable = creep_strain_xx
+  [../]
+  [./eps_crp_yy]
+    type = ElementAverageValue
+    variable = creep_strain_yy
+  [../]
+  [./eps_crp_zz]
+    type = ElementAverageValue
+    variable = creep_strain_zz
+  [../]
+  [./eps_crp_mag]
+    type = ElementAverageValue
+    variable = creep
+  [../]
+  [./disp_x2]
+    type = NodalVariableValue
+    nodeid = 1
+    variable = disp_x
+  [../]
+  [./disp_x3]
+    type = NodalVariableValue
+    nodeid = 2
+    variable = disp_x
+  [../]
+  [./disp_y3]
+    type = NodalVariableValue
+    nodeid = 2
+    variable = disp_y
+  [../]
+  [./disp_y4]
+    type = NodalVariableValue
+    nodeid = 3
+    variable = disp_y
+  [../]
+  [./_dt]
+    type = TimestepSize
+  [../]
+  [./elas_str_xx]
+    type = ElementAverageValue
+    variable = elastic_strain_xx
+  [../]
+  [./elas_str_yy]
+    type = ElementAverageValue
+    variable = elastic_strain_yy
+  [../]
+  [./elas_str_zz]
+    type = ElementAverageValue
+    variable = elastic_strain_zz
+  [../]
+[]
+
+[Outputs]
+  print_linear_residuals = true
+  perf_graph = true
+  csv = true
+  [./out]
+    type = Exodus
+    elemental_as_nodal = true
+  [../]
+  [./console]
+    type = Console
+    max_rows = 25
+  [../]
+[]
+</code></pre></div><div class="modal-footer"><a class="modal-close btn-flat">Close</a></div></div></div></div></div></main></div></body><script type="text/javascript" src="../../contrib/materialize/materialize.min.js"></script><script type="text/javascript" src="../../contrib/clipboard/clipboard.min.js"></script><script type="text/javascript" src="../../contrib/prism/prism.min.js"></script><script type="text/javascript" src="../../js/init.js"></script><script type="text/javascript" src="../../js/navigation.js"></script><script type="text/javascript" src="../../contrib/fuse/fuse.min.js"></script><script type="text/javascript" src="../../js/search_index.js"></script><script type="text/javascript" src="../../js/sqa_moose.js"></script>
