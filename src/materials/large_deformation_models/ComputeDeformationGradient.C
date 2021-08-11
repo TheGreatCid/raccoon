@@ -42,7 +42,8 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _Fm(declareADProperty<RankTwoTensor>(prependBaseName("mechanical_deformation_gradient"))),
     _Fg_names(prependBaseName(
         getParam<std::vector<MaterialPropertyName>>("eigen_deformation_gradient_names"))),
-    _Fgs(_Fg_names.size())
+    _Fgs(_Fg_names.size()),
+    _J(declareADProperty<ADReal>(prependBaseName("jacobian")))
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
@@ -131,4 +132,5 @@ ComputeDeformationGradient::computeProperties()
       Fg *= (*Fgi)[_qp];
     _Fm[_qp] = Fg.inverse() * _F[_qp];
   }
+  _J[_qp] = _F[_qp].det();
 }
