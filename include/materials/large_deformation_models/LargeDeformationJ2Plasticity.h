@@ -16,6 +16,8 @@ public:
   virtual void updateState(ADRankTwoTensor & stress, ADRankTwoTensor & Fe) override;
 
 protected:
+  virtual void initQpStatefulProperties() override;
+
   virtual ADReal computeResidual(const ADReal & effective_trial_stress,
                                  const ADReal & delta_ep) override;
 
@@ -25,9 +27,7 @@ protected:
   virtual Real computeReferenceResidual(const ADReal & effective_trial_stress,
                                         const ADReal & delta_ep) override;
 
-  void computeTemperature(const ADReal & effective_trial_stress, const ADReal & delta_ep);
+  // void computeTemperature(const ADReal & effective_trial_stress, const ADReal & delta_ep);
 
-  void initQpStatefulProperties();
-
-  ADMaterialProperty<ADReal> & _T;
+  MaterialProperty<Real> & _T;
 };
