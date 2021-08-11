@@ -17,8 +17,15 @@ LargeDeformationJ2Plasticity::validParams()
 }
 
 LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters & parameters)
-  : LargeDeformationPlasticityModel(parameters)
+  : LargeDeformationPlasticityModel(parameters), _T(declareADProperty<ADReal>("Temp"))
+
 {
+}
+
+void
+LargeDeformationJ2Plasticity::initQpStatefulProperties()
+{
+  _T[_qp] = 293;
 }
 
 void
@@ -50,6 +57,9 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   Fe = Fe * delta_Fp.inverse();
   stress = _elasticity_model->computeCauchyStress(Fe);
   _hardening_model->plasticEnergy(_ep[_qp]);
+
+  // Update temp
+  computeTemperature(stress_dev_norm, delta_ep);
 }
 
 Real
@@ -79,4 +89,12 @@ LargeDeformationJ2Plasticity::computeDerivative(const ADReal & /*effective_trial
   return -_elasticity_model->computeMandelStress(_Np[_qp], /*plasticity_update = */ true)
               .doubleContraction(_Np[_qp]) -
          _hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 2);
+}
+
+void
+LargeDeformationJ2Plasticity::computeTemperature(const ADReal & effective_stress,
+                                                 const ADReal & delta_ep)
+{
+  ADReal T_old = _T[_qp];
+  _T[_qp] = (0.9 * effective_stress * delta_ep) / (8e-9 * 443e3) + T_old;
 }
