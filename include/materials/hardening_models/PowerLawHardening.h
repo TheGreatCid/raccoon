@@ -19,7 +19,6 @@ public:
 
 protected:
   // @{ The plastic energy parameters
-  const ADMaterialProperty<Real> & _sigma_y;
   const ADMaterialProperty<Real> & _n;
   const ADMaterialProperty<Real> & _ep0;
   // @}
@@ -38,5 +37,7 @@ protected:
   const MaterialPropertyName _gp_name;
   const ADMaterialProperty<Real> & _gp;
   const ADMaterialProperty<Real> & _dgp_dd;
+  const ADMaterialProperty<Real> & _T;
+  const ADMaterialProperty<Real> & _sigma_y;
   // @}
 };

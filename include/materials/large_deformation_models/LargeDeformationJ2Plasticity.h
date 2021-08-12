@@ -27,7 +27,10 @@ protected:
   virtual Real computeReferenceResidual(const ADReal & effective_trial_stress,
                                         const ADReal & delta_ep) override;
 
-  // void computeTemperature(const ADReal & effective_trial_stress, const ADReal & delta_ep);
+  void computeTemperature(const ADReal & delta_ep);
 
-  MaterialProperty<Real> & _T;
+  ADMaterialProperty<Real> & _T;
+  const MaterialProperty<Real> & _T_old;
+  const ADMaterialProperty<Real> & _sigma_0;
+  ADMaterialProperty<Real> & _sigma_y;
 };

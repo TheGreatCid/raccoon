@@ -13,11 +13,17 @@ LargeDeformationJ2Plasticity::validParams()
   InputParameters params = LargeDeformationPlasticityModel::validParams();
   params.addClassDescription("Large deformation $J_2$ plasticity. The exponential constitutive "
                              "update is used to update the plastic deformation.");
+  params.addRequiredParam<MaterialPropertyName>("ref_yield_stress",
+                                                "The reference yield stress $\\sigma_0$");
   return params;
 }
 
 LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters & parameters)
-  : LargeDeformationPlasticityModel(parameters), _T(declareProperty<Real>(prependBaseName("Temp")))
+  : LargeDeformationPlasticityModel(parameters),
+    _T(declareADProperty<Real>(prependBaseName("Temp"))),
+    _T_old(getMaterialPropertyOldByName<Real>(prependBaseName("Temp"))),
+    _sigma_0(getADMaterialProperty<Real>(prependBaseName("ref_yield_stress", true))),
+    _sigma_y(declareADProperty<Real>(prependBaseName("yield_stress")))
 
 {
 }
@@ -25,6 +31,8 @@ LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters
 void
 LargeDeformationJ2Plasticity::initQpStatefulProperties()
 {
+  LargeDeformationPlasticityModel::initQpStatefulProperties();
+  _sigma_y[_qp] = _sigma_0[_qp];
   _T[_qp] = 293;
 }
 
@@ -33,7 +41,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
 {
   // First assume no plastic increment
   ADReal delta_ep = 0;
-  std::cout << _Fp_old[_qp] << std::endl;
+  _sigma_y[_qp] = _sigma_0[_qp] * (293 / _T[_qp]);
 
   Fe = Fe * _Fp_old[_qp].inverse();
   stress = _elasticity_model->computeMandelStress(Fe);
@@ -61,7 +69,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   _hardening_model->plasticEnergy(_ep[_qp]);
 
   // Update temp
-  // computeTemperature(stress_dev_norm, delta_ep);
+  computeTemperature(delta_ep);
 }
 
 Real
@@ -93,10 +101,9 @@ LargeDeformationJ2Plasticity::computeDerivative(const ADReal & /*effective_trial
          _hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 2);
 }
 
-// void
-// LargeDeformationJ2Plasticity::computeTemperature(const ADReal & effective_stress,
-//                                                  const ADReal & delta_ep)
-// {
-//   ADReal T_old = _T[_qp];
-//   _T[_qp] = (0.9 * effective_stress * delta_ep) / (8e-9 * 443e3) + T_old;
-// }
+void
+LargeDeformationJ2Plasticity::computeTemperature(const ADReal & delta_ep)
+{
+
+  _T[_qp] = (0.9 * _sigma_y[_qp] * delta_ep) / (8e-9 * 443e6) + _T_old[_qp];
+}
