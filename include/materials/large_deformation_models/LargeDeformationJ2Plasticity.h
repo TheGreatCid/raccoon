@@ -27,10 +27,18 @@ protected:
   virtual Real computeReferenceResidual(const ADReal & effective_trial_stress,
                                         const ADReal & delta_ep) override;
 
-  void computeTemperature(const ADReal & delta_ep);
-
+  void computeTemperature(const ADReal & delta_ep, const ADReal & effective_stress);
+  ADReal computeSigyDeriv(const ADReal & delta_ep,
+                          const ADReal & effective_trial_stress,
+                          const unsigned int derivative);
   ADMaterialProperty<Real> & _T;
   const MaterialProperty<Real> & _T_old;
+  const ADMaterialProperty<Real> & _T0;
   const ADMaterialProperty<Real> & _sigma_0;
-  ADMaterialProperty<Real> & _sigma_y;
+  const ADMaterialProperty<Real> & _n;
+  const ADMaterialProperty<Real> & _ep0;
+  const ADMaterialProperty<Real> & _xi;
+  const ADMaterialProperty<Real> & _cv;
+  const ADMaterialProperty<Real> & _rho;
+  const ADMaterialProperty<Real> & _R;
 };

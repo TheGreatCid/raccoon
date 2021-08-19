@@ -15,6 +15,16 @@ LargeDeformationJ2Plasticity::validParams()
                              "update is used to update the plastic deformation.");
   params.addRequiredParam<MaterialPropertyName>("ref_yield_stress",
                                                 "The reference yield stress $\\sigma_0$");
+  params.addRequiredParam<MaterialPropertyName>("exponent",
+                                                "The exponent n in the power law hardening $n$");
+  params.addRequiredParam<MaterialPropertyName>(
+      "reference_plastic_strain", "The $\\epsilon_0$ parameter in the power law hardening");
+  params.addRequiredParam<MaterialPropertyName>("Taylor_Quinney", "The Taylor_Quinney factor");
+  params.addRequiredParam<MaterialPropertyName>("c_v", "c_v");
+  params.addRequiredParam<MaterialPropertyName>("rho", "the density");
+  params.addRequiredParam<MaterialPropertyName>("R", "TS_Rate");
+  params.addRequiredParam<MaterialPropertyName>("T0", "ref_temp");
+
   return params;
 }
 
@@ -22,8 +32,14 @@ LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters
   : LargeDeformationPlasticityModel(parameters),
     _T(declareADProperty<Real>(prependBaseName("Temp"))),
     _T_old(getMaterialPropertyOldByName<Real>(prependBaseName("Temp"))),
-    _sigma_0(getADMaterialProperty<Real>(prependBaseName("ref_yield_stress", true))),
-    _sigma_y(declareADProperty<Real>(prependBaseName("yield_stress")))
+    _T0(getADMaterialProperty<Real>(prependBaseName("T0"))),
+    _sigma_0(getADMaterialProperty<Real>(prependBaseName("ref_yield_stress"))),
+    _n(getADMaterialProperty<Real>(prependBaseName("exponent", true))),
+    _ep0(getADMaterialProperty<Real>(prependBaseName("reference_plastic_strain", true))),
+    _xi(getADMaterialProperty<Real>(prependBaseName("Taylor_Quinney"))),
+    _cv(getADMaterialProperty<Real>(prependBaseName("c_v"))),
+    _rho(getADMaterialProperty<Real>(prependBaseName("rho"))),
+    _R(getADMaterialProperty<Real>(prependBaseName("R")))
 
 {
 }
@@ -32,7 +48,7 @@ void
 LargeDeformationJ2Plasticity::initQpStatefulProperties()
 {
   LargeDeformationPlasticityModel::initQpStatefulProperties();
-  _sigma_y[_qp] = _sigma_0[_qp];
+  //_sigma_y[_qp] = _sigma_0[_qp];
   _T[_qp] = 293;
 }
 
@@ -41,7 +57,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
 {
   // First assume no plastic increment
   ADReal delta_ep = 0;
-  _sigma_y[_qp] = _sigma_0[_qp] * (293 / _T[_qp]);
+  //------------------------
 
   Fe = Fe * _Fp_old[_qp].inverse();
   stress = _elasticity_model->computeMandelStress(Fe);
@@ -68,8 +84,11 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   stress = _elasticity_model->computeCauchyStress(Fe);
   _hardening_model->plasticEnergy(_ep[_qp]);
 
+  // stress_dev = stress.deviatoric();
+
   // Update temp
-  computeTemperature(delta_ep);
+  computeTemperature(delta_ep,
+                     _sigma_0[_qp] * std::exp((293 - _T[_qp]) / 10) * delta_ep); //----------------
 }
 
 Real
@@ -86,24 +105,74 @@ ADReal
 LargeDeformationJ2Plasticity::computeResidual(const ADReal & effective_trial_stress,
                                               const ADReal & delta_ep)
 {
-  return effective_trial_stress -
+  ADReal f = _ep_old[_qp] + delta_ep;
+  ADReal S = computeSigyDeriv(delta_ep, effective_trial_stress, 0);
+  ADReal dS = computeSigyDeriv(delta_ep, effective_trial_stress, 1);
+  //  ADReal ddS = computeSigyDeriv(delta_ep, effective_trial_stress, 2);
+  return effective_trial_stress - // Adding chain rule term due to the temp dependence on sigy
          _elasticity_model->computeMandelStress(delta_ep * _Np[_qp], /*plasticity_update = */ true)
              .doubleContraction(_Np[_qp]) -
-         _hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 1);
+         _hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 1) +
+         _ep0[_qp] * _n[_qp] * dS * (std::pow(f / _ep0[_qp] + 1, 1 / _n[_qp] + 1) - 1) *
+             (1 / (_n[_qp] + 1));
 }
 
 ADReal
-LargeDeformationJ2Plasticity::computeDerivative(const ADReal & /*effective_trial_stress*/,
+LargeDeformationJ2Plasticity::computeDerivative(const ADReal & effective_trial_stress,
                                                 const ADReal & delta_ep)
 {
+  // Set everything as variables and rewrite to make this easier to debug
+  ADReal f = _ep_old[_qp] + delta_ep;
+
+  ADReal S = computeSigyDeriv(delta_ep, effective_trial_stress, 0);
+  ADReal dS = computeSigyDeriv(delta_ep, effective_trial_stress, 1);
+  ADReal ddS = computeSigyDeriv(delta_ep, effective_trial_stress, 2);
   return -_elasticity_model->computeMandelStress(_Np[_qp], /*plasticity_update = */ true)
               .doubleContraction(_Np[_qp]) -
-         _hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 2);
+         _hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 2) +
+         2 * dS * std::pow((_sigma_0[_qp] + f) / _sigma_0[_qp], 1 / _n[_qp]) -
+         (_sigma_0[_qp] * _n[_qp] * ddS *
+          (1 - std::pow((_sigma_0[_qp] + f) / _sigma_0[_qp], 1 / _n[_qp] + 1))) /
+             (_n[_qp] + 1);
 }
 
 void
-LargeDeformationJ2Plasticity::computeTemperature(const ADReal & delta_ep)
+LargeDeformationJ2Plasticity::computeTemperature(const ADReal & delta_ep,
+                                                 const ADReal & effective_stress)
 {
 
-  _T[_qp] = (0.9 * _sigma_y[_qp] * delta_ep) / (8e-9 * 443e6) + _T_old[_qp];
+  _T[_qp] = (0.9 * effective_stress * delta_ep) / (_cv[_qp] * _rho[_qp]) + _T_old[_qp];
+}
+
+ADReal
+LargeDeformationJ2Plasticity::computeSigyDeriv(const ADReal & delta_ep,
+                                               const ADReal & effective_trial_stress,
+                                               const unsigned int derivative)
+{
+  if (derivative == 0)
+  {
+    return _sigma_0[_qp] * std::exp((293 - _T[_qp]) / 10);
+  }
+
+  if (derivative == 1)
+  {
+    return -((_sigma_0[_qp] * _ep0[_qp] * _xi[_qp] *
+              std::exp((1 / _R[_qp]) *
+                           (-1 * (effective_trial_stress * _xi[_qp] * (_ep_old[_qp] + delta_ep)) *
+                            (1 / (_cv[_qp] * _rho[_qp]))) -
+                       _T_old[_qp] + _T0[_qp])) /
+             (_cv[_qp] * _rho[_qp] * _R[_qp]));
+  }
+
+  if (derivative == 2)
+  {
+    return ((_sigma_0[_qp] * std::pow(_ep0[_qp], 2) * std::pow(_xi[_qp], 2) *
+             std::exp((1 / _R[_qp]) *
+                          (-1 * (effective_trial_stress * _xi[_qp] * (_ep_old[_qp] + delta_ep)) *
+                           (1 / (_cv[_qp] * _rho[_qp]))) -
+                      _T_old[_qp] + _T0[_qp])) /
+            (std::pow(_cv[_qp], 2) * std::pow(_rho[_qp], 2) * std::pow(_R[_qp], 2)));
+  }
+  mooseError(name(), "internal error: unsupported derivative order.");
+  return 0;
 }
