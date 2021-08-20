@@ -30,7 +30,7 @@ LargeDeformationJ2Plasticity::validParams()
 
 LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters & parameters)
   : LargeDeformationPlasticityModel(parameters),
-    _T(declareADProperty<Real>(prependBaseName("Temp"))),
+    _T(declareProperty<Real>(prependBaseName("Temp"))),
     _T_old(getMaterialPropertyOldByName<Real>(prependBaseName("Temp"))),
     _T0(getADMaterialProperty<Real>(prependBaseName("T0"))),
     _sigma_0(getADMaterialProperty<Real>(prependBaseName("ref_yield_stress"))),
@@ -84,11 +84,12 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   stress = _elasticity_model->computeCauchyStress(Fe);
   _hardening_model->plasticEnergy(_ep[_qp]);
 
-  // stress_dev = stress.deviatoric();
-
-  // Update temp
-  computeTemperature(delta_ep,
-                     _sigma_0[_qp] * std::exp((293 - _T[_qp]) / 10) * delta_ep); //----------------
+  stress_dev = stress.deviatoric();
+  //
+  // // Update temp
+  computeTemperature(
+      delta_ep,
+      std::sqrt(1.5 * (stress_dev.doubleContraction(stress_dev)))); //----------------
 }
 
 Real
@@ -105,43 +106,49 @@ ADReal
 LargeDeformationJ2Plasticity::computeResidual(const ADReal & effective_trial_stress,
                                               const ADReal & delta_ep)
 {
-  ADReal f = _ep_old[_qp] + delta_ep;
-  ADReal S = computeSigyDeriv(delta_ep, effective_trial_stress, 0);
-  ADReal dS = computeSigyDeriv(delta_ep, effective_trial_stress, 1);
+  // ADReal f = _ep_old[_qp] + delta_ep;
+  // ADReal S = computeSigyDeriv(delta_ep, effective_trial_stress, 0);
+  // ADReal dS = computeSigyDeriv(delta_ep, effective_trial_stress, 1);
   //  ADReal ddS = computeSigyDeriv(delta_ep, effective_trial_stress, 2);
   return effective_trial_stress - // Adding chain rule term due to the temp dependence on sigy
          _elasticity_model->computeMandelStress(delta_ep * _Np[_qp], /*plasticity_update = */ true)
              .doubleContraction(_Np[_qp]) -
-         _hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 1) +
-         _ep0[_qp] * _n[_qp] * dS * (std::pow(f / _ep0[_qp] + 1, 1 / _n[_qp] + 1) - 1) *
-             (1 / (_n[_qp] + 1));
+         _hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 1);
+  //  +
+  // _ep0[_qp] * _n[_qp] * dS * (std::pow(f / _ep0[_qp] + 1, 1 / _n[_qp] + 1) - 1) *
+  //     (1 / (_n[_qp] + 1));
 }
 
 ADReal
-LargeDeformationJ2Plasticity::computeDerivative(const ADReal & effective_trial_stress,
+LargeDeformationJ2Plasticity::computeDerivative(const ADReal & /*effective_trial_stress*/,
                                                 const ADReal & delta_ep)
 {
   // Set everything as variables and rewrite to make this easier to debug
-  ADReal f = _ep_old[_qp] + delta_ep;
+  // ADReal f = _ep_old[_qp] + delta_ep;
 
-  ADReal S = computeSigyDeriv(delta_ep, effective_trial_stress, 0);
-  ADReal dS = computeSigyDeriv(delta_ep, effective_trial_stress, 1);
-  ADReal ddS = computeSigyDeriv(delta_ep, effective_trial_stress, 2);
+  // ADReal S = computeSigyDeriv(delta_ep, effective_trial_stress, 0);
+  // ADReal dS = computeSigyDeriv(delta_ep, effective_trial_stress, 1);
+  // ADReal ddS = computeSigyDeriv(delta_ep, effective_trial_stress, 2);
   return -_elasticity_model->computeMandelStress(_Np[_qp], /*plasticity_update = */ true)
               .doubleContraction(_Np[_qp]) -
-         _hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 2) +
-         2 * dS * std::pow((_sigma_0[_qp] + f) / _sigma_0[_qp], 1 / _n[_qp]) -
-         (_sigma_0[_qp] * _n[_qp] * ddS *
-          (1 - std::pow((_sigma_0[_qp] + f) / _sigma_0[_qp], 1 / _n[_qp] + 1))) /
-             (_n[_qp] + 1);
+         _hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 2);
+
+  // 2 * dS * std::pow((_sigma_0[_qp] + f) / _sigma_0[_qp], 1 / _n[_qp]) -
+  // (_sigma_0[_qp] * _n[_qp] * ddS *
+  //  (1 - std::pow((_sigma_0[_qp] + f) / _sigma_0[_qp], 1 / _n[_qp] + 1))) /
+  //     (_n[_qp] + 1);
 }
 
 void
 LargeDeformationJ2Plasticity::computeTemperature(const ADReal & delta_ep,
                                                  const ADReal & effective_stress)
 {
+  // std::cout << "----------------------------------------" << std::endl;
 
-  _T[_qp] = (0.9 * effective_stress * delta_ep) / (_cv[_qp] * _rho[_qp]) + _T_old[_qp];
+  _T[_qp] = raw_value((0.5 * effective_stress * delta_ep) / (_cv[_qp] * _rho[_qp]) + _T_old[_qp]);
+  // std::cout << "eff_stress * del_ep = " << effective_stress * delta_ep << std::endl;
+  // std::cout << "T_old = " << _T_old[_qp] << std::endl;
+  // std::cout << raw_value(_T[_qp]) << std::endl;
 }
 
 ADReal

@@ -46,7 +46,7 @@ PowerLawHardening::PowerLawHardening(const InputParameters & parameters)
     _gp_name(prependBaseName("degradation_function", true)),
     _gp(getADMaterialProperty<Real>(_gp_name)),
     _dgp_dd(getADMaterialProperty<Real>(derivativePropertyName(_gp_name, {_d_name}))),
-    _T(getADMaterialProperty<Real>(prependBaseName("Temp"))), // Remove
+    _T(getMaterialProperty<Real>(prependBaseName("Temp"))), // Remove
     _sigma_0(getADMaterialProperty<Real>(prependBaseName("ref_yield_stress"))),
     _sigma_y(declareADProperty<Real>(prependBaseName("yield_stress")))
 
@@ -55,7 +55,7 @@ PowerLawHardening::PowerLawHardening(const InputParameters & parameters)
 ADReal
 PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivative)
 {
-  _sigma_y[_qp] = _sigma_0[_qp] * std::exp((293 - _T[_qp]) / 10);
+  _sigma_y[_qp] = _sigma_0[_qp] * (1 + std::exp((293 - _T[_qp]) / 500)) / 2;
   if (derivative == 0)
   {
     _psip_active[_qp] = _n[_qp] * _sigma_y[_qp] * _ep0[_qp] / (_n[_qp] + 1) *

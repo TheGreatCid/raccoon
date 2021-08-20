@@ -31,7 +31,7 @@ protected:
   ADReal computeSigyDeriv(const ADReal & delta_ep,
                           const ADReal & effective_trial_stress,
                           const unsigned int derivative);
-  ADMaterialProperty<Real> & _T;
+  MaterialProperty<Real> & _T;
   const MaterialProperty<Real> & _T_old;
   const ADMaterialProperty<Real> & _T0;
   const ADMaterialProperty<Real> & _sigma_0;
