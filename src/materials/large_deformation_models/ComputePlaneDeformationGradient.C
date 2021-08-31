@@ -2,12 +2,12 @@
 //* being developed at Dolbow lab at Duke University
 //* http://dolbow.pratt.duke.edu
 
-#include "ComputeDeformationGradient.h"
+#include "ComputePlaneDeformationGradient.h"
 
-registerADMooseObject("raccoonApp", ComputeDeformationGradient);
+registerADMooseObject("raccoonApp", ComputePlaneDeformationGradient);
 
 InputParameters
-ComputeDeformationGradient::validParams()
+ComputePlaneDeformationGradient::validParams()
 {
   InputParameters params = Material::validParams();
   params += BaseNameInterface::validParams();
@@ -15,7 +15,7 @@ ComputeDeformationGradient::validParams()
       "This class computes the deformation gradient. Eigen deformation gradients are extracted "
       "from the total deformation gradient. The F-bar approach can optionally be used to correct "
       "volumetric locking.");
-
+  params.addRequiredCoupledVar("out_of_plane_strain", "strain_zz");
   params.addRequiredCoupledVar(
       "displacements",
       "The displacements appropriate for the simulation geometry and coordinate system");
@@ -28,10 +28,11 @@ ComputeDeformationGradient::validParams()
   return params;
 }
 
-ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & parameters)
+ComputePlaneDeformationGradient::ComputePlaneDeformationGradient(const InputParameters & parameters)
   : Material(parameters),
     BaseNameInterface(parameters),
     _coord_sys(_assembly.coordSystem()),
+    _out_of_plane_strain(adCoupledValue("out_of_plane_strain")),
     _ndisp(coupledComponents("displacements")),
     _disp(adCoupledValues("displacements")),
     _grad_disp(adCoupledGradients("displacements")),
@@ -52,7 +53,7 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
 }
 
 void
-ComputeDeformationGradient::initialSetup()
+ComputePlaneDeformationGradient::initialSetup()
 {
   displacementIntegrityCheck();
 
@@ -65,7 +66,7 @@ ComputeDeformationGradient::initialSetup()
 }
 
 void
-ComputeDeformationGradient::displacementIntegrityCheck()
+ComputePlaneDeformationGradient::displacementIntegrityCheck()
 {
   // Checking for consistency between mesh size and length of the provided displacements vector
   if (_ndisp != _mesh.dimension())
@@ -85,22 +86,19 @@ ComputeDeformationGradient::displacementIntegrityCheck()
 }
 
 void
-ComputeDeformationGradient::initQpStatefulProperties()
+ComputePlaneDeformationGradient::initQpStatefulProperties()
 {
   _F[_qp].setToIdentity();
   _Fm[_qp].setToIdentity();
 }
 ADReal
-ComputeDeformationGradient::computeQpOutOfPlaneGradDisp()
+ComputePlaneDeformationGradient::computeQpOutOfPlaneGradDisp()
 {
-  if (!MooseUtils::absoluteFuzzyEqual(_q_point[_qp](0), 0.0))
-    return (*_disp[0])[_qp] / _q_point[_qp](0);
-  else
-    return 0.0;
+  return std::exp(_out_of_plane_strain[_qp]);
 }
 
 void
-ComputeDeformationGradient::computeProperties()
+ComputePlaneDeformationGradient::computeProperties()
 {
   ADRankTwoTensor ave_F;
 
