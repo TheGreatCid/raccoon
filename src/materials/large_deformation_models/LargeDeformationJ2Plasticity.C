@@ -85,8 +85,9 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   _hardening_model->plasticEnergy(_ep[_qp]);
 
   stress_dev = stress.deviatoric();
-  //
+  // std::cout << stress_dev << std::endl;
   // // Update temp
+  // std::cout << std::sqrt(1.5 * (stress_dev.doubleContraction(stress_dev))) << std::endl;
   computeTemperature(
       delta_ep,
       std::sqrt(1.5 * (stress_dev.doubleContraction(stress_dev)))); //----------------

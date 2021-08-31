@@ -15,7 +15,7 @@ ComputePlaneDeformationGradient::validParams()
       "This class computes the deformation gradient. Eigen deformation gradients are extracted "
       "from the total deformation gradient. The F-bar approach can optionally be used to correct "
       "volumetric locking.");
-  params.addRequiredCoupledVar("out_of_plane_strain", "strain_zz");
+  params.addCoupledVar("out_of_plane_strain", "strain_zz");
   params.addRequiredCoupledVar(
       "displacements",
       "The displacements appropriate for the simulation geometry and coordinate system");
@@ -51,7 +51,6 @@ ComputePlaneDeformationGradient::ComputePlaneDeformationGradient(const InputPara
   if (getParam<bool>("use_displaced_mesh"))
     paramError("use_displaced_mesh", "The strain calculator needs to run on the undisplaced mesh.");
 }
-
 void
 ComputePlaneDeformationGradient::initialSetup()
 {
@@ -94,6 +93,8 @@ ComputePlaneDeformationGradient::initQpStatefulProperties()
 ADReal
 ComputePlaneDeformationGradient::computeQpOutOfPlaneGradDisp()
 {
+  // std::cout << std::exp(_out_of_plane_strain[_qp]) << std::endl;
+  //  std::cout << _out_of_plane_strain[_qp] << std::endl;
   return std::exp(_out_of_plane_strain[_qp]);
 }
 
@@ -105,11 +106,12 @@ ComputePlaneDeformationGradient::computeProperties()
   for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
   {
     ADRankTwoTensor A((*_grad_disp[0])[_qp], (*_grad_disp[1])[_qp], (*_grad_disp[2])[_qp]);
-    if (_coord_sys == Moose::COORD_RZ)
-      A(2, 2) = computeQpOutOfPlaneGradDisp();
+    // if (_coord_sys == Moose::COORD_RZ)
+    //  std::cout << computeQpOutOfPlaneGradDisp() << std::endl;
+    A(2, 2) = computeQpOutOfPlaneGradDisp() - 1;
     _F[_qp] = A;
     _F[_qp].addIa(1.0);
-
+    // std::cout << _F[_qp](0, 0) << std::endl;
     if (_volumetric_locking_correction)
       ave_F += _F[_qp] * _JxW[_qp] * _coord[_qp];
   }
