@@ -25,6 +25,7 @@ PowerLawHardening::validParams()
   params.addParam<MaterialPropertyName>("degradation_function", "gp", "The degradation function");
   params.addRequiredParam<MaterialPropertyName>("ref_yield_stress",
                                                 "The reference yield stress $\\sigma_0$");
+  params.addRequiredParam<MaterialPropertyName>("T0", "T0");
   return params;
 }
 
@@ -48,14 +49,15 @@ PowerLawHardening::PowerLawHardening(const InputParameters & parameters)
     _dgp_dd(getADMaterialProperty<Real>(derivativePropertyName(_gp_name, {_d_name}))),
     _T(getMaterialProperty<Real>(prependBaseName("Temp"))), // Remove
     _sigma_0(getADMaterialProperty<Real>(prependBaseName("ref_yield_stress"))),
-    _sigma_y(declareADProperty<Real>(prependBaseName("yield_stress")))
-
+    _sigma_y(declareADProperty<Real>(prependBaseName("yield_stress"))),
+    _T0(getADMaterialProperty<Real>(prependBaseName("T0")))
 {
 }
 ADReal
 PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivative)
 {
-  _sigma_y[_qp] = _sigma_0[_qp] * (1 + std::exp((293 - _T[_qp]) / 100)) / 2;
+  //_sigma_y[_qp] = _sigma_0[_qp] * (1 + std::exp((293 - _T[_qp]) / 100)) / 2;
+  _sigma_y[_qp] = _sigma_0[_qp] * (std::exp((_T0[_qp] - _T[_qp]) / 100));
   if (derivative == 0)
   {
     _psip_active[_qp] = _n[_qp] * _sigma_y[_qp] * _ep0[_qp] / (_n[_qp] + 1) *

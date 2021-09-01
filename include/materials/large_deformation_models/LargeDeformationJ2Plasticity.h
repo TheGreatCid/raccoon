@@ -33,7 +33,7 @@ protected:
                           const unsigned int derivative);
   MaterialProperty<Real> & _T;
   const MaterialProperty<Real> & _T_old;
-  const ADMaterialProperty<Real> & _T0;
+  const MaterialProperty<Real> & _T0;
   const ADMaterialProperty<Real> & _sigma_0;
   const ADMaterialProperty<Real> & _n;
   const ADMaterialProperty<Real> & _ep0;

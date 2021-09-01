@@ -40,5 +40,7 @@ protected:
   const MaterialProperty<Real> & _T;
   const ADMaterialProperty<Real> & _sigma_0;
   ADMaterialProperty<Real> & _sigma_y;
+  const ADMaterialProperty<Real> & _T0;
+
   // @}
 };

@@ -32,7 +32,7 @@ LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters
   : LargeDeformationPlasticityModel(parameters),
     _T(declareProperty<Real>(prependBaseName("Temp"))),
     _T_old(getMaterialPropertyOldByName<Real>(prependBaseName("Temp"))),
-    _T0(getADMaterialProperty<Real>(prependBaseName("T0"))),
+    _T0(getMaterialProperty<Real>(prependBaseName("T0"))),
     _sigma_0(getADMaterialProperty<Real>(prependBaseName("ref_yield_stress"))),
     _n(getADMaterialProperty<Real>(prependBaseName("exponent", true))),
     _ep0(getADMaterialProperty<Real>(prependBaseName("reference_plastic_strain", true))),
@@ -49,7 +49,8 @@ LargeDeformationJ2Plasticity::initQpStatefulProperties()
 {
   LargeDeformationPlasticityModel::initQpStatefulProperties();
   //_sigma_y[_qp] = _sigma_0[_qp];
-  _T[_qp] = 293;
+
+  _T[_qp] = _T0[_qp];
 }
 
 void
