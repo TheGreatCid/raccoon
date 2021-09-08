@@ -3,7 +3,7 @@
 //* http://dolbow.pratt.duke.edu
 
 #include "PowerLawHardening.h"
-
+#include <vector>
 registerMooseObject("raccoonApp", PowerLawHardening);
 
 InputParameters
@@ -57,7 +57,7 @@ ADReal
 PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivative)
 {
   //_sigma_y[_qp] = _sigma_0[_qp] * (1 + std::exp((293 - _T[_qp]) / 100)) / 2;
-  _sigma_y[_qp] = _sigma_0[_qp] * (std::exp((_T0[_qp] - _T[_qp]) / 500));
+  _sigma_y[_qp] = _sigma_0[_qp] * piecewise();//(std::exp((_T0[_qp] - _T[_qp]) / 500));
   if (derivative == 0)
   {
     _psip_active[_qp] = _n[_qp] * _sigma_y[_qp] * _ep0[_qp] / (_n[_qp] + 1) *
@@ -76,4 +76,71 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
 
   mooseError(name(), "internal error: unsupported derivative order.");
   return 0;
+}
+
+ADReal
+PowerLawHardening::piecewise(){
+
+Real Tl = _T[_qp];
+
+  if(273.15 <= Tl && Tl < 332.9){
+    std::vector<Real> coeff = {-5.61270528573491e-08,	1.58495556827408e-05,	-0.00158192359946669,	1} ;
+    return val(Tl,coeff,273.15);
+
+  }
+  else if(332.9 <= Tl && Tl < 394.3){
+    std::vector<Real> coeff = {-5.61270528573493e-08,	5.78746500533272e-06,	-0.000288942448851826,	0.950089179000000};
+    return val(Tl,coeff,332.9);
+  }
+  else if(394.3 <= Tl && Tl < 512.6){
+    std::vector<Real> coeff = {2.22603215416878e-08,	-4.54210463506049e-06,	-0.000212544134567699,	0.941186000000000};
+    return val(Tl,coeff,394.3);
+
+  }
+  else if(512.6 <= Tl && Tl < 684.4){
+    std::vector<Real> coeff = {-1.13978549501960e-08,	3.36085514388411e-06,	-0.000352334975716497,	0.889315233000000};
+    return val(Tl,coeff,512.6 );
+
+  }
+  else if(684.4 <= Tl && Tl < 813.5){
+    std::vector<Real> coeff = {-2.44797253852972e-08,	-2.51268543339399e-06,	-0.000206642087807611,	0.870190744000000};
+    return val(Tl,coeff,684.4);
+
+  }
+  else if(813.5 <= Tl && Tl < 873.3){
+    std::vector<Real> coeff = {8.58904452147939e-08,	-1.19956310052036e-05,	-0.00208005056441911,	0.748906974000000};
+    return val(Tl,coeff,813.5);
+
+  }
+  else if(873.3 <= Tl && Tl < 933.8){
+    std::vector<Real> coeff = {-1.17165095137872e-07,	3.41789111374217e-06,	-0.00259315840863068,	0.599942456000000};
+    return val(Tl,coeff,873.3 );
+
+  }
+  else if(933.841425300000 <= Tl && Tl < 993.616700000000){
+    std::vector<Real> coeff = {2.34876403207678e-07,	-1.78572109163676e-05,	-0.00346713315251594,	0.429526021000000};
+    return val(Tl,coeff,933.841425300000);
+
+  }
+  else if(993.61670000000<= Tl && Tl < 1103.3){
+    std::vector<Real> coeff = {-6.15071218938525e-08,	2.42621936504931e-05,	-0.00308427355013482,	0.208637262000000};
+    return val(Tl,coeff,993.61670000000);
+
+  }
+  else if(1103.3 <= Tl && Tl < 1213.7){
+    std::vector<Real> coeff = {-6.15071218938525e-08,	4.03227602052467e-06,	1.77780129137437e-05,	0.0810667030000000};
+    return val(Tl,coeff,1103.3 );
+
+  }
+  // std::cout << _T[_qp] << std::endl;
+  // std::cout << Tl << std::endl;
+//  paramError("T0", "outside threshhold");
+
+  return 1;
+}
+
+Real
+PowerLawHardening::val(Real Tl, const std::vector<Real> & coeff, Real breaks)
+{
+   return coeff[0]*std::pow((Tl-breaks),(4-1)) + coeff[1]*std::pow((Tl-breaks),(4-2)) + coeff[2]*std::pow((Tl-breaks),(4-3)) + coeff[3];
 }

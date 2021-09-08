@@ -49,7 +49,7 @@ LargeDeformationJ2Plasticity::initQpStatefulProperties()
 {
   LargeDeformationPlasticityModel::initQpStatefulProperties();
   //_sigma_y[_qp] = _sigma_0[_qp];
-
+//std::cout << _T0[_qp]<< std::endl;
   _T[_qp] = _T0[_qp];
 }
 
