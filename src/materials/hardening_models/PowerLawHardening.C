@@ -57,7 +57,7 @@ ADReal
 PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivative)
 {
   //_sigma_y[_qp] = _sigma_0[_qp] * (1 + std::exp((293 - _T[_qp]) / 100)) / 2;
-  _sigma_y[_qp] = _sigma_0[_qp] * (std::exp((_T0[_qp] - _T[_qp]) / 100));
+  _sigma_y[_qp] = _sigma_0[_qp] * (std::exp((_T0[_qp] - _T[_qp]) / 500));
   if (derivative == 0)
   {
     _psip_active[_qp] = _n[_qp] * _sigma_y[_qp] * _ep0[_qp] / (_n[_qp] + 1) *
