@@ -1,1 +1,427 @@
-<!DOCTYPE html><head><meta charset="UTF-8"><title>Cohesive Zone Master Action System | RACCOON</title><link rel="icon" type="image/x-icon" href="../../../../media/raccoon_icon.png" sizes="16x16 32x32 64x64 128x128"></link><link href="../../../../contrib/materialize/materialize.min.css" type="text/css" rel="stylesheet" media="screen,projection"></link><link href="../../../../contrib/prism/prism.min.css" type="text/css" rel="stylesheet"></link><link href="../../../../css/moose.css" type="text/css" rel="stylesheet"></link><link href="../../../../css/devel_moose.css" type="text/css" rel="stylesheet"></link><link href="../../../../css/alert_moose.css" type="text/css" rel="stylesheet"></link><link href="../../../../css/content_moose.css" type="text/css" rel="stylesheet"></link><link href="../../../../css/sqa_moose.css" type="text/css" rel="stylesheet"></link><link href="../../../../contrib/katex/katex.min.css" type="text/css" rel="stylesheet"></link><link href="../../../../css/katex_moose.css" type="text/css" rel="stylesheet"></link><script type="text/javascript" src="../../../../contrib/jquery/jquery.min.js"></script><script type="text/javascript" src="../../../../contrib/katex/katex.min.js"></script></head><body><div class="page-wrap"><header><nav><div class="nav-wrapper container"><a class="left moose-logo hide-on-med-and-down">RACCOON</a><a href="https://github.com/hugary1995/raccoon" class="right"><img src="../../../../media/framework/github-logo.png" class="github-mark"></img><img src="../../../../media/framework/github-mark.png" class="github-logo"></img></a><ul class="right hide-on-med-and-down"><li><a href="#!" class="dropdown-trigger" data-target="b4024b66-d97f-4956-b789-f58706ea1740" data-constrainWidth="false">Getting Started<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="44bf145b-b31c-44b4-bd64-b9ae1938110f" data-constrainWidth="false">Tutorials<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="0723921b-9cd0-490f-8075-bf9cc361efc5" data-constrainWidth="false">Theory<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="5ded35c4-9c2b-4abe-971c-274460c61731" data-constrainWidth="false">Documentation<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="../../../../contribute/index.html">Contribute</a></li></ul><a href="#" class="sidenav-trigger" data-target="25802098-0d0b-4d49-b5c4-bead62f497ce"><i class="material-icons">menu</i></a><ul class="sidenav" id="25802098-0d0b-4d49-b5c4-bead62f497ce"><li><a href="#!" class="dropdown-trigger" data-target="9c17eccc-5a99-4baa-88c3-d28d69998c99" data-constrainWidth="false">Getting Started<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="b1b6b9ab-5b5d-4598-ac0a-1e95d5e3e56f" data-constrainWidth="false">Tutorials<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="7a4098c3-f99d-402e-82ab-dd4fefbae7ac" data-constrainWidth="false">Theory<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="9b49160d-3c23-40a2-b2ea-918dbbb63529" data-constrainWidth="false">Documentation<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="../../../../contribute/index.html">Contribute</a></li></ul><a href="#moose-search" class="modal-trigger"><i class="material-icons">search</i></a></div><ul class="dropdown-content" id="b4024b66-d97f-4956-b789-f58706ea1740"><li><a href="../../../../getting_started/install.html">Install RACCOON</a></li><li><a href="../../../../getting_started/update.html">Update RACCOON</a></li><li><a href="../../../../getting_started/running.html">Running your first model</a></li><li><a href="../../../../getting_started/paraview.html">Visualization</a></li><li><a href="../../../../getting_started/ide.html">Code development</a></li></ul><ul class="dropdown-content" id="44bf145b-b31c-44b4-bd64-b9ae1938110f"><li><a href="../../../../tutorials/01_small_deformation_elasticity.html">1. Small deformation</a></li><li><a href="../../../../tutorials/02_mode1_brittle_fracture.html">2. Mode-I fracture</a></li><li><a href="../../../../tutorials/03_mode2_brittle_fracture.html">3. Mode-II fracture</a></li><li><a href="../../../../tutorials/04_fiber_reinforced_matrix.html">4. Fiber-reinforced matrix</a></li><li><a href="../../../../tutorials/05_soil_desiccation.html">5. Soil desiccation</a></li><li><a href="../../../../tutorials/06_large_deformation_elasticity.html">6. Large deformation</a></li><li><a href="../../../../tutorials/07_elastoplasticity.html">7. Elastoplasticity</a></li><li><a href="../../../../tutorials/08_ductile_fracture.html">8. Ductile fracture</a></li><li><a href="../../../../tutorials/09_three_point_bending.html">9. Three-point bending</a></li><li><a href="../../../../tutorials/10_quenching_bibeam.html">10. Quenching of bi-beam</a></li><li><a href="../../../../tutorials/11_adaptivity.html">11. Adaptive mesh refinement</a></li></ul><ul class="dropdown-content" id="0723921b-9cd0-490f-8075-bf9cc361efc5"><li><a href="../../../../theory/intro.html">Introduction</a></li><li><a href="../../../../theory/kinematics.html">State variables and kinematics</a></li><li><a href="../../../../theory/thermodynamics.html">Thermodynamics</a></li><li><a href="../../../../theory/minimization.html">The minimization problem</a></li><li><a href="../../../../theory/constitutive_models.html">Constitutive Models</a></li></ul><ul class="dropdown-content" id="5ded35c4-9c2b-4abe-971c-274460c61731"><li><a href="../../../../modules/index.html">Physics modules</a></li><li><a href="../../../index.html">Complete syntax</a></li><li><a href="../../../raccoon.html">RACCOON syntax</a></li><li><a href="../../../tensor_mechanics.html">Tensor mechanics syntax</a></li><li><a href="../../../phase_field.html">Phase field syntax</a></li><li><a href="../../../heat_conduction.html">Heat conduction syntax</a></li></ul><ul class="dropdown-content" id="9c17eccc-5a99-4baa-88c3-d28d69998c99"><li><a href="../../../../getting_started/install.html">Install RACCOON</a></li><li><a href="../../../../getting_started/update.html">Update RACCOON</a></li><li><a href="../../../../getting_started/running.html">Running your first model</a></li><li><a href="../../../../getting_started/paraview.html">Visualization</a></li><li><a href="../../../../getting_started/ide.html">Code development</a></li></ul><ul class="dropdown-content" id="b1b6b9ab-5b5d-4598-ac0a-1e95d5e3e56f"><li><a href="../../../../tutorials/01_small_deformation_elasticity.html">1. Small deformation</a></li><li><a href="../../../../tutorials/02_mode1_brittle_fracture.html">2. Mode-I fracture</a></li><li><a href="../../../../tutorials/03_mode2_brittle_fracture.html">3. Mode-II fracture</a></li><li><a href="../../../../tutorials/04_fiber_reinforced_matrix.html">4. Fiber-reinforced matrix</a></li><li><a href="../../../../tutorials/05_soil_desiccation.html">5. Soil desiccation</a></li><li><a href="../../../../tutorials/06_large_deformation_elasticity.html">6. Large deformation</a></li><li><a href="../../../../tutorials/07_elastoplasticity.html">7. Elastoplasticity</a></li><li><a href="../../../../tutorials/08_ductile_fracture.html">8. Ductile fracture</a></li><li><a href="../../../../tutorials/09_three_point_bending.html">9. Three-point bending</a></li><li><a href="../../../../tutorials/10_quenching_bibeam.html">10. Quenching of bi-beam</a></li><li><a href="../../../../tutorials/11_adaptivity.html">11. Adaptive mesh refinement</a></li></ul><ul class="dropdown-content" id="7a4098c3-f99d-402e-82ab-dd4fefbae7ac"><li><a href="../../../../theory/intro.html">Introduction</a></li><li><a href="../../../../theory/kinematics.html">State variables and kinematics</a></li><li><a href="../../../../theory/thermodynamics.html">Thermodynamics</a></li><li><a href="../../../../theory/minimization.html">The minimization problem</a></li><li><a href="../../../../theory/constitutive_models.html">Constitutive Models</a></li></ul><ul class="dropdown-content" id="9b49160d-3c23-40a2-b2ea-918dbbb63529"><li><a href="../../../../modules/index.html">Physics modules</a></li><li><a href="../../../index.html">Complete syntax</a></li><li><a href="../../../raccoon.html">RACCOON syntax</a></li><li><a href="../../../tensor_mechanics.html">Tensor mechanics syntax</a></li><li><a href="../../../phase_field.html">Phase field syntax</a></li><li><a href="../../../heat_conduction.html">Heat conduction syntax</a></li></ul></nav><div class="modal modal-fixed-footer moose-search-modal" id="moose-search"><div class="modal-content container moose-search-modal-content"><div class="row"><div class="col l12"><div class="input-field"><input type_="text" onkeyup="mooseSearch()" id="moose-search-box"></input></div></div><div><div class="col s12" id="moose-search-results"></div></div></div></div><div class="modal-footer"><a href="#!" class="modal-close btn-flat">Close</a></div></div></header><main class="main"><div class="container"><div class="row"><div class="moose-content col s12 m12 l12"><section id="e3e23001-d30a-4dcd-b37c-a75aa3a02abe" data-section-level="1" data-section-text="Cohesive Zone Master Action System"><h1 id="cohesive-zone-master-action-system">Cohesive Zone Master Action System</h1><section id="46a44870-b8a8-461e-9fe6-cd0e5f94bf80" data-section-level="2" data-section-text="Description"><h2 id="description">Description</h2><p>The <code>TensorMechanics</code> system provides a cohesive zone modeling capability that can be used to introduce traction-separation models running at the interfaces between regions modeled with continuum finite elements. The implemented cohesive zone model (CZM) is based on a Discrete Galerkin approach and therefore does not require cohesive elements. The CZM is formulated in terms of traction separation laws and requires three ingredients:</p><ol class="browser-default" start="1"><li><p><code>BreakMeshByBlockGenerator</code> </p></li><li><p><code>CZMInterfaceKernels</code> </p></li><li><p><code>CZMMaterials</code></p></li></ol><p>The <a href="../../../../source/meshgenerators/BreakMeshByBlockGenerator.html">BreakMeshByBlockGenerator</a> is utilized to create the cohesive zone interface  by splitting a monolithic mesh into blocks by adding the required nodes and boundaries between each block pair. The split mesh allows to compute a displacement jump <span class="moose-katex-inline-equation" id="moose-equation-7c33afcc-d63b-40cb-8c8d-403a0e4404c0"><script>var element = document.getElementById("moose-equation-7c33afcc-d63b-40cb-8c8d-403a0e4404c0");katex.render("\\Delta u", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span> at each quadrature point on the interface.</p><section id="c0155ca8-e0f9-4cbd-b3b2-5ba996accaa4" data-section-level="3" data-section-text="Small Deformations"><h3 id="small-deformations">Small Deformations</h3><p>A <a href="../../../../source/interfacekernels/CZMInterfaceKernel.html">CZMInterfaceKernel</a> utilizes the displacement jump <span class="moose-katex-inline-equation" id="moose-equation-8b676daa-641a-485a-959e-1b2928728449"><script>var element = document.getElementById("moose-equation-8b676daa-641a-485a-959e-1b2928728449");katex.render("\\Delta u", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span> to add the appropriate residual to the system and to provide the correct Jacobian. The current implementation of the <code>CZMInterfaceKernel</code> assumes the traction separation laws being only dependent from the displacement variables. Note that one <code>CZMInterfaceKernel</code> is required for each displacement component. The <code>CohesiveZoneMaster</code> block is used to simplify the process of setting up the necessary inputs required for cohesive zone modeling. It creates the appropriate number of <code>CZMInterfaceKernel</code> objects for the model dimensionality.</p><p>A <code>CZMMaterial</code> is used to compute the traction <span class="moose-katex-inline-equation" id="moose-equation-ef22b3ea-e861-48a7-85f9-9353a1276c10"><script>var element = document.getElementById("moose-equation-ef22b3ea-e861-48a7-85f9-9353a1276c10");katex.render("T", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span> as function of the displacement jump <span class="moose-katex-inline-equation" id="moose-equation-ac76446d-009a-4846-8bb2-30ab1e7dc772"><script>var element = document.getElementById("moose-equation-ac76446d-009a-4846-8bb2-30ab1e7dc772");katex.render("\\Delta u", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span> and to provide the traction derivative $\frac{dT}{d \Delta u}. It should be noted that one can use different traction separation laws for different interface boundaries while using the same <code>CZMInterfaceKernels</code>. Furthermore, additional traction separation laws can be implemented by deriving from the <code>CZMMaterialBase</code> class (see for instance <a href="../../../../source/materials/czm/SalehaniIrani3DCTraction.html">SalehaniIrani3DCTraction</a>).</p><p>Even when using the <code>CohesiveZoneMaster</code> action it is the responsibility of the user to add the appropriate <code>CZMMaterial</code> and <code>BreakMeshByBlockGenrator</code> blocks in the input file.</p><p>Action to create an instance of the cohesive zone model kernel for each displacement component</p></section><section id="7e936c1f-d6fa-41e4-b89c-8a70d9d35a2f" data-section-level="3" data-section-text="Large Deformations"><h3 id="large-deformations">Large Deformations</h3><p>Large deformations have not been implemented yet. An error occurs when the user tries to manually set <code>use_displaced_mesh = true</code> in a  <code>CZMMaterial</code> or in a <code>CZMInterfaceKernel</code>.</p></section></section><section id="e78031a3-9582-4f4b-b16f-a468feca21bb" data-section-level="2" data-section-text="Associated Actions"><h2 id="associated-actions">Associated Actions</h2></section></section></div></div></div></main></div></body><script type="text/javascript" src="../../../../contrib/materialize/materialize.min.js"></script><script type="text/javascript" src="../../../../contrib/clipboard/clipboard.min.js"></script><script type="text/javascript" src="../../../../contrib/prism/prism.min.js"></script><script type="text/javascript" src="../../../../js/init.js"></script><script type="text/javascript" src="../../../../js/navigation.js"></script><script type="text/javascript" src="../../../../contrib/fuse/fuse.min.js"></script><script type="text/javascript" src="../../../../js/search_index.js"></script><script type="text/javascript" src="../../../../js/sqa_moose.js"></script>
+<!DOCTYPE html><head><meta charset="UTF-8"><title>Cohesive Zone Master Action System | RACCOON</title><link rel="icon" type="image/x-icon" href="../../../../media/raccoon_icon.png" sizes="16x16 32x32 64x64 128x128"></link><link href="../../../../contrib/materialize/materialize.min.css" type="text/css" rel="stylesheet" media="screen,projection"></link><link href="../../../../contrib/prism/prism.min.css" type="text/css" rel="stylesheet"></link><link href="../../../../css/moose.css" type="text/css" rel="stylesheet"></link><link href="../../../../css/devel_moose.css" type="text/css" rel="stylesheet"></link><link href="../../../../css/alert_moose.css" type="text/css" rel="stylesheet"></link><link href="../../../../css/content_moose.css" type="text/css" rel="stylesheet"></link><link href="../../../../css/sqa_moose.css" type="text/css" rel="stylesheet"></link><link href="../../../../css/civet_moose.css" type="text/css" rel="stylesheet"></link><link href="../../../../contrib/katex/katex.min.css" type="text/css" rel="stylesheet"></link><link href="../../../../css/katex_moose.css" type="text/css" rel="stylesheet"></link><script type="text/javascript" src="../../../../contrib/jquery/jquery.min.js"></script><script type="text/javascript" src="../../../../contrib/katex/katex.min.js"></script></head><body><div class="page-wrap"><header><nav><div class="nav-wrapper container"><a href="../../../../index.html" class="left moose-logo hide-on-med-and-down">RACCOON</a><a href="https://github.com/hugary1995/raccoon" class="right"><img src="../../../../media/framework/github-logo.png" class="github-mark"></img><img src="../../../../media/framework/github-mark.png" class="github-logo"></img></a><ul class="right hide-on-med-and-down"><li><a href="#!" class="dropdown-trigger" data-target="5a80cab7-188e-4f26-8c8d-e498c4d57d73" data-constrainWidth="false">Getting Started<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="7c28584e-2c1f-4051-ab7c-a0b9b3489272" data-constrainWidth="false">Tutorials<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="f6adce60-e8af-42cb-a652-9d9847419273" data-constrainWidth="false">Theory<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="447496e1-0797-477a-81ee-d5444c18d046" data-constrainWidth="false">Documentation<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="../../../../contribute/index.html">Contribute</a></li></ul><a href="#" class="sidenav-trigger" data-target="f595e551-8a4a-4c02-af19-093eb8872df5"><i class="material-icons">menu</i></a><ul class="sidenav" id="f595e551-8a4a-4c02-af19-093eb8872df5"><li><a href="#!" class="dropdown-trigger" data-target="e1afbee5-8870-43f7-9729-bb1580635f5c" data-constrainWidth="false">Getting Started<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="3123d836-bed9-4fef-8c76-e17ea5cb0750" data-constrainWidth="false">Tutorials<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="94a6c176-533b-4475-b6ae-3f6474d3b9ee" data-constrainWidth="false">Theory<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="#!" class="dropdown-trigger" data-target="be07dea2-9cdf-4f64-a465-8673776015ae" data-constrainWidth="false">Documentation<i class="material-icons right">arrow_drop_down</i></a></li><li><a href="../../../../contribute/index.html">Contribute</a></li></ul><a href="#moose-search" class="modal-trigger"><i class="material-icons">search</i></a></div><ul class="dropdown-content" id="5a80cab7-188e-4f26-8c8d-e498c4d57d73"><li><a href="../../../../getting_started/install.html">Install RACCOON</a></li><li><a href="../../../../getting_started/update.html">Update RACCOON</a></li><li><a href="../../../../getting_started/running.html">Running your first model</a></li><li><a href="../../../../getting_started/paraview.html">Visualization</a></li><li><a href="../../../../getting_started/ide.html">Code development</a></li></ul><ul class="dropdown-content" id="7c28584e-2c1f-4051-ab7c-a0b9b3489272"><li><a href="../../../../tutorials/01_small_deformation_elasticity.html">1. Small deformation</a></li><li><a href="../../../../tutorials/02_mode1_brittle_fracture.html">2. Mode-I fracture</a></li><li><a href="../../../../tutorials/03_mode2_brittle_fracture.html">3. Mode-II fracture</a></li><li><a href="../../../../tutorials/04_fiber_reinforced_matrix.html">4. Fiber-reinforced matrix</a></li><li><a href="../../../../tutorials/05_soil_desiccation.html">5. Soil desiccation</a></li><li><a href="../../../../tutorials/06_large_deformation_elasticity.html">6. Large deformation</a></li><li><a href="../../../../tutorials/07_elastoplasticity.html">7. Elastoplasticity</a></li><li><a href="../../../../tutorials/08_ductile_fracture.html">8. Ductile fracture</a></li><li><a href="../../../../tutorials/09_three_point_bending.html">9. Three-point bending</a></li><li><a href="../../../../tutorials/10_quenching_bibeam.html">10. Quenching of bi-beam</a></li><li><a href="../../../../tutorials/11_adaptivity.html">11. Adaptive mesh refinement</a></li></ul><ul class="dropdown-content" id="f6adce60-e8af-42cb-a652-9d9847419273"><li><a href="../../../../theory/intro.html">Introduction</a></li><li><a href="../../../../theory/kinematics.html">State variables and kinematics</a></li><li><a href="../../../../theory/thermodynamics.html">Thermodynamics</a></li><li><a href="../../../../theory/minimization.html">The minimization problem</a></li><li><a href="../../../../theory/constitutive_models.html">Constitutive Models</a></li></ul><ul class="dropdown-content" id="447496e1-0797-477a-81ee-d5444c18d046"><li><a href="../../../../modules/index.html">Physics modules</a></li><li><a href="../../../index.html">Complete syntax</a></li><li><a href="../../../raccoon.html">RACCOON syntax</a></li><li><a href="../../../tensor_mechanics.html">Tensor mechanics syntax</a></li><li><a href="../../../phase_field.html">Phase field syntax</a></li><li><a href="../../../heat_conduction.html">Heat conduction syntax</a></li></ul><ul class="dropdown-content" id="e1afbee5-8870-43f7-9729-bb1580635f5c"><li><a href="../../../../getting_started/install.html">Install RACCOON</a></li><li><a href="../../../../getting_started/update.html">Update RACCOON</a></li><li><a href="../../../../getting_started/running.html">Running your first model</a></li><li><a href="../../../../getting_started/paraview.html">Visualization</a></li><li><a href="../../../../getting_started/ide.html">Code development</a></li></ul><ul class="dropdown-content" id="3123d836-bed9-4fef-8c76-e17ea5cb0750"><li><a href="../../../../tutorials/01_small_deformation_elasticity.html">1. Small deformation</a></li><li><a href="../../../../tutorials/02_mode1_brittle_fracture.html">2. Mode-I fracture</a></li><li><a href="../../../../tutorials/03_mode2_brittle_fracture.html">3. Mode-II fracture</a></li><li><a href="../../../../tutorials/04_fiber_reinforced_matrix.html">4. Fiber-reinforced matrix</a></li><li><a href="../../../../tutorials/05_soil_desiccation.html">5. Soil desiccation</a></li><li><a href="../../../../tutorials/06_large_deformation_elasticity.html">6. Large deformation</a></li><li><a href="../../../../tutorials/07_elastoplasticity.html">7. Elastoplasticity</a></li><li><a href="../../../../tutorials/08_ductile_fracture.html">8. Ductile fracture</a></li><li><a href="../../../../tutorials/09_three_point_bending.html">9. Three-point bending</a></li><li><a href="../../../../tutorials/10_quenching_bibeam.html">10. Quenching of bi-beam</a></li><li><a href="../../../../tutorials/11_adaptivity.html">11. Adaptive mesh refinement</a></li></ul><ul class="dropdown-content" id="94a6c176-533b-4475-b6ae-3f6474d3b9ee"><li><a href="../../../../theory/intro.html">Introduction</a></li><li><a href="../../../../theory/kinematics.html">State variables and kinematics</a></li><li><a href="../../../../theory/thermodynamics.html">Thermodynamics</a></li><li><a href="../../../../theory/minimization.html">The minimization problem</a></li><li><a href="../../../../theory/constitutive_models.html">Constitutive Models</a></li></ul><ul class="dropdown-content" id="be07dea2-9cdf-4f64-a465-8673776015ae"><li><a href="../../../../modules/index.html">Physics modules</a></li><li><a href="../../../index.html">Complete syntax</a></li><li><a href="../../../raccoon.html">RACCOON syntax</a></li><li><a href="../../../tensor_mechanics.html">Tensor mechanics syntax</a></li><li><a href="../../../phase_field.html">Phase field syntax</a></li><li><a href="../../../heat_conduction.html">Heat conduction syntax</a></li></ul></nav><div class="modal modal-fixed-footer moose-search-modal" id="moose-search"><div class="modal-content container moose-search-modal-content"><div class="row"><div class="col l12"><div class="input-field"><input type_="text" onkeyup="mooseSearch()" placeholder="/index.md" id="moose-search-box"></input></div></div><div><div class="col s12" id="moose-search-results"></div></div></div></div><div class="modal-footer"><a href="#!" class="modal-close btn-flat">Close</a></div></div></header><main class="main"><div class="container"><div class="row"><div class="moose-content col s12 m12 l12"><section id="81e6f2f1-027d-4cf0-a092-e16740b72e40" data-section-level="1" data-section-text="Cohesive Zone Master Action System"><h1 id="cohesive-zone-master-action-system">Cohesive Zone Master Action System</h1><p>Action to create an instance of the cohesive zone model kernel for each displacement component</p><section id="af1ad099-8caf-4972-9cbb-d27e10dafb10" data-section-level="2" data-section-text="Description"><h2 id="description">Description</h2><p>The <code>TensorMechanics</code> system provides a cohesive zone modeling capability that can be used to introduce traction-separation models running at the interfaces between regions modeled with continuum finite elements. The implemented cohesive zone model (CZM) is based on a Discrete Galerkin approach and therefore does not require cohesive elements. The CZM is formulated in terms of traction separation laws and requires five ingredients:</p><ol class="browser-default" start="1"><li><p><code>BreakMeshByBlockGenerator</code> </p></li><li><p><code>ComputeDisplacementJump</code> </p></li><li><p><code>ComputeLocalTraction</code> </p></li><li><p><code>ComputeGlobalTraction</code> </p></li><li><p><code>CZMInterfaceKernel</code></p></li></ol><p>The <a href="../../../../source/meshgenerators/BreakMeshByBlockGenerator.html">BreakMeshByBlockGenerator</a> is utilized to create the cohesive zone interface  by splitting a monolithic mesh into blocks by adding the required nodes and boundaries between each block pair. The split mesh allows to compute a displacement jump <span class="moose-katex-inline-equation" id="moose-equation-bac3b2f5-16ad-4253-8ed4-f52c62c59b4c"><script>var element = document.getElementById("moose-equation-bac3b2f5-16ad-4253-8ed4-f52c62c59b4c");katex.render("\\llbracket u \\rrbracket", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span> at each quadrature point on the interface. The schematic below is an example of using <code>BreakMeshByBlockGenerator</code> on a 3-blocks, 2-dimensional mesh. The generated interfaces are highlighted in yellow.</p><picture class="materialboxed moose-image"><img src="../../../../media/tensor_mechanics/BreakMeshByBlock.png" style="width:100%;"></img></picture><p>The <code>ComputeDisplacementJump</code> object computes the displacement jump across the cohesive zone according to the selected formulation. The <code>ComputeLocalTraction</code> provides the cohesive zone response in the natural interface coordinate system. The <code>ComputeGlobalTraction</code> object computes the traction in global coordinates and its derivative w.r.t. the displacement jump in global coordinates, <span class="moose-katex-inline-equation" id="moose-equation-e1ee4ca8-e8ec-428e-8ad3-a7de3e9929f1"><script>var element = document.getElementById("moose-equation-e1ee4ca8-e8ec-428e-8ad3-a7de3e9929f1");katex.render("\\llbracket u \\rrbracket", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span>. The <code>CZMInterfaceKernel</code> imposes equilibrium by adding the proper residual to the system, and provides the analytic Jacobian.</p><div class="card moose-alert moose-alert-note"><div class="card-title moose-alert-title"><i class="material-icons moose-inline-icon">comment</i><span class="moose-alert-title-brand">note</span></div><div class="card-content"><div class="moose-alert-content"><p><p>The provided <code>CZMInterfaceKernel</code> assume the <code>ComputeLocalTraction</code> is only function of the displacement <span class="moose-katex-inline-equation" id="moose-equation-825654f4-e266-4a3a-a973-23e84f8fb3d1"><script>var element = document.getElementById("moose-equation-825654f4-e266-4a3a-a973-23e84f8fb3d1");katex.render("\\llbracket u \\rrbracket", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span>. If one wants to implement a traction separation law depending upon other variables, such as bulk stress or temperature, it is responsibility of the user to implement the proper Jacobian terms.</p></p></div></div></div><p>The <code>CohesiveZoneMaster</code> action automatically adds the proper <code>ComputeDisplacementJump</code>, <code>ComputeGlobalTraction</code>, <code>CZMInterfaceKernel</code> based on the <code>kinematic_type</code> parameter value (see inputs). The flowchart below summarizes the flow of information of the cohesive zone modeling frameworks, and highlights the  objects automatically added by the <code>CohesizeZoneMaster</code> action.</p><picture class="materialboxed moose-image"><img src="../../../../media/tensor_mechanics/CZMMasterAction.png" style="width:100%;"></img></picture><div class="card moose-alert moose-alert-note"><div class="card-title moose-alert-title"><i class="material-icons moose-inline-icon">comment</i><span class="moose-alert-title-brand">note</span></div><div class="card-content"><div class="moose-alert-content"><p><p>Even when using the <code>CohesiveZoneMaster</code> action it is the responsibility of the user to add the appropriate <code>ComputeLocalTraction</code> constitutive model and <code>BreakMeshByBlockGenrator</code> in the input file.</p></p></div></div></div><section id="d81dcab9-6fa9-4e4b-aa19-5ac660e3de49" data-section-level="3" data-section-text="Supported Kinematic Formulations"><h3 id="supported-kinematic-formulations">Supported Kinematic Formulations</h3><p>The system supports two different kinematic formulations:</p><ol class="browser-default" start="1"><li><p><code>Small Strain</code> </p></li><li><p><code>Total Lagrangian</code></p></li></ol><p>Each type of formulations requires adding a different  <code>ComputeDisplacementJump</code>, <code>ComputeGlobalTraction</code>, <code>CZMInterfaceKernel</code>.</p><p>The <code>Small Strain</code> formulations requires adding:</p><ol class="browser-default" start="1"><li><p><a href="../../../../source/materials/cohesive_zone_model/CZMComputeDisplacementJumpSmallStrain.html">CZMComputeDisplacementJumpSmallStrain</a> </p></li><li><p><a href="../../../../source/materials/cohesive_zone_model/CZMComputeGlobalTractionSmallStrain.html">CZMComputeGlobalTractionSmallStrain</a> </p></li><li><p><a href="../../../../source/interfacekernels/CZMInterfaceKernelSmallStrain.html">CZMInterfaceKernelSmallStrain</a></p></li></ol><p>The <code>Total Lagrangian</code> formulations requires adding:</p><ol class="browser-default" start="1"><li><p><a href="../../../../source/materials/cohesive_zone_model/CZMComputeDisplacementJumpTotalLagrangian.html">CZMComputeDisplacementJumpTotalLagrangian</a> </p></li><li><p><a href="../../../../source/materials/cohesive_zone_model/CZMComputeGlobalTractionTotalLagrangian.html">CZMComputeGlobalTractionTotalLagrangian</a> </p></li><li><p><a href="../../../../source/interfacekernels/CZMInterfaceKernelTotalLagrangian.html">CZMInterfaceKernelTotalLagrangian</a></p></li></ol><p>As mentioned in previous section, the <code>CohesiveZoneMaster</code> action adds the appropriate objects depending on the selected kinematic formulation.  </p><div class="card moose-alert moose-alert-warning"><div class="card-title moose-alert-title"><i class="material-icons moose-inline-icon">warning</i><span class="moose-alert-title-brand">warning</span></div><div class="card-content"><div class="moose-alert-content"><p><p>To obtain a traction consistent with the bulk stress, the <code>Small Strain</code> kinematic should be used together with a bulk <code>Small Strain</code> formulation, and the <code>Total Lagrangian</code> kinematics should be used together with a <code>Finite Strain</code> formulation.</p></p></div></div></div></section><section id="0613fc68-7fd9-4bee-87ff-ef827b7c533e" data-section-level="3" data-section-text="Cohesive Zone Constitutive Models"><h3 id="cohesive-zone-constitutive-models">Cohesive Zone Constitutive Models</h3><p>The implemented framework allows to implement two different types of cohesive zone constitutive models (e.g. traction separation laws): i) path independent, and ii) path dependent. The first type of models assumes the traction is only function of the total interface  displacement jump, i.e. <span class="moose-katex-inline-equation" id="moose-equation-7d25ab17-b02a-4e4e-9a2e-e6416005e20e"><script>var element = document.getElementById("moose-equation-7d25ab17-b02a-4e4e-9a2e-e6416005e20e");katex.render("\\hat{t} =f\\left(\\llbracket \\hat{u} \\rrbracket\\right)", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span>. This kind of models do not have history variables and can be implemented overriding the <code>ComputeLocalTractionTotalBase</code> class. Instead, path dependent models have history variables and assume the traction increment is a function of the interface displacement jump increment, and its old value, <span class="moose-katex-inline-equation" id="moose-equation-99560527-b818-4d89-8e76-67a3afa5d75d"><script>var element = document.getElementById("moose-equation-99560527-b818-4d89-8e76-67a3afa5d75d");katex.render("\\Delta\\hat{t} =f\\left(\\Delta \\llbracket \\hat{u} \\rrbracket, \\llbracket \\hat{u} \\rrbracket_{old} \\right)", element, {displayMode:false,throwOnError:false,macros:{"\\bs":"\\boldsymbol{#1}","\\normal":"\\bs{n}","\\grad":"\\bs{\\nabla}","\\divergence":"\\grad \\cdot","\\norm":"\\left\\lVert#1\\right\\rVert","\\abs":"\\left\\lvert#1\\right\\rvert","\\tr":"\\text{tr}","\\dev":"\\text{dev}","\\sym":"\\text{sym}","\\diff":"\\text{ d}#1","\\activepart":"{\\left< A \\right>}","\\inactivepart":"{\\left< I \\right>}","\\Gc":"{\\mathcal{G}_c}","\\strain":"\\bs{\\varepsilon}","\\stress":"\\bs{\\sigma}","\\macaulay":"\\left<#1\\right>","\\body":"\\Omega","\\bodyboundary":"{\\partial\\body}","\\ep":"{\\varepsilon^p}","\\epdot":"{\\dot{\\varepsilon}}^p","\\bfa":"\\boldsymbol{a}","\\bfb":"\\boldsymbol{b}","\\bfc":"\\boldsymbol{c}","\\bfd":"\\boldsymbol{d}","\\bfe":"\\boldsymbol{e}","\\bff":"\\boldsymbol{f}","\\bfg":"\\boldsymbol{g}","\\bfh":"\\boldsymbol{h}","\\bfi":"\\boldsymbol{i}","\\bfj":"\\boldsymbol{j}","\\bfk":"\\boldsymbol{k}","\\bfl":"\\boldsymbol{l}","\\bfm":"\\boldsymbol{m}","\\bfn":"\\boldsymbol{n}","\\bfo":"\\boldsymbol{o}","\\bfp":"\\boldsymbol{p}","\\bfq":"\\boldsymbol{q}","\\bfr":"\\boldsymbol{r}","\\bfs":"\\boldsymbol{s}","\\bft":"\\boldsymbol{t}","\\bfu":"\\boldsymbol{u}","\\bfv":"\\boldsymbol{v}","\\bfw":"\\boldsymbol{w}","\\bfx":"\\boldsymbol{x}","\\bfy":"\\boldsymbol{y}","\\bfz":"\\boldsymbol{z}","\\bfA":"\\boldsymbol{A}","\\bfB":"\\boldsymbol{B}","\\bfC":"\\boldsymbol{C}","\\bfD":"\\boldsymbol{D}","\\bfE":"\\boldsymbol{E}","\\bfF":"\\boldsymbol{F}","\\bfG":"\\boldsymbol{G}","\\bfH":"\\boldsymbol{H}","\\bfI":"\\boldsymbol{I}","\\bfJ":"\\boldsymbol{J}","\\bfK":"\\boldsymbol{K}","\\bfL":"\\boldsymbol{L}","\\bfM":"\\boldsymbol{M}","\\bfN":"\\boldsymbol{N}","\\bfO":"\\boldsymbol{O}","\\bfP":"\\boldsymbol{P}","\\bfQ":"\\boldsymbol{Q}","\\bfR":"\\boldsymbol{R}","\\bfS":"\\boldsymbol{S}","\\bfT":"\\boldsymbol{T}","\\bfU":"\\boldsymbol{U}","\\bfV":"\\boldsymbol{V}","\\bfW":"\\boldsymbol{W}","\\bfX":"\\boldsymbol{X}","\\bfY":"\\boldsymbol{Y}","\\bfZ":"\\boldsymbol{Z}"}});</script></span>. Path dependent models can be implemented overriding the <code>ComputeLocalTractionIncrementalBase</code> class. In both cases, the traction separation law should always be formulated in terms of the local interface response and assuming <code>Small strain</code>. Furthermore, all constitutive laws should be implemented for the 3D general case, even if used for 1D or 2D simulations. The kinematic is already embedded in the <code>ComputeDisplacementJump</code> and <code>ComputeGlobalTraction</code> objects. Both types of <code>ComputeLocalTraction</code> objects allow using either the <code>Small Strain</code> and the <code>Total Lagrangian</code> kinematics.</p></section></section><section id="71c33487-a3f2-4432-8f75-ce27da975647" data-section-level="2" data-section-text="Input Examples"><h2 id="input-examples">Input Examples</h2><p>The following example show how to use the <code>CohesiveZoneMaster</code> action.</p><pre class="moose-pre" style="max-height:350px;"><code class="language-text">[Modules/TensorMechanics/CohesiveZoneMaster]
+  [Modules/TensorMechanics/CohesiveZoneMaster]
+    [Modules/TensorMechanics/CohesiveZoneMaster]
+      [./czm_ik]
+        boundary = &#x27;interface&#x27;
+        strain = FINITE
+        generate_output = &#x27;traction_x traction_y traction_z jump_x jump_y jump_z normal_traction tangent_traction normal_jump tangent_jump pk1_traction_x pk1_traction_y pk1_traction_z&#x27;
+      [../]
+    []
+  []
+[]
+</code></pre><a class="moose-source-filename tooltipped modal-trigger" href="#94de538e-8e39-4ece-a359-4ab7650a391c">(moose/modules/tensor_mechanics/test/tests/cohesive_zone_model/stretch_rotate_large_deformation.i)</a><p>If necessary, multiple instances of the <code>CohesiveZoneMaster</code> action can be added, for instance when different material properties <code>base_name</code> are needed for different boundaries. The <code>base_name</code> parameter used in the action should also be provided to the associated materials. The <code>generate_output</code> parameter adds scalar quantities of the traction and displacement jump to the outputs. Available options are: <code>traction_x traction_y traction_z normal_traction tangent_traction jump_x jump_y jump_z normal_jump tangent_jump pk1_traction_x pk1_traction_y pk1_traction_z `.
+The name `traction</code> refers to the Cauchy traction, <code>pk1_traction</code> refers to the the first Piola-Kirchoff traction, and <code>jump</code> refers to the displacement jump across the cohesive interface. All the above vectors are defined in the global coordinate system. The <code>normal_traction</code> and <code>tangent_traction</code> are scalar values compute using <a href="../../../../source/materials/cohesive_zone_model/CZMRealVectorScalar.html">CZMRealVectorScalar</a> (the same is true for the <code>normal_jump</code> and <code>tangent_jump</code>).</p><pre class="moose-pre" style="max-height:350px;"><code class="language-text">[Modules/TensorMechanics/CohesiveZoneMaster]
+  [./czm_ik_012]
+    boundary = &#x27;Block0_Block1 Block1_Block2&#x27;
+    base_name = &#x27;czm_b012&#x27;
+  [../]
+  [./czm_ik_23]
+    boundary = &#x27;Block2_Block3&#x27;
+    base_name = &#x27;czm_b23&#x27;
+  [../]
+[]
+
+[Materials]
+  # cohesive materials
+  [./czm_3dc]
+    type = SalehaniIrani3DCTraction
+    boundary = &#x27;Block0_Block1 Block1_Block2&#x27;
+    normal_gap_at_maximum_normal_traction = 1
+    tangential_gap_at_maximum_shear_traction = 0.5
+    maximum_normal_traction = 500
+    maximum_shear_traction = 300
+    base_name = &#x27;czm_b012&#x27;
+  [../]
+  [./czm_elastic_incremental]
+    type = PureElasticTractionSeparationIncremental
+    boundary = &#x27;Block2_Block3&#x27;
+    normal_stiffness = 500
+    tangent_stiffness = 300
+    base_name = &#x27;czm_b23&#x27;
+  [../]
+  # bulk materials
+  [./stress]
+    type = ADComputeFiniteStrainElasticStress
+  [../]
+  [./elasticity_tensor]
+    type = ADComputeIsotropicElasticityTensor
+    youngs_modulus = 200e4
+    poissons_ratio = 0.3
+  [../]
+[]
+</code></pre><a class="moose-source-filename tooltipped modal-trigger" href="#8b850f87-b18c-46fc-a3c6-ee28100205e1">(moose/modules/tensor_mechanics/test/tests/cohesive_zone_model/czm_multiple_action_and_materials.i)</a><p>Action to create an instance of the cohesive zone model kernel for each displacement component</p></section><section id="a7afae2d-d554-4d7e-ad5f-e61922006245" data-section-level="2" data-section-text="Associated Actions"><h2 id="associated-actions">Associated Actions</h2></section><section id="6fda9ad8-04f1-4b76-9729-4b66ea87f8ad" data-section-level="2" data-section-text="Available Actions"><h2 id="available-actions">Available Actions</h2><ul class="moose-syntax-list collection with-header"><li class="collection-header">Tensor Mechanics App</li><li class="collection-item"><a href="../../../../source/actions/CommonCohesiveZoneAction.html">CommonCohesiveZoneAction</a>Store common cohesive zone paramters</li><li class="collection-item"><a href="../../../../source/actions/CohesiveZoneAction.html">CohesiveZoneAction</a>Action to create an instance of the cohesive zone model kernel for each displacement component</li></ul></section></section><div class="moose-modal modal" id="94de538e-8e39-4ece-a359-4ab7650a391c"><div class="modal-content"><h4>(moose/modules/tensor_mechanics/test/tests/cohesive_zone_model/stretch_rotate_large_deformation.i)</h4><pre class="moose-pre"><code class="language-text">#
+# Stretch + rotation test
+#
+# This test is designed to compute a uniaxial stress and then follow it as the mesh is rotated .
+#
+# The mesh is composed of two, single-elemnt blocks
+
+[Mesh]
+  [./msh]
+  type = GeneratedMeshGenerator
+  dim = 3
+  nx = 1
+  ny = 1
+  nz = 2
+  xmin = -0.5
+  xmax = 0.5
+  ymin = -0.5
+  ymax = 0.5
+  zmin = -1
+  zmax = 1
+  []
+  [./new_block]
+    type = SubdomainBoundingBoxGenerator
+    input = msh
+    block_id = 1
+    bottom_left = &#x27;-0.5 -0.5 0&#x27;
+    top_right = &#x27;0.5 0.5 0.5&#x27;
+  []
+  [./split]
+    type = BreakMeshByBlockGenerator
+    input = new_block
+  []
+  [add_side_sets]
+    input = split
+    type = SideSetsFromNormalsGenerator
+    normals = &#x27;0 -1  0
+               0  1  0
+               -1 0  0
+               1  0  0
+               0  0 -1
+               0  0  1&#x27;
+    fixed_normal = true
+    new_boundary = &#x27;y0 y1 x0 x1 z0 z1&#x27;
+  []
+[]
+
+[GlobalParams]
+  displacements = &#x27;disp_x disp_y disp_z&#x27;
+[]
+
+[Functions]
+  [./stretch]
+    type = PiecewiseLinear
+    x = &#x27;0 1&#x27;
+    y = &#x27;0 300&#x27;
+  [../]
+[]
+
+[BCs]
+  [./fix_x]
+    type = DirichletBC
+    preset = true
+    value = 0.0
+    boundary = x0
+    variable = disp_x
+  [../]
+  [./fix_y]
+    type = DirichletBC
+    preset = true
+    value = 0.0
+    boundary = y0
+    variable = disp_y
+  [../]
+  [./fix_z]
+    type = DirichletBC
+    preset = true
+    value = 0.0
+    boundary = z0
+    variable = disp_z
+  [../]
+  [./back_z]
+    type = FunctionNeumannBC
+    boundary = z1
+    variable = disp_z
+    use_displaced_mesh = false
+    function = stretch
+  [../]
+
+  [./rotate_x]
+    type = DisplacementAboutAxis
+    boundary = &#x27;x0 y0 z0 z1&#x27;
+    function = &#x27;90.&#x27;
+    angle_units = degrees
+    axis_origin = &#x27;0. 0. 0.&#x27;
+    axis_direction = &#x27;0. 1. 0.&#x27;
+    component = 0
+    variable = disp_x
+    angular_velocity = true
+  [../]
+  [./rotate_y]
+    type = DisplacementAboutAxis
+    boundary = &#x27;x0 y0 z0 z1&#x27;
+    function = &#x27;90.&#x27;
+    angle_units = degrees
+    axis_origin = &#x27;0. 0. 0.&#x27;
+    axis_direction = &#x27;0. 1. 0.&#x27;
+    component = 1
+    variable = disp_y
+    angular_velocity = true
+  [../]
+  [./rotate_z]
+    type = DisplacementAboutAxis
+    boundary = &#x27;x0 y0 z0 z1&#x27;
+    function = &#x27;90.&#x27;
+    angle_units = degrees
+    axis_origin = &#x27;0. 0. 0.&#x27;
+    axis_direction = &#x27;0. 1. 0.&#x27;
+    component = 2
+    variable = disp_z
+    angular_velocity = true
+  [../]
+[]
+
+
+
+[Modules/TensorMechanics/CohesiveZoneMaster]
+  [./czm_ik]
+    boundary = &#x27;interface&#x27;
+    strain = FINITE
+    generate_output=&#x27;traction_x traction_y traction_z jump_x jump_y jump_z normal_traction tangent_traction normal_jump tangent_jump pk1_traction_x pk1_traction_y pk1_traction_z&#x27;
+  [../]
+[]
+
+[Controls]
+  [./c1]
+    type = TimePeriod
+    enable_objects = &#x27;BCs::fix_x BCs::fix_y BCs::fix_z BCs::back_z&#x27;
+    disable_objects = &#x27;BCs::rotate_x BCs::rotate_y BCs::rotate_z&#x27;
+    start_time = &#x27;0&#x27;
+    end_time = &#x27;1&#x27;
+  [../]
+[]
+
+[Modules]
+  [./TensorMechanics]
+    [./Master]
+      [./all]
+        strain = FINITE
+        add_variables = true
+        use_finite_deform_jacobian = true
+        use_automatic_differentiation = true
+        generate_output = &#x27;stress_xx stress_yy stress_zz stress_xy stress_yz stress_xz&#x27;
+      [../]
+    [../]
+  [../]
+[]
+
+
+[Materials]
+  [./stress]
+    type = ADComputeFiniteStrainElasticStress
+  [../]
+  [./elasticity_tensor]
+    type = ADComputeIsotropicElasticityTensor
+    youngs_modulus = 1e3
+    poissons_ratio = 0.3
+  [../]
+  [./czm_mat]
+    type = PureElasticTractionSeparation
+    boundary = &#x27;interface&#x27;
+    normal_stiffness = 10000
+    tangent_stiffness = 7000
+  [../]
+[]
+
+[Preconditioning]
+  [./SMP]
+    type = SMP
+    full = true
+  [../]
+[]
+
+[Executioner]
+  # Executioner
+  type = Transient
+  solve_type = &#x27;NEWTON&#x27;
+  line_search = none
+  petsc_options_iname = &#x27;-pc_type &#x27;
+  petsc_options_value = &#x27;lu&#x27;
+  nl_rel_tol = 1e-30
+  nl_abs_tol = 1e-10
+  l_max_its = 20
+  start_time = 0.0
+  dt = 0.1
+  end_time = 2
+[]
+
+[Outputs]
+  exodus = true
+  csv =true
+[]
+</code></pre></div><div class="modal-footer"><a class="modal-close btn-flat">Close</a></div></div><div class="moose-modal modal" id="8b850f87-b18c-46fc-a3c6-ee28100205e1"><div class="modal-content"><h4>(moose/modules/tensor_mechanics/test/tests/cohesive_zone_model/czm_multiple_action_and_materials.i)</h4><pre class="moose-pre"><code class="language-text">[Mesh]
+  [./msh]
+    type = GeneratedMeshGenerator
+    dim = 3
+    nx = 1
+    ny = 1
+    nz = 4
+    zmin = 0
+    zmax = 4
+  [../]
+  [./subdomain_id]
+    type = ElementSubdomainIDGenerator
+    input = msh
+    subdomain_ids = &#x27;0 1 2 3&#x27;
+  []
+  [./split]
+    type = BreakMeshByBlockGenerator
+    input = subdomain_id
+    split_interface = true
+  []
+  [add_side_sets]
+    input = split
+    type = SideSetsFromNormalsGenerator
+    normals = &#x27;0 -1  0
+               0  1  0
+               -1 0  0
+               1  0  0
+               0  0 -1
+               0  0  1&#x27;
+    fixed_normal = true
+    new_boundary = &#x27;y0 y1 x0 x1 z0 z1&#x27;
+  []
+[]
+
+[GlobalParams]
+  displacements = &#x27;disp_x disp_y disp_z&#x27;
+[]
+
+[Functions]
+  [./stretch]
+    type = PiecewiseLinear
+    x = &#x27;0 1&#x27;
+    y = &#x27;0 100&#x27;
+  [../]
+[]
+
+[Constraints]
+  [x1]
+    type = EqualValueBoundaryConstraint
+    variable = disp_x
+    secondary = &#x27;x1&#x27;    # boundary
+    penalty = 1e6
+  []
+  [y1]
+    type = EqualValueBoundaryConstraint
+    variable = disp_y
+    secondary = &#x27;y1&#x27;    # boundary
+    penalty = 1e6
+  []
+[]
+
+[BCs]
+  [./fix_x]
+    type = DirichletBC
+    preset = true
+    value = 0.0
+    boundary = x0
+    variable = disp_x
+  [../]
+  [./fix_y]
+    type = DirichletBC
+    preset = true
+    value = 0.0
+    boundary = y0
+    variable = disp_y
+  [../]
+  [./fix_z]
+    type = DirichletBC
+    preset = true
+    value = 0.0
+    boundary = z0
+    variable = disp_z
+  [../]
+  [./back_z]
+    type = FunctionNeumannBC
+    boundary = z1
+    variable = disp_z
+    use_displaced_mesh = false
+    function = stretch
+  [../]
+[]
+
+
+[Modules/TensorMechanics/CohesiveZoneMaster]
+  [./czm_ik_012]
+    boundary = &#x27;Block0_Block1 Block1_Block2&#x27;
+    base_name = &#x27;czm_b012&#x27;
+  [../]
+  [./czm_ik_23]
+    boundary = &#x27;Block2_Block3&#x27;
+    base_name = &#x27;czm_b23&#x27;
+  [../]
+[]
+
+[Materials]
+  # cohesive materials
+  [./czm_3dc]
+    type = SalehaniIrani3DCTraction
+    boundary = &#x27;Block0_Block1 Block1_Block2&#x27;
+    normal_gap_at_maximum_normal_traction = 1
+    tangential_gap_at_maximum_shear_traction = 0.5
+    maximum_normal_traction = 500
+    maximum_shear_traction = 300
+    base_name = &#x27;czm_b012&#x27;
+  [../]
+  [./czm_elastic_incremental]
+    type = PureElasticTractionSeparationIncremental
+    boundary = &#x27;Block2_Block3&#x27;
+    normal_stiffness = 500
+    tangent_stiffness = 300
+    base_name = &#x27;czm_b23&#x27;
+  [../]
+  # bulk materials
+  [./stress]
+    type = ADComputeFiniteStrainElasticStress
+  [../]
+  [./elasticity_tensor]
+    type = ADComputeIsotropicElasticityTensor
+    youngs_modulus = 200e4
+    poissons_ratio = 0.3
+  [../]
+[]
+
+[Modules]
+  [./TensorMechanics]
+    [./Master]
+      [./all]
+        strain = FINITE
+        add_variables = true
+        use_finite_deform_jacobian = true
+        use_automatic_differentiation = true
+        generate_output = &#x27;stress_xx stress_yy stress_zz stress_xy stress_yz stress_xz&#x27;
+      [../]
+    [../]
+  [../]
+[]
+
+[Preconditioning]
+  [./SMP]
+    type = SMP
+    full = true
+  [../]
+[]
+
+[Executioner]
+  # Executioner
+  type = Transient
+
+  solve_type = &#x27;NEWTON&#x27;
+  line_search = none
+  petsc_options_iname = &#x27;-pc_type &#x27;
+  petsc_options_value = &#x27;lu&#x27;
+  nl_rel_tol = 1e-10
+  nl_abs_tol = 1e-6
+  l_max_its = 20
+  start_time = 0.0
+  dt = 0.25
+  dtmin = 0.25
+  num_steps =1
+[]
+
+[Outputs]
+  exodus = true
+[]
+</code></pre></div><div class="modal-footer"><a class="modal-close btn-flat">Close</a></div></div></div></div></div></main></div></body><script type="text/javascript" src="../../../../contrib/materialize/materialize.min.js"></script><script type="text/javascript" src="../../../../contrib/clipboard/clipboard.min.js"></script><script type="text/javascript" src="../../../../contrib/prism/prism.min.js"></script><script type="text/javascript" src="../../../../js/init.js"></script><script type="text/javascript" src="../../../../js/navigation.js"></script><script type="text/javascript" src="../../../../contrib/fuse/fuse.min.js"></script><script type="text/javascript" src="../../../../js/search_index.js"></script><script type="text/javascript" src="../../../../js/sqa_moose.js"></script>
