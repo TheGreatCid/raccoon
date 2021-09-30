@@ -24,6 +24,7 @@ LargeDeformationJ2Plasticity::validParams()
   params.addRequiredParam<MaterialPropertyName>("rho", "the density");
   params.addRequiredParam<MaterialPropertyName>("R", "TS_Rate");
   params.addRequiredParam<MaterialPropertyName>("T0", "ref_temp");
+  params.addRequiredParam<MaterialPropertyName>("Tinit", "Initial Temperature Field");
 
   return params;
 }
@@ -39,8 +40,8 @@ LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters
     _xi(getADMaterialProperty<Real>(prependBaseName("Taylor_Quinney"))),
     _cv(getADMaterialProperty<Real>(prependBaseName("c_v"))),
     _rho(getADMaterialProperty<Real>(prependBaseName("rho"))),
-    _R(getADMaterialProperty<Real>(prependBaseName("R")))
-
+    _R(getADMaterialProperty<Real>(prependBaseName("R"))),
+    _Tinit(getMaterialProperty<Real>(prependBaseName("Tinit")))
 {
 }
 
@@ -49,8 +50,8 @@ LargeDeformationJ2Plasticity::initQpStatefulProperties()
 {
   LargeDeformationPlasticityModel::initQpStatefulProperties();
   //_sigma_y[_qp] = _sigma_0[_qp];
-//std::cout << _T0[_qp]<< std::endl;
-  _T[_qp] = _T0[_qp];
+  // std::cout << _T0[_qp]<< std::endl;
+  //_T[_qp] = _Tinit[_qp];
 }
 
 void
@@ -86,9 +87,9 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   _hardening_model->plasticEnergy(_ep[_qp]);
 
   stress_dev = stress.deviatoric();
-  // std::cout << stress_dev << std::endl;
   // // Update temp
-  // std::cout << std::sqrt(1.5 * (stress_dev.doubleContraction(stress_dev))) << std::endl;
+  //  std::cout << Fe.doubleContraction(Fe) << std::endl;
+  //  std::cout << std::sqrt(1.5 * (stress_dev.doubleContraction(stress_dev))) << std::endl;
   computeTemperature(
       delta_ep,
       std::sqrt(1.5 * (stress_dev.doubleContraction(stress_dev)))); //----------------
@@ -147,7 +148,7 @@ LargeDeformationJ2Plasticity::computeTemperature(const ADReal & delta_ep,
 {
   // std::cout << "----------------------------------------" << std::endl;
 
-  _T[_qp] = raw_value((0.5 * effective_stress * delta_ep) / (_cv[_qp] * _rho[_qp]) + _T_old[_qp]);
+  _T[_qp] = raw_value((effective_stress * delta_ep) / (_cv[_qp] * _rho[_qp]) + _T_old[_qp]);
   // std::cout << "eff_stress * del_ep = " << effective_stress * delta_ep << std::endl;
   // std::cout << "T_old = " << _T_old[_qp] << std::endl;
   // std::cout << raw_value(_T[_qp]) << std::endl;

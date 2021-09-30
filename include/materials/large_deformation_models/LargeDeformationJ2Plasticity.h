@@ -41,4 +41,5 @@ protected:
   const ADMaterialProperty<Real> & _cv;
   const ADMaterialProperty<Real> & _rho;
   const ADMaterialProperty<Real> & _R;
+  const MaterialProperty<Real> & _Tinit;
 };

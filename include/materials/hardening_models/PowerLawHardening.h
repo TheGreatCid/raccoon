@@ -18,6 +18,7 @@ public:
   virtual ADReal plasticEnergy(const ADReal & ep, const unsigned int derivative = 0) override;
   ADReal piecewise();
   Real val(Real Tl, const std::vector<Real> & coeff, Real breaks);
+
 protected:
   // @{ The plastic energy parameters
   const ADMaterialProperty<Real> & _n;
@@ -42,6 +43,7 @@ protected:
   const ADMaterialProperty<Real> & _sigma_0;
   ADMaterialProperty<Real> & _sigma_y;
   const ADMaterialProperty<Real> & _T0;
+  const enum class Sigy_func { piece, exp } _sigy_func;
 
   // @}
 };
