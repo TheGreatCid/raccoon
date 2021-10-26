@@ -28,6 +28,7 @@ PowerLawHardening::validParams()
   params.addRequiredParam<MaterialPropertyName>("T0", "T0");
   params.addParam<MooseEnum>(
       "sigy_func", MooseEnum("PIECE EXP", "PIECE"), "The function for degrading yield stress");
+  params.addRequiredCoupledVar("T", "T");
 
   return params;
 }
@@ -50,11 +51,12 @@ PowerLawHardening::PowerLawHardening(const InputParameters & parameters)
     _gp_name(prependBaseName("degradation_function", true)),
     _gp(getADMaterialProperty<Real>(_gp_name)),
     _dgp_dd(getADMaterialProperty<Real>(derivativePropertyName(_gp_name, {_d_name}))),
-    _T(getMaterialProperty<Real>(prependBaseName("Temp"))), // Remove
     _sigma_0(getADMaterialProperty<Real>(prependBaseName("ref_yield_stress"))),
     _sigma_y(declareADProperty<Real>(prependBaseName("yield_stress"))),
     _T0(getADMaterialProperty<Real>(prependBaseName("T0"))),
-    _sigy_func(getParam<MooseEnum>("sigy_func").getEnum<Sigy_func>())
+    _sigy_func(getParam<MooseEnum>("sigy_func").getEnum<Sigy_func>()),
+    _T(adCoupledValue(prependBaseName("T")))
+
 {
 }
 ADReal
@@ -96,7 +98,7 @@ ADReal
 PowerLawHardening::piecewise()
 {
 
-  Real Tl = _T[_qp];
+  Real Tl = MetaPhysicL::raw_value(_T[_qp]);
 
   if (273.15 <= Tl && Tl < 332.9)
   {
@@ -158,6 +160,11 @@ PowerLawHardening::piecewise()
         -6.15071218938525e-08, 4.03227602052467e-06, 1.77780129137437e-05, 0.0810667030000000};
     return val(Tl, coeff, 1103.3);
   }
+  else if (Tl >= 1213.7)
+  {
+    return 0.05;
+  }
+
   // std::cout << _T[_qp] << std::endl;
   // std::cout << Tl << std::endl;
   //  paramError("T0", "outside threshhold");

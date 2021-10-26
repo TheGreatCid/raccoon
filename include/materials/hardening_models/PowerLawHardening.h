@@ -39,11 +39,11 @@ protected:
   const MaterialPropertyName _gp_name;
   const ADMaterialProperty<Real> & _gp;
   const ADMaterialProperty<Real> & _dgp_dd;
-  const MaterialProperty<Real> & _T;
   const ADMaterialProperty<Real> & _sigma_0;
   ADMaterialProperty<Real> & _sigma_y;
   const ADMaterialProperty<Real> & _T0;
   const enum class Sigy_func { piece, exp } _sigy_func;
+  const ADVariableValue & _T;
 
   // @}
 };
