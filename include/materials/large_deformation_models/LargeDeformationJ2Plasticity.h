@@ -39,5 +39,7 @@ protected:
   const ADMaterialProperty<Real> & _cv;
   const ADMaterialProperty<Real> & _rho;
   const ADMaterialProperty<Real> & _R;
-  MaterialProperty<ADReal> & _delta_ep;
+  ADMaterialProperty<Real> & _delta_ep;
+  ADMaterialProperty<Real> & _stress_eff;
+
 };
