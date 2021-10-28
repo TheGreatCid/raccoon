@@ -35,7 +35,7 @@ LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters
     _cv(getADMaterialProperty<Real>(prependBaseName("c_v"))),
     _rho(getADMaterialProperty<Real>(prependBaseName("rho"))),
     _R(getADMaterialProperty<Real>(prependBaseName("R"))),
-    _delta_ep(declareADProperty<Real>(prependBaseName("delta_ep"))),
+    _delta_ep(declareADProperty<Real>("delta_ep")),
     _stress_eff(declareADProperty<Real>("stress_eff"))
 {
 }
@@ -81,10 +81,10 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   stress = _elasticity_model->computeCauchyStress(Fe);
   _hardening_model->plasticEnergy(_ep[_qp]);
 
-  //Declare Effective Plastic Stress to output so can use in temp solver
+  // Declare Effective Plastic Stress to output so can use in temp solver
   stress_dev = stress.deviatoric();
   stress_dev_norm = stress_dev.doubleContraction(stress_dev);
-  _stress_eff[_qp] = std::sqrt(1.5*stress_dev_norm);
+  _stress_eff[_qp] = std::sqrt(1.5 * stress_dev_norm);
 }
 
 Real
