@@ -36,7 +36,8 @@ LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters
     _rho(getADMaterialProperty<Real>(prependBaseName("rho"))),
     _R(getADMaterialProperty<Real>(prependBaseName("R"))),
     _delta_ep(declareADProperty<Real>("delta_ep")),
-    _stress_eff(declareADProperty<Real>("stress_eff"))
+    _stress_eff(declareADProperty<Real>("stress_eff")),
+    _epdot(declareADProperty<Real>("epdot"))
 {
 }
 
@@ -85,6 +86,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   stress_dev = stress.deviatoric();
   stress_dev_norm = stress_dev.doubleContraction(stress_dev);
   _stress_eff[_qp] = std::sqrt(1.5 * stress_dev_norm);
+  _epdot[_qp] = _delta_ep[_qp] / _dt;
 }
 
 Real

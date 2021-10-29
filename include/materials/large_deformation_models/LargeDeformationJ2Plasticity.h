@@ -41,5 +41,5 @@ protected:
   const ADMaterialProperty<Real> & _R;
   ADMaterialProperty<Real> & _delta_ep;
   ADMaterialProperty<Real> & _stress_eff;
-
+  ADMaterialProperty<Real> & _epdot;
 };
