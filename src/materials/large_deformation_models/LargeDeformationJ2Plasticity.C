@@ -83,9 +83,9 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   _hardening_model->plasticEnergy(_ep[_qp]);
 
   // Declare Effective Plastic Stress to output so can use in temp solver
-  stress_dev = stress.deviatoric();
-  stress_dev_norm = stress_dev.doubleContraction(stress_dev);
-  _stress_eff[_qp] = std::sqrt(1.5 * stress_dev_norm);
+  ADRankTwoTensor stress_dev2 = stress.deviatoric();
+  ADReal stress_dev_norm2 = stress_dev.doubleContraction(stress_dev2);
+  _stress_eff[_qp] = std::sqrt(1.5 * stress_dev_norm2);
   _epdot[_qp] = _delta_ep[_qp] / _dt;
 }
 
