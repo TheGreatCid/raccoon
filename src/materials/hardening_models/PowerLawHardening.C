@@ -29,7 +29,13 @@ PowerLawHardening::validParams()
   params.addParam<MooseEnum>(
       "sigy_func", MooseEnum("PIECE EXP", "PIECE"), "The function for degrading yield stress");
   params.addRequiredCoupledVar("T", "T");
-
+  params.addRangeCheckedParam<Real>(
+      "taylor_quinney_factor",
+      1,
+      "taylor_quinney_factor<=1 & taylor_quinney_factor>=0",
+      "The Taylor-Quinney factor. 1 (default) for purely dissipative, 0 for purely energetic.");
+  params.addRequiredParam<Real>(
+      "eps", "A small number to help this perfect plasticity model to converge.");
   return params;
 }
 
@@ -51,12 +57,13 @@ PowerLawHardening::PowerLawHardening(const InputParameters & parameters)
     _gp_name(prependBaseName("degradation_function", true)),
     _gp(getADMaterialProperty<Real>(_gp_name)),
     _dgp_dd(getADMaterialProperty<Real>(derivativePropertyName(_gp_name, {_d_name}))),
-    _sigma_0(getADMaterialProperty<Real>(prependBaseName("ref_yield_stress"))),
+    _sigma_0(getParam<Real>("ref_yield_stress")),
     _sigma_y(declareADProperty<Real>(prependBaseName("yield_stress"))),
-    _T0(getADMaterialProperty<Real>(prependBaseName("T0"))),
+    _T0(getParam<Real>("T0")),
     _sigy_func(getParam<MooseEnum>("sigy_func").getEnum<Sigy_func>()),
-    _T(adCoupledValue(prependBaseName("T")))
-
+    _T(adCoupledValue(prependBaseName("T"))),
+    _tqf(getParam<Real>("taylor_quinney_factor")),
+    _eps(getParam<Real>("eps"))
 {
 }
 ADReal
@@ -64,11 +71,11 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
 {
   if (_sigy_func == Sigy_func::exp)
   {
-    _sigma_y[_qp] = _sigma_0[_qp] * (std::exp((_T0[_qp] - _T[_qp]) / 500));
+    _sigma_y[_qp] = _sigma_0 * (std::exp((_T0 - _T[_qp]) / 500));
   }
   else if (_sigy_func == Sigy_func::piece)
   {
-    _sigma_y[_qp] = _sigma_0[_qp] * piecewise(); //(std::exp((_T0[_qp] - _T[_qp]) / 500));
+    _sigma_y[_qp] = _sigma_0 * piecewise(); //(std::exp((_T0[_qp] - _T[_qp]) / 500));
   }
   else
   {
@@ -76,7 +83,7 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
   }
   if (derivative == 0)
   {
-    _psip_active[_qp] = _n[_qp] * _sigma_y[_qp] * _ep0[_qp] / (_n[_qp] + 1) *
+    _psip_active[_qp] = (1 - _tqf) * _n[_qp] * _sigma_y[_qp] * _ep0[_qp] / (_n[_qp] + 1) *
                         (std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] + 1) - 1);
     _psip[_qp] = _gp[_qp] * _psip_active[_qp];
     _dpsip_dd[_qp] = _dgp_dd[_qp] * _psip_active[_qp];
@@ -84,12 +91,30 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
   }
 
   if (derivative == 1)
-    return _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp]);
+    return (1 - _tqf) * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp]);
 
   if (derivative == 2)
-    return _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] - 1) / _n[_qp] /
-           _ep0[_qp];
+    return (1 - _tqf) * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] - 1) /
+           _n[_qp] / _ep0[_qp];
 
+  mooseError(name(), "internal error: unsupported derivative order.");
+  return 0;
+}
+
+ADReal // Need to calculate this and add it accordingly
+PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
+                                      const ADReal & ep,
+                                      const unsigned int derivative)
+{
+  if (derivative == 0)
+    return _tqf * _gp[_qp] * _sigma_y[_qp] *
+           std::pow((1 + (ep / _ep0[_qp])), (_n[_qp] + 1) / _n[_qp]) * delta_ep;
+
+  if (derivative == 1)
+    return _tqf * _gp[_qp] * _sigma_y[_qp] * std::pow((1 + ep / _ep0[_qp]), 1 / _n[_qp]);
+
+  if (derivative == 2)
+    return _tqf * _gp[_qp] * _eps;
   mooseError(name(), "internal error: unsupported derivative order.");
   return 0;
 }
@@ -97,7 +122,6 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
 ADReal
 PowerLawHardening::piecewise()
 {
-
   Real Tl = MetaPhysicL::raw_value(_T[_qp]);
 
   if (273.15 <= Tl && Tl < 332.9)
@@ -177,10 +201,4 @@ PowerLawHardening::val(Real Tl, const std::vector<Real> & coeff, Real breaks)
 {
   return coeff[0] * std::pow((Tl - breaks), (4 - 1)) + coeff[1] * std::pow((Tl - breaks), (4 - 2)) +
          coeff[2] * std::pow((Tl - breaks), (4 - 3)) + coeff[3];
-}
-
-ADReal //Need to calculate this and add it accordingly
-PowerLawHardening::plasticDissipation(const ADReal & delta_ep,const ADReal & ep, const unsigned int derivative)
-{
-
 }
