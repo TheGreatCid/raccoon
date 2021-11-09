@@ -23,9 +23,8 @@ PowerLawHardening::validParams()
       "psip",
       "Name of the plastic energy density computed by this material model");
   params.addParam<MaterialPropertyName>("degradation_function", "gp", "The degradation function");
-  params.addRequiredParam<MaterialPropertyName>("ref_yield_stress",
-                                                "The reference yield stress $\\sigma_0$");
-  params.addRequiredParam<MaterialPropertyName>("T0", "T0");
+  params.addRequiredParam<Real>("ref_yield_stress", "The reference yield stress $\\sigma_0$");
+  params.addRequiredParam<Real>("T0", "T0");
   params.addParam<MooseEnum>(
       "sigy_func", MooseEnum("PIECE EXP", "PIECE"), "The function for degrading yield stress");
   params.addRequiredCoupledVar("T", "T");
@@ -84,18 +83,18 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
   if (derivative == 0)
   {
     _psip_active[_qp] = (1 - _tqf) * _n[_qp] * _sigma_y[_qp] * _ep0[_qp] / (_n[_qp] + 1) *
-                        (std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] + 1) - 1);
+                        (std::pow(1 + _eps * ep / _ep0[_qp], 1 / _n[_qp] + 1) - 1);
     _psip[_qp] = _gp[_qp] * _psip_active[_qp];
     _dpsip_dd[_qp] = _dgp_dd[_qp] * _psip_active[_qp];
     return _psip[_qp];
   }
 
   if (derivative == 1)
-    return (1 - _tqf) * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp]);
+    return (1 - _tqf) * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + _eps * ep / _ep0[_qp], 1 / _n[_qp]);
 
   if (derivative == 2)
-    return (1 - _tqf) * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] - 1) /
-           _n[_qp] / _ep0[_qp];
+    return (1 - _tqf) * _gp[_qp] * _sigma_y[_qp] *
+           std::pow(1 + _eps * ep / _ep0[_qp], 1 / _n[_qp] - 1) / _n[_qp] / _ep0[_qp];
 
   mooseError(name(), "internal error: unsupported derivative order.");
   return 0;
@@ -108,10 +107,10 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
 {
   if (derivative == 0)
     return _tqf * _gp[_qp] * _sigma_y[_qp] *
-           std::pow((1 + (ep / _ep0[_qp])), (_n[_qp] + 1) / _n[_qp]) * delta_ep;
+           std::pow((1 + (_eps * ep / _ep0[_qp])), (_n[_qp] + 1) / _n[_qp]) * delta_ep;
 
   if (derivative == 1)
-    return _tqf * _gp[_qp] * _sigma_y[_qp] * std::pow((1 + ep / _ep0[_qp]), 1 / _n[_qp]);
+    return _tqf * _gp[_qp] * _sigma_y[_qp] * std::pow((1 + _eps * ep / _ep0[_qp]), 1 / _n[_qp]);
 
   if (derivative == 2)
     return _tqf * _gp[_qp] * _eps;
