@@ -17,7 +17,7 @@ LargeDeformationJ2Plasticity::validParams()
 }
 
 LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters & parameters)
-  : LargeDeformationPlasticityModel(parameters)
+  : LargeDeformationPlasticityModel(parameters), _heat(declareADProperty<Real>("heat"))
 {
 }
 
