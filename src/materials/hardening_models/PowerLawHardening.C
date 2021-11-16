@@ -83,7 +83,8 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
   if (derivative == 0)
   {
     _psip_active[_qp] = (1 - _tqf) * _n[_qp] * _sigma_y[_qp] * _ep0[_qp] / (_n[_qp] + 1) *
-                        (std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] + 1) - 1);
+                            (std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] + 1) - 1) +
+                        0.5 * _eps * ep * ep;
     _psip[_qp] = _gp[_qp] * _psip_active[_qp];
     _dpsip_dd[_qp] = _dgp_dd[_qp] * _psip_active[_qp];
     return _psip[_qp];
@@ -91,12 +92,14 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
 
   if (derivative == 1)
 
-    return (1 - _tqf) * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp]);
+    return (1 - _tqf) * _gp[_qp] *
+           (_sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp]) + _eps * ep);
 
   if (derivative == 2)
 
-    return (1 - _tqf) * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] - 1) /
-           _n[_qp] / _ep0[_qp];
+    return (1 - _tqf) * _gp[_qp] *
+           ((_sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] - 1) / _n[_qp] / _ep0[_qp]) +
+            _eps);
 
   mooseError(name(), "internal error: unsupported derivative order.");
   return 0;
@@ -108,16 +111,18 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
                                       const unsigned int derivative)
 {
   if (derivative == 0)
-    return _tqf * _gp[_qp] * _sigma_y[_qp] *
-           std::pow((1 + (ep / _ep0[_qp])), (_n[_qp] + 1) / _n[_qp]) * delta_ep;
+    return _tqf * _gp[_qp] *
+           (_sigma_y[_qp] * std::pow((1 + (ep / _ep0[_qp])), (_n[_qp] + 1) / _n[_qp]) + _eps * ep) *
+           delta_ep;
 
   if (derivative == 1)
 
-    return _tqf * _gp[_qp] * _sigma_y[_qp] * std::pow((1 + ep / _ep0[_qp]), 1 / _n[_qp]);
+    return _tqf * _gp[_qp] *
+           (_sigma_y[_qp] * std::pow((1 + ep / _ep0[_qp]), 1 / _n[_qp]) + _eps * ep);
 
   if (derivative == 2)
 
-    return _tqf * _gp[_qp];
+    return _tqf * _gp[_qp] * _eps;
   mooseError(name(), "internal error: unsupported derivative order.");
   return 0;
 }
