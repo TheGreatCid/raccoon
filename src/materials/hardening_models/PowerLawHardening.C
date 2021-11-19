@@ -26,7 +26,7 @@ PowerLawHardening::validParams()
   params.addRequiredParam<Real>("ref_yield_stress", "The reference yield stress $\\sigma_0$");
   params.addRequiredParam<Real>("T0", "T0");
   params.addParam<MooseEnum>(
-      "sigy_func", MooseEnum("PIECE EXP", "PIECE"), "The function for degrading yield stress");
+      "sigy_func", MooseEnum("PIECE EXP TAN", "PIECE"), "The function for degrading yield stress");
   params.addRequiredCoupledVar("T", "T");
   params.addRangeCheckedParam<Real>(
       "taylor_quinney_factor",
@@ -78,13 +78,16 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
   }
   else
   {
-    paramError("sigy_func", "Wrong function input");
+    _sigma_y[_qp] = _sigma_0 * ((-0.35) * std::atan(0.01 * _T[_qp] - 9.25) + 0.45);
   }
+  // else
+  // {
+  //   paramError("sigy_func", "Wrong function input");
+  // }
   if (derivative == 0)
   {
     _psip_active[_qp] = (1 - _tqf) * _n[_qp] * _sigma_y[_qp] * _ep0[_qp] / (_n[_qp] + 1) *
-                            (std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] + 1) - 1) +
-                        0.5 * _eps * ep * ep;
+                        (std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] + 1) - 1);
     _psip[_qp] = _gp[_qp] * _psip_active[_qp];
     _dpsip_dd[_qp] = _dgp_dd[_qp] * _psip_active[_qp];
     return _psip[_qp];
@@ -92,14 +95,12 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
 
   if (derivative == 1)
 
-    return (1 - _tqf) * _gp[_qp] *
-           (_sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp]) + _eps * ep);
+    return (1 - _tqf) * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp]);
 
   if (derivative == 2)
 
-    return (1 - _tqf) * _gp[_qp] *
-           ((_sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] - 1) / _n[_qp] / _ep0[_qp]) +
-            _eps);
+    return (1 - _tqf) * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] - 1) /
+           _n[_qp] / _ep0[_qp];
 
   mooseError(name(), "internal error: unsupported derivative order.");
   return 0;
@@ -112,17 +113,15 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
 {
   if (derivative == 0)
     return _tqf * _gp[_qp] *
-           (_sigma_y[_qp] * std::pow((1 + (ep / _ep0[_qp])), (_n[_qp] + 1) / _n[_qp]) + _eps * ep) *
-           delta_ep;
+           (_sigma_y[_qp] * std::pow((1 + (ep / _ep0[_qp])), (_n[_qp] + 1) / _n[_qp])) * delta_ep;
 
   if (derivative == 1)
 
-    return _tqf * _gp[_qp] *
-           (_sigma_y[_qp] * std::pow((1 + ep / _ep0[_qp]), 1 / _n[_qp]) + _eps * ep);
+    return _tqf * _gp[_qp] * _sigma_y[_qp] * std::pow((1 + ep / _ep0[_qp]), 1 / _n[_qp]);
 
   if (derivative == 2)
 
-    return _tqf * _gp[_qp] * _eps;
+    return 0;
   mooseError(name(), "internal error: unsupported derivative order.");
   return 0;
 }
