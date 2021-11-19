@@ -44,7 +44,7 @@ protected:
   const Real _sigma_0;
   ADMaterialProperty<Real> & _sigma_y;
   const Real _T0;
-  const enum class Sigy_func { piece, exp } _sigy_func;
+  const enum class Sigy_func { piece, exp, tan } _sigy_func;
   const ADVariableValue & _T;
   const Real _tqf;
   const Real _eps;
