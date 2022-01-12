@@ -23,7 +23,7 @@ PowerLawHardening::validParams()
       "psip",
       "Name of the plastic energy density computed by this material model");
   params.addParam<MaterialPropertyName>("degradation_function", "gp", "The degradation function");
-  params.addRequiredParam<Real>("ref_yield_stress", "The reference yield stress $\\sigma_0$");
+  params.addRequiredParam<MaterialPropertyName>("sigma_0", "The reference yield stress $\\sigma_0$");
   params.addRequiredParam<Real>("T0", "T0");
   params.addParam<MooseEnum>(
       "sigy_func", MooseEnum("PIECE EXP TAN", "PIECE"), "The function for degrading yield stress");
@@ -51,12 +51,11 @@ PowerLawHardening::PowerLawHardening(const InputParameters & parameters)
     _psip(declareADProperty<Real>(_psip_name)),
     _psip_active(declareADProperty<Real>(_psip_name + "_active")),
     _dpsip_dd(declareADProperty<Real>(derivativePropertyName(_psip_name, {_d_name}))),
-
     // The degradation function and its derivatives
     _gp_name(prependBaseName("degradation_function", true)),
     _gp(getADMaterialProperty<Real>(_gp_name)),
     _dgp_dd(getADMaterialProperty<Real>(derivativePropertyName(_gp_name, {_d_name}))),
-    _sigma_0(getParam<Real>("ref_yield_stress")),
+    _sigma_0(getADMaterialProperty<Real>(prependBaseName("sigma_0", true))),
     _sigma_y(declareADProperty<Real>(prependBaseName("yield_stress"))),
     _T0(getParam<Real>("T0")),
     _sigy_func(getParam<MooseEnum>("sigy_func").getEnum<Sigy_func>()),
@@ -70,15 +69,15 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
 {
   if (_sigy_func == Sigy_func::exp)
   {
-    _sigma_y[_qp] = _sigma_0 * (std::exp((_T0 - _T[_qp]) / 500));
+    _sigma_y[_qp] = _sigma_0[_qp] * (std::exp((_T0 - _T[_qp]) / 500));
   }
   else if (_sigy_func == Sigy_func::piece)
   {
-    _sigma_y[_qp] = _sigma_0 * piecewise(); //(std::exp((_T0[_qp] - _T[_qp]) / 500));
+    _sigma_y[_qp] = _sigma_0[_qp] * piecewise(); //(std::exp((_T0[_qp] - _T[_qp]) / 500));
   }
   else
   {
-    _sigma_y[_qp] = _sigma_0 * ((-0.35) * std::atan(0.01 * _T[_qp] - 9.25) + 0.45);
+    _sigma_y[_qp] = _sigma_0[_qp] * ((-0.35) * std::atan(0.01 * _T[_qp] - 9.25) + 0.45);
   }
   // else
   // {
