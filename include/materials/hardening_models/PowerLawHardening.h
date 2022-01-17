@@ -19,13 +19,22 @@ public:
   virtual ADReal plasticDissipation(const ADReal & delta_ep,
                                     const ADReal & ep,
                                     const unsigned int derivative) override;
+ virtual ADReal thermalConjugate(const ADReal & ep) override;
+
   ADReal piecewise();
   Real val(Real Tl, const std::vector<Real> & coeff, Real breaks);
+  // ADReal plasticDissipation(const ADReal & delta_ep,
+  //                                   const unsigned int derivative);
 
 protected:
   // @{ The plastic energy parameters
   const ADMaterialProperty<Real> & _n;
+  const ADMaterialProperty<Real> & _m;
+  const ADMaterialProperty<Real> & _v;
+
   const ADMaterialProperty<Real> & _ep0;
+  const ADMaterialProperty<Real> & _epdot0;
+
   // @}
 
   /// Name of the phase-field variable
