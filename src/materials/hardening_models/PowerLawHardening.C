@@ -180,8 +180,9 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
     if (delta_ep <= 0)
       return 0;
     else
-      return _tqf * std::pow(delta_ep / (_dt * _epdot0[_qp]), (1 / _m[_qp]) - 1) /
-             (_dt * _epdot0[_qp] * _m[_qp]);
+      //return //_tqf * std::pow(delta_ep / (_dt * _epdot0[_qp]), (1 / _m[_qp]) - 1) /
+            // (_dt * _epdot0[_qp] * _m[_qp]);
+      return _tqf * _sigma_y[_qp] * std::pow(delta_ep/_epdot0[_qp],1/_m[_qp])/(_m[_qp]*delta_ep);
   }
   mooseError(name(), "internal error: unsupported derivative order.");
   return 0;
