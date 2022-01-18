@@ -94,43 +94,43 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
   //       << std::endl;    return  std::pow(delta_ep / (_dt * _epdot0[_qp]), (1 / _m[_qp]) - 1) /
   // (_dt * _epdot0[_qp] * _m[_qp]);
 
-// }
-// else
-// {
-// This JC Model For testing. It also has impacts in the LDJ2 by multiplying energy by
-// ln(epdot/eddot0) _sigma_y[_qp] =
-//(758+402*std::pow(ep,0.26))*(1-std::pow(((_T[_qp]-_T0)/(1500+275-_T0)),1.13));
-//  _sigma_y[_qp] = _sigma_0[_qp] * ((-0.35) * std::atan(0.01 * _T[_qp] - 9.25) + 0.45);
+  // }
+  // else
+  // {
+  // This JC Model For testing. It also has impacts in the LDJ2 by multiplying energy by
+  // ln(epdot/eddot0) _sigma_y[_qp] =
+  //(758+402*std::pow(ep,0.26))*(1-std::pow(((_T[_qp]-_T0)/(1500+275-_T0)),1.13));
+  //  _sigma_y[_qp] = _sigma_0[_qp] * ((-0.35) * std::atan(0.01 * _T[_qp] - 9.25) + 0.45);
 
-// Another Test
-//std::cout << raw_value(std::pow(_T[_qp] / _T0, _v[_qp])) << std::endl;
-_sigma_y[_qp] = _sigma_0[_qp] * std::pow(_T[_qp] / _T0, _v[_qp]);
-//_sigma_y[_qp] = _sigma_0[_qp];
-//_sigma_y[_qp] = _sigma_0[_qp];
-// }
+  // Another Test
+  // std::cout << raw_value(std::pow(_T[_qp] / _T0, _v[_qp])) << std::endl;
+  _sigma_y[_qp] = _sigma_0[_qp] * std::pow(_T[_qp] / _T0, _v[_qp]);
+  //_sigma_y[_qp] = _sigma_0[_qp];
+  //_sigma_y[_qp] = _sigma_0[_qp];
+  // }
 
-// else
-// {
-//   paramError("sigy_func", "Wrong function input");
-// }
-if (derivative == 0)
-{
-  _psip_active[_qp] = (1 - _tqf) * _n[_qp] * _sigma_y[_qp] * _ep0[_qp] / (_n[_qp] + 1) *
-                      (std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] + 1) - 1);
-  _psip[_qp] = _gp[_qp] * _psip_active[_qp];
-  _dpsip_dd[_qp] = _dgp_dd[_qp] * _psip_active[_qp];
-  return _psip[_qp];
-}
+  // else
+  // {
+  //   paramError("sigy_func", "Wrong function input");
+  // }
+  if (derivative == 0)
+  {
+    _psip_active[_qp] = (1 - _tqf) * _n[_qp] * _sigma_y[_qp] * _ep0[_qp] / (_n[_qp] + 1) *
+                        (std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] + 1) - 1);
+    _psip[_qp] = _gp[_qp] * _psip_active[_qp];
+    _dpsip_dd[_qp] = _dgp_dd[_qp] * _psip_active[_qp];
+    return _psip[_qp];
+  }
 
-if (derivative == 1)
-  return (1 - _tqf) * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp]);
+  if (derivative == 1)
+    return (1 - _tqf) * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp]);
 
-if (derivative == 2)
+  if (derivative == 2)
 
-  return (1 - _tqf) * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] - 1) /
-         _n[_qp] / _ep0[_qp];
+    return (1 - _tqf) * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] - 1) /
+           _n[_qp] / _ep0[_qp];
 
-mooseError(name(), "internal error: unsupported derivative order.");
+  mooseError(name(), "internal error: unsupported derivative order.");
 }
 
 // ADReal // Need to calculate this and add it accordingly
@@ -161,12 +161,17 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
     return (ep * 0) + _tqf * _sigma_y[_qp] * _epdot0[_qp] *
                           std::pow(((delta_ep / _dt) / _epdot0[_qp]), ((_m[_qp] + 1) / _m[_qp])) *
                           (_m[_qp] / (_m[_qp] + 1));
-if (derivative == 1)
+  if (derivative == 1)
   {
     // std::cout << "Delta -----" << raw_value(delta_ep/_dt) << " " << raw_value(ep) << std::endl;
     // std::cout  << raw_value(_tqf * _sigma_y[_qp] * std::pow(((delta_ep/_dt)  / _epdot0[_qp]),
     // (1/_m[_qp]))) << std::endl;
-    return _tqf * _sigma_y[_qp] * std::pow(((delta_ep / _dt) / _epdot0[_qp]), (1 / _m[_qp]));
+    if (delta_ep <= 0)
+      return 0;
+    else
+    //std::cout << "get here2" << std::endl;
+
+      return _tqf * _sigma_y[_qp] * std::pow(((delta_ep / _dt) / _epdot0[_qp]), (1 / _m[_qp]));
   }
 
   if (derivative == 2)
@@ -175,7 +180,6 @@ if (derivative == 1)
     if (delta_ep <= 0)
       return 0;
     else
-
       return _tqf * std::pow(delta_ep / (_dt * _epdot0[_qp]), (1 / _m[_qp]) - 1) /
              (_dt * _epdot0[_qp] * _m[_qp]);
   }

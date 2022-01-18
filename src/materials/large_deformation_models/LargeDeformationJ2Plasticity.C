@@ -57,8 +57,13 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
 
   // Compute generated heat
   // _heat[_qp] = ourHardeningCase->plasticDissipation(delta_ep, 1) * delta_ep / _dt;
+//  std::cout <<"0 - " <<raw_value(_heat[_qp]) << std::endl;
+
   _heat[_qp] = _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 1) * delta_ep / _dt;
+//  std::cout <<"1 - " <<raw_value(_heat[_qp]) << std::endl;
   _heat[_qp] += _hardening_model->thermalConjugate(_ep[_qp]) * delta_ep / _dt;
+  //std::cout <<"2 - " <<raw_value(_heat[_qp]) << std::endl;
+
 }
 
 Real
