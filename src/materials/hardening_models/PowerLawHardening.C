@@ -152,7 +152,7 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
 //   return 0;
 // }
 
-ADReal // Need to calculate this and add it accordingly
+ADReal
 PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
                                       const ADReal & ep,
                                       const unsigned int derivative)
@@ -166,28 +166,32 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
     // std::cout << "Delta -----" << raw_value(delta_ep/_dt) << " " << raw_value(ep) << std::endl;
     // std::cout  << raw_value(_tqf * _sigma_y[_qp] * std::pow(((delta_ep/_dt)  / _epdot0[_qp]),
     // (1/_m[_qp]))) << std::endl;
-    if (delta_ep <= 0)
-      return 0;
-    else
-    //std::cout << "get here2" << std::endl;
+      if (delta_ep <= 0)
+        return 0;
+      else
+    {//std::cout << "1-"<< raw_value(_tqf * _sigma_y[_qp] * std::pow(delta_ep / _dt / _epdot0[_qp], 1 / _m[_qp])) << std::endl;
 
-      return _tqf * _sigma_y[_qp] * std::pow(((delta_ep / _dt) / _epdot0[_qp]), (1 / _m[_qp]));
+    return _tqf * _sigma_y[_qp] * std::pow(delta_ep / _dt / _epdot0[_qp], 1 / _m[_qp]);}
+
   }
-
   if (derivative == 2)
   { // return 0;
 
-    if (delta_ep <= 0)
-      return 0;
+      if (delta_ep <= 0)
+        return 0;
     else
-      //return //_tqf * std::pow(delta_ep / (_dt * _epdot0[_qp]), (1 / _m[_qp]) - 1) /
-            // (_dt * _epdot0[_qp] * _m[_qp]);
-      return _tqf * _sigma_y[_qp] * std::pow(delta_ep/_epdot0[_qp],1/_m[_qp])/(_m[_qp]*delta_ep);
+    //return //_tqf * std::pow(delta_ep / (_dt * _epdot0[_qp]), (1 / _m[_qp]) - 1) /
+     //(_dt * _epdot0[_qp] * _m[_qp]);
+     {//std::cout << "2-" <<raw_value(_tqf * _sigma_y[_qp] * std::pow(delta_ep / _dt/ _epdot0[_qp], 1 / _m[_qp]) /
+            //(_m[_qp] * delta_ep)) << std::endl;
+    return _tqf * _sigma_y[_qp] * std::pow(delta_ep / _dt/ _epdot0[_qp], 1 / _m[_qp]) /
+           (_m[_qp] * delta_ep);}
+
+
   }
   mooseError(name(), "internal error: unsupported derivative order.");
   return 0;
 }
-
 ADReal
 PowerLawHardening::thermalConjugate(const ADReal & ep)
 {
