@@ -116,7 +116,7 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
   if (derivative == 0)
   {
     _psip_active[_qp] = (1 - _tqf) * _n[_qp] * _sigma_y[_qp] * _ep0[_qp] / (_n[_qp] + 1) *
-                        (std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] + 1) - 1);
+                        (std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] + 1)); // Removed -1 at the end
     _psip[_qp] = _gp[_qp] * _psip_active[_qp];
     _dpsip_dd[_qp] = _dgp_dd[_qp] * _psip_active[_qp];
     return _psip[_qp];
@@ -159,8 +159,7 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
 {
   if (derivative == 0)
   {
-    return (ep * 0) +
-           _tqf * _n[_qp] * _sigma_y[_qp] * _ep0[_qp] / (_n[_qp] + 1) *
+    return _tqf * _n[_qp] * _sigma_y[_qp] * _ep0[_qp] / (_n[_qp] + 1) *
                (std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] + 1) - 1) +
            _sigma_y[_qp] * _epdot0[_qp] *
                std::pow(((delta_ep / _dt) / _epdot0[_qp]), ((_m[_qp] + 1) / _m[_qp])) *
@@ -177,9 +176,8 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
     // std::cout << "1-"<< raw_value(_tqf * _sigma_y[_qp] * std::pow(delta_ep / _dt /
     // _epdot0[_qp], 1 / _m[_qp])) << std::endl;
     // return _sigma_y[_qp] * std::pow(delta_ep / _dt / _epdot0[_qp], 1 / _m[_qp]);
-    ADReal visc = 0;
-    if (delta_ep > 0)
-      visc = _sigma_y[_qp] * (pow(1 + delta_ep / _dt / _epdot0[_qp], 1 / _m[_qp]) - 1);
+
+    ADReal visc = _sigma_y[_qp] * (pow(1 + delta_ep / _dt / _epdot0[_qp], 1 / _m[_qp]) - 1);
 
     return _tqf * _sigma_y[_qp] * std::pow(1 + (ep / _ep0[_qp]), 1 / _n[_qp]) + visc;
 
@@ -200,13 +198,10 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
     //  << std::endl;
     // return _sigma_y[_qp] * std::pow(delta_ep / _dt / _epdot0[_qp], 1 / _m[_qp]) /
     // (_m[_qp] * delta_ep);
-    ADReal visc = 0;
-    if (delta_ep > 0)
-      ADReal visc = _sigma_y[_qp] * std::pow((delta_ep / _dt / _epdot0[_qp]) + 1, 1 / _m[_qp] - 1) /
-                    (_dt * _epdot0[_qp] * _m[_qp]);
+    ADReal visc = _sigma_y[_qp] * std::pow((delta_ep / _dt / _epdot0[_qp]) + 1, 1 / _m[_qp] - 1) /
+                  (_dt * _epdot0[_qp] * _m[_qp]);
 
-    return 0 * ep +
-           _tqf * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] - 1) /
+    return _tqf * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] - 1) /
                _n[_qp] / _ep0[_qp] +
            visc;
   }
@@ -221,9 +216,8 @@ PowerLawHardening::thermalConjugate(const ADReal & ep)
   if (ep <= 0)
     return 0;
   else // Modify
-    return 0 * ep + (1 - _tqf) * _T[_qp] * std::pow(_T[_qp] / _T0, 1 / _v[_qp] - 1) /
-                        (_T0 * _v[_qp]) * _sigma_0[_qp] *
-                        std::pow(1 + (ep / _ep0[_qp]), 1 / _n[_qp]);
+    return (1 - _tqf) * _gp[_qp] * _sigma_0[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp]) *
+           std::pow(_T[_qp] / _T0, _v[_qp]) / _v[_qp] / _T[_qp];
 }
 
 ADReal
