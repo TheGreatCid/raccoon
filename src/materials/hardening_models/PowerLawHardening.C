@@ -126,7 +126,6 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
     return (1 - _tqf) * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp]);
 
   if (derivative == 2)
-
     return (1 - _tqf) * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] - 1) /
            _n[_qp] / _ep0[_qp];
 
@@ -176,8 +175,14 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
     // std::cout << "1-"<< raw_value(_tqf * _sigma_y[_qp] * std::pow(delta_ep / _dt /
     // _epdot0[_qp], 1 / _m[_qp])) << std::endl;
     // return _sigma_y[_qp] * std::pow(delta_ep / _dt / _epdot0[_qp], 1 / _m[_qp]);
-
-    ADReal visc = _sigma_y[_qp] * (pow(1 + delta_ep / _dt / _epdot0[_qp], 1 / _m[_qp]) - 1);
+    //ADReal visc = 0;
+//	  if(delta_ep > 0)
+//
+	  ADReal visc = _sigma_y[_qp] * (pow(1 + delta_ep / _dt / _epdot0[_qp], 1 / _m[_qp]) - 1);
+   // if(std::isnan(raw_value(visc))) 
+ //   {std::cout << raw_value(visc) << std::endl;
+//	std::cout << delta_ep << std::endl;:
+    //}
 
     return _tqf * _sigma_y[_qp] * std::pow(1 + (ep / _ep0[_qp]), 1 / _n[_qp]) + visc;
 
@@ -198,9 +203,17 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
     //  << std::endl;
     // return _sigma_y[_qp] * std::pow(delta_ep / _dt / _epdot0[_qp], 1 / _m[_qp]) /
     // (_m[_qp] * delta_ep);
-    ADReal visc = _sigma_y[_qp] * std::pow((delta_ep / _dt / _epdot0[_qp]) + 1, 1 / _m[_qp] - 1) /
-                  (_dt * _epdot0[_qp] * _m[_qp]);
 
+    //ADReal visc = 0;
+
+//    if(delta_ep > 0)
+  ADReal  visc = _sigma_y[_qp] * std::pow((delta_ep / _dt / _epdot0[_qp]) + 1, 1 / _m[_qp] - 1) /
+                  (_dt * _epdot0[_qp] * _m[_qp]);
+    // std::cout << raw_value(_tqf * _gp[_qp] * _sigma_y[_qp] *
+    //                            std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] - 1) / _n[_qp] /
+    //                            _ep0[_qp] +
+    //                        visc)
+    //           << std::endl;
     return _tqf * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] - 1) /
                _n[_qp] / _ep0[_qp] +
            visc;

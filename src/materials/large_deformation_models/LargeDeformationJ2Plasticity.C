@@ -57,13 +57,12 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
 
   // Compute generated heat
   // _heat[_qp] = ourHardeningCase->plasticDissipation(delta_ep, 1) * delta_ep / _dt;
-//  std::cout <<"0 - " <<raw_value(_heat[_qp]) << std::endl;
+  //  std::cout <<"0 - " <<raw_value(_heat[_qp]) << std::endl;
 
   _heat[_qp] = _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 1) * delta_ep / _dt;
-//  std::cout <<"1 - " <<raw_value(_heat[_qp]) << std::endl;
+  //  std::cout <<"1 - " <<raw_value(_heat[_qp]) << std::endl;
   _heat[_qp] += _hardening_model->thermalConjugate(_ep[_qp]) * delta_ep / _dt;
-  //std::cout <<"2 - " <<raw_value(_heat[_qp]) << std::endl;
-
+  // std::cout <<"2 - " <<raw_value(_heat[_qp]) << std::endl;
 }
 
 Real
@@ -80,12 +79,12 @@ ADReal
 LargeDeformationJ2Plasticity::computeResidual(const ADReal & effective_trial_stress,
                                               const ADReal & delta_ep)
 {
-//std::cout << "1-" << raw_value(effective_trial_stress) << std::endl;
-//std::cout << "2-" << raw_value( _elasticity_model->computeMandelStress(delta_ep * _Np[_qp], /*plasticity_update = */ true)
-  //   .doubleContraction(_Np[_qp])) << std::endl;
-//std::cout << "3-" << raw_value( _hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 1)) << std::endl;
-//std::cout << "4-" << raw_value(_hardening_model->plasticDissipation(delta_ep, _ep_old[_qp] + delta_ep, 1)) << std::endl;
-
+  // call substepping algorithm if delta_ep is unreasonable
+  if ((delta_ep < 0 || delta_ep > 0.05) && true)
+  {
+    // std::cout << "substepping..." << std::endl;
+    substepping();
+  }
   return effective_trial_stress -
          _elasticity_model->computeMandelStress(delta_ep * _Np[_qp], /*plasticity_update = */ true)
              .doubleContraction(_Np[_qp]) -
@@ -99,6 +98,23 @@ LargeDeformationJ2Plasticity::computeDerivative(const ADReal & /*effective_trial
 {
   return -_elasticity_model->computeMandelStress(_Np[_qp], /*plasticity_update = */ true)
               .doubleContraction(_Np[_qp]) -
-         _hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 2)-
+         _hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 2) -
          _hardening_model->plasticDissipation(delta_ep, _ep_old[_qp] + delta_ep, 2);
+}
+
+void
+LargeDeformationJ2Plasticity::substepping()
+{
+  unsigned int num_substep = 1000; // calculated from substep_iter as 2^substep_iter
+  Real dt_original = _dt;          // stores original dt, restore at end of solve
+  // split dt
+
+  _dt = dt_original / num_substep;
+  // substepping loop
+  for (unsigned int istep = 0; istep < num_substep; ++istep) // Loop over substeps
+  {
+    // scale deformation gradient??
+    computeQpProperties(); // Compute Qp values at this dt
+  }
+  _dt = dt_original; // Reset _dt;
 }
