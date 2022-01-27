@@ -41,7 +41,7 @@ LargeDeformationJ2Plasticity::substepCheck(ADRankTwoTensor & Fe)
   // Return mapping
   ADReal phi = computeResidual(stress_dev_norm, delta_ep);
 
-  // Placeholder value. Need to calculate what is reasonable
+  // Placeholder value. Need to calculate what is a reasonable threshhold
   if (phi > 1)
     return true;
   else
@@ -95,9 +95,19 @@ LargeDeformationJ2Plasticity::substepping(ADReal numsubstep,
     {
       returnMappingSolve(effective_trial_stress, delta_ep, _console);
     }
-    // Update plastic strain
+    // Update plastic strain and heat
     _ep[_qp] = _ep_old[_qp] + delta_ep;
+
+    _heat[_qp] = _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 1) * delta_ep / _dt;
+    _heat[_qp] += _hardening_model->thermalConjugate(_ep[_qp]) * delta_ep / _dt;
+    _hardening_model->plasticEnergy(_ep[_qp]);
   }
+  // Updates deformation after return mapping and update heat
+  ADRankTwoTensor delta_Fp = RaccoonUtils::exp(delta_ep * _Np[_qp]);
+  _Fp[_qp] = delta_Fp * _Fp_old[_qp];
+
+  // Update stress and energy
+  updateState();
 }
 void
 LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTensor & Fe)
