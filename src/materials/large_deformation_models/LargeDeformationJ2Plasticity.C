@@ -31,18 +31,14 @@ LargeDeformationJ2Plasticity::substepCheck(ADRankTwoTensor & Fe)
 
   // Compute the flow direction following the Prandtl-Reuss flow rule.
   // We guard against zero denominator.
-  ADRankTwoTensor stress_dev = stress.deviatoric();
-  ADReal stress_dev_norm = stress_dev.doubleContraction(stress_dev);
-  if (MooseUtils::absoluteFuzzyEqual(stress_dev_norm, 0))
-    stress_dev_norm.value() = libMesh::TOLERANCE * libMesh::TOLERANCE;
-  stress_dev_norm = std::sqrt(1.5 * stress_dev_norm);
-  _Np[_qp] = 1.5 * stress_dev / stress_dev_norm;
+  ADReal stress_dev_norm = trialStress(stress);
 
   // Return mapping
   ADReal phi = computeResidual(stress_dev_norm, delta_ep);
 
   // Placeholder value. Need to calculate what is a reasonable threshhold
-  if (phi > 1)
+  // Also need to calculate stepnumber from this value
+  if (phi > 100)
     return true;
   else
     return false;
@@ -107,7 +103,7 @@ LargeDeformationJ2Plasticity::substepping(ADReal numsubstep,
   _Fp[_qp] = delta_Fp * _Fp_old[_qp];
 
   // Update stress and energy
-  updateState();
+  updateState(stresslocal, Fe);
 }
 void
 LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTensor & Fe)
