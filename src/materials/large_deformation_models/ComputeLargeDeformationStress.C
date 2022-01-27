@@ -94,7 +94,7 @@ ComputeLargeDeformationStress::computeQpProperties()
 void
 ComputeLargeDeformationStress::substepping()
 {
-  std::cout << "substepping" << std::endl;
+  //  std::cout << "substepping" << std::endl;
   // Store orignal _dt; Reset at the end of solve
   Real dt_original = _dt;
   // cut the original timestep

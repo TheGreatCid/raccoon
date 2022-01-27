@@ -38,7 +38,7 @@ LargeDeformationJ2Plasticity::substepCheck(ADRankTwoTensor & Fe)
 
   // Placeholder value. Need to calculate what is a reasonable threshhold
   // Also need to calculate stepnumber from this value
-  if (phi > 100)
+  if (phi > 100000)
     return true;
   else
     return false;
