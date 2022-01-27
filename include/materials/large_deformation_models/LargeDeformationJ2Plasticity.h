@@ -14,6 +14,9 @@ public:
   LargeDeformationJ2Plasticity(const InputParameters & parameters);
 
   virtual void updateState(ADRankTwoTensor & stress, ADRankTwoTensor & Fe) override;
+  virtual bool substepCheck(ADRankTwoTensor & Fe) override;
+  virtual void
+  substepping(ADReal numsubstep, ADRankTwoTensor & Fe, ADRankTwoTensor & stress) override;
 
 protected:
   virtual ADReal computeResidual(const ADReal & effective_trial_stress,
@@ -24,7 +27,8 @@ protected:
 
   virtual Real computeReferenceResidual(const ADReal & effective_trial_stress,
                                         const ADReal & delta_ep) override;
-  void substepping();
+
+  ADReal trialStress(ADRankTwoTensor & stress);
 
   ADMaterialProperty<Real> & _heat;
 };

@@ -63,3 +63,23 @@ LargeDeformationElasticityModel::computeCauchyStress(const ADRankTwoTensor & Fe)
 {
   return Fe.inverse().transpose() * computeMandelStress(Fe) * Fe.transpose() / Fe.det();
 }
+
+bool
+LargeDeformationElasticityModel::substepCheck(const ADRankTwoTensor & Fm)
+{
+  _Fe[_qp] = Fm;
+
+  if (_plasticity_model)
+    return _plasticity_model->substepCheck(_Fe[_qp]);
+  else // No substepping if no plasticity model
+    return false;
+}
+
+void
+LargeDeformationElasticityModel::substepping(ADReal numsubstep,
+                                             const ADRankTwoTensor & Fm,
+                                             ADRankTwoTensor & stress)
+{
+  _Fe[_qp] = Fm;
+  _plasticity_model->substepping(numsubstep, stress, _Fe[_qp]);
+}

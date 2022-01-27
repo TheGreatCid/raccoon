@@ -20,7 +20,85 @@ LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters
   : LargeDeformationPlasticityModel(parameters), _heat(declareADProperty<Real>("heat"))
 {
 }
+// Add method to check for substepping, call method from stress calculator
+bool
+LargeDeformationJ2Plasticity::substepCheck(ADRankTwoTensor & Fe)
+{
+  // Perform trial stress calculation
+  ADReal delta_ep = 0;
+  // Hold local form of stress
+  ADRankTwoTensor stress = _elasticity_model->computeMandelStress(Fe);
 
+  // Compute the flow direction following the Prandtl-Reuss flow rule.
+  // We guard against zero denominator.
+  ADRankTwoTensor stress_dev = stress.deviatoric();
+  ADReal stress_dev_norm = stress_dev.doubleContraction(stress_dev);
+  if (MooseUtils::absoluteFuzzyEqual(stress_dev_norm, 0))
+    stress_dev_norm.value() = libMesh::TOLERANCE * libMesh::TOLERANCE;
+  stress_dev_norm = std::sqrt(1.5 * stress_dev_norm);
+  _Np[_qp] = 1.5 * stress_dev / stress_dev_norm;
+
+  // Return mapping
+  ADReal phi = computeResidual(stress_dev_norm, delta_ep);
+
+  // Placeholder value. Need to calculate what is reasonable
+  if (phi > 1)
+    return true;
+  else
+    return false;
+}
+
+ADReal
+LargeDeformationJ2Plasticity::trialStress(ADRankTwoTensor & stress)
+{
+  ADRankTwoTensor stress_dev = stress.deviatoric();
+  ADReal stress_dev_norm = stress_dev.doubleContraction(stress_dev);
+  if (MooseUtils::absoluteFuzzyEqual(stress_dev_norm, 0))
+    stress_dev_norm.value() = libMesh::TOLERANCE * libMesh::TOLERANCE;
+  stress_dev_norm = std::sqrt(1.5 * stress_dev_norm);
+  _Np[_qp] = 1.5 * stress_dev / stress_dev_norm;
+  return stress_dev_norm;
+}
+
+void
+LargeDeformationJ2Plasticity::substepping(ADReal numsubstep,
+                                          ADRankTwoTensor & Fe,
+                                          ADRankTwoTensor & /*stress*/)
+{
+  // Assumpe delta_ep = 0
+
+  ADReal delta_ep = 0;
+  ADRankTwoTensor stresslocal;
+  Fe = Fe * _Fp_old[_qp].inverse();
+  stresslocal = _elasticity_model->computeMandelStress(Fe);
+
+  // Calculate stress where phi = 0
+  ADReal effective_trial_stress = trialStress(stresslocal);
+  ADReal phi = computeResidual(effective_trial_stress, delta_ep);
+
+  ADReal base_trial_stress = phi;
+  // Difference of trial stress from onset of plasticity to final stress
+  ADReal stress_inc = base_trial_stress - effective_trial_stress;
+  // Split the stress by number of substeps
+  ADReal stress_step = stress_inc / numsubstep;
+
+  // Begin substep look and feed split stress into return mapping
+  for (unsigned int step = 0; step < 100 /*total_number_substeps*/; ++step)
+  {
+    // Increment stress by substep
+    stresslocal = base_trial_stress + stress_step * step;
+    effective_trial_stress = trialStress(stresslocal);
+
+    ADReal phi = computeResidual(effective_trial_stress, delta_ep);
+
+    if (phi > 0)
+    {
+      returnMappingSolve(effective_trial_stress, delta_ep, _console);
+    }
+    // Update plastic strain
+    _ep[_qp] = _ep_old[_qp] + delta_ep;
+  }
+}
 void
 LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTensor & Fe)
 {
@@ -40,11 +118,13 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
 
   // Return mapping
   ADReal phi = computeResidual(stress_dev_norm, delta_ep);
+
   if (phi > 0)
   {
     returnMappingSolve(stress_dev_norm, delta_ep, _console);
   }
   _ep[_qp] = _ep_old[_qp] + delta_ep;
+
   ADRankTwoTensor delta_Fp = RaccoonUtils::exp(delta_ep * _Np[_qp]);
   _Fp[_qp] = delta_Fp * _Fp_old[_qp];
 
@@ -79,12 +159,6 @@ ADReal
 LargeDeformationJ2Plasticity::computeResidual(const ADReal & effective_trial_stress,
                                               const ADReal & delta_ep)
 {
-  // call substepping algorithm if delta_ep is unreasonable
-  if ((delta_ep < 0 || delta_ep > 0.05) && true)
-  {
-    // std::cout << "substepping..." << std::endl;
-    substepping();
-  }
   return effective_trial_stress -
          _elasticity_model->computeMandelStress(delta_ep * _Np[_qp], /*plasticity_update = */ true)
              .doubleContraction(_Np[_qp]) -
@@ -100,21 +174,4 @@ LargeDeformationJ2Plasticity::computeDerivative(const ADReal & /*effective_trial
               .doubleContraction(_Np[_qp]) -
          _hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 2) -
          _hardening_model->plasticDissipation(delta_ep, _ep_old[_qp] + delta_ep, 2);
-}
-
-void
-LargeDeformationJ2Plasticity::substepping()
-{
-  unsigned int num_substep = 1000; // calculated from substep_iter as 2^substep_iter
-  Real dt_original = _dt;          // stores original dt, restore at end of solve
-  // split dt
-
-  _dt = dt_original / num_substep;
-  // substepping loop
-  for (unsigned int istep = 0; istep < num_substep; ++istep) // Loop over substeps
-  {
-    // scale deformation gradient??
-    computeQpProperties(); // Compute Qp values at this dt
-  }
-  _dt = dt_original; // Reset _dt;
 }

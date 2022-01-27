@@ -38,6 +38,8 @@ protected:
   /// The viscoelasticity model
   LargeDeformationViscoelasticityModel * _viscoelasticity_model;
 
+  // Start substepping
+  void substepping();
   // @{ The mechanical strain excluding eigen strains from the total strain
   const ADMaterialProperty<RankTwoTensor> & _Fm;
   const MaterialProperty<RankTwoTensor> * _Fm_old;

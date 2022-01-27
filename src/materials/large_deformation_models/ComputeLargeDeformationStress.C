@@ -68,11 +68,19 @@ ComputeLargeDeformationStress::initQpStatefulProperties()
 {
   _stress[_qp].zero();
 }
-
+// Total formulation for deformation gradient
 void
 ComputeLargeDeformationStress::computeQpProperties()
 {
   _elasticity_model->setQp(_qp);
+
+  // Call method to check for substepping
+  bool substep = _elasticity_model->substepCheck(_Fm[_qp]);
+
+  // Run substep if condition is true
+  if (substep)
+    substepping();
+
   _elasticity_model->updateState(_Fm[_qp], _stress[_qp]);
 
   if (_viscoelasticity_model)
@@ -80,4 +88,24 @@ ComputeLargeDeformationStress::computeQpProperties()
     _viscoelasticity_model->setQp(_qp);
     _stress[_qp] += _viscoelasticity_model->computeCauchyStress(_Fm[_qp], (*_Fm_old)[_qp]);
   }
+}
+
+// Substepping
+void
+ComputeLargeDeformationStress::substepping()
+{
+  std::cout << "substepping" << std::endl;
+  // Store orignal _dt; Reset at the end of solve
+  Real dt_original = _dt;
+  // cut the original timestep
+  _dt = dt_original / 100; // total_number_substeps;
+
+  // Need algorithm to calculate this number
+  Real numsubstep = 100;
+  // initialize the inputs
+
+  // substepping loop
+  _elasticity_model->substepping(numsubstep, _Fm[_qp], _stress[_qp]);
+  // Recover original timestep
+  _dt = dt_original;
 }

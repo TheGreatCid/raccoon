@@ -37,8 +37,12 @@ public:
    */
   virtual void updateState(ADRankTwoTensor & stress, ADRankTwoTensor & Fe) = 0;
 
-  // @{ Retained as empty methods to avoid a warning from Material.C in framework. These methods are
-  // unused in all inheriting classes and should not be overwritten.
+  // Used to check whether magnitude of trial stress requires substepping
+  virtual bool substepCheck(ADRankTwoTensor & Fe) = 0;
+  // Run substepping algorithm
+  virtual void substepping(ADReal numsubstep, ADRankTwoTensor & Fe, ADRankTwoTensor & stress) = 0;
+  // @{ Retained as empty methods to avoid a warning from Material.C in framework. These methods
+  // are unused in all inheriting classes and should not be overwritten.
   void resetQpProperties() final {}
   void resetProperties() final {}
   // @}

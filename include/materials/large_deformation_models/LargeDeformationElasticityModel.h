@@ -56,6 +56,10 @@ public:
   void resetProperties() final {}
   // @}
 
+  // Check if substepping is needed for this qp
+  bool substepCheck(const ADRankTwoTensor & Fm);
+  void substepping(ADReal numsubstep, const ADRankTwoTensor & Fm, ADRankTwoTensor & stress);
+
 protected:
   virtual void initQpStatefulProperties() override;
 
