@@ -91,7 +91,7 @@ ComputeLargeDeformationStress::substepCheck(ADRankTwoTensor & Fm_diff)
 {
   // Will be defined as params later
   unsigned int number_of_substeps = 1;
-  double max_inelastic_increment = 0.00001;
+  double max_inelastic_increment = 0.0001;
   //  unsigned int maximum_number_substeps = 25;
   double substep_strain_tolerance = 0.1;
   // Calculate Effective plastic strain to check for deformation tolerance
