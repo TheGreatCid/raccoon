@@ -75,7 +75,9 @@ ComputeLargeDeformationStress::computeQpProperties()
 
   double number_of_substeps = substepCheck(Fm_diff);
   if (number_of_substeps != 1)
+  {
     substepping(Fm_diff, number_of_substeps);
+  }
   else
     _elasticity_model->updateState(_Fm[_qp], _stress[_qp]);
 
@@ -98,7 +100,7 @@ ComputeLargeDeformationStress::substepCheck(ADRankTwoTensor & Fm_diff)
   const ADReal contracted_elastic_strain = (Fm_diff).doubleContraction(Fm_diff);
   const Real effective_elastic_strain =
       std::sqrt(3.0 / 2.0 * MetaPhysicL::raw_value(contracted_elastic_strain));
-  const Real ratio = (effective_elastic_strain) / (max_inelastic_increment + 1);
+  const Real ratio = (effective_elastic_strain) / (max_inelastic_increment);
   if (ratio > substep_strain_tolerance)
     return number_of_substeps = std::ceil(ratio / substep_strain_tolerance);
   else
@@ -111,6 +113,7 @@ ComputeLargeDeformationStress::substepping(ADRankTwoTensor & Fm_diff, double & n
   ADRankTwoTensor _temporary_deformation_gradient;
   Real dt_original = _dt;
   _dt = dt_original / number_of_substeps;
+  std::cout << number_of_substeps << std::endl;
 
   for (unsigned int istep = 0; istep < number_of_substeps; ++istep)
   {
