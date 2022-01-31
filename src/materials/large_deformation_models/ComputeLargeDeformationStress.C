@@ -30,8 +30,10 @@ ComputeLargeDeformationStress::ComputeLargeDeformationStress(const InputParamete
   : Material(parameters),
     BaseNameInterface(parameters),
     _Fm(getADMaterialProperty<RankTwoTensor>(prependBaseName("mechanical_deformation_gradient"))),
-    _Fm_old(
-        getMaterialPropertyOld<RankTwoTensor>(prependBaseName("mechanical_deformation_gradient"))),
+    _Fm_old(isParamValid("viscoelasticity_model")
+                ? &getMaterialPropertyOld<RankTwoTensor>(
+                      prependBaseName("mechanical_deformation_gradient"))
+                : nullptr),
     _stress(declareADProperty<RankTwoTensor>(prependBaseName("stress")))
 {
   if (getParam<bool>("use_displaced_mesh"))
@@ -52,6 +54,7 @@ ComputeLargeDeformationStress::initialSetup()
       isParamValid("plasticity_model")
           ? dynamic_cast<LargeDeformationPlasticityModel *>(&getMaterial("plasticity_model"))
           : nullptr;
+
   if (_plasticity_model)
     _elasticity_model->setPlasticityModel(_plasticity_model);
 
@@ -71,7 +74,7 @@ void
 ComputeLargeDeformationStress::computeQpProperties()
 {
   _elasticity_model->setQp(_qp);
-  ADRankTwoTensor Fm_diff = _Fm[_qp] - _Fm_old[_qp];
+  ADRankTwoTensor Fm_diff = _Fm[_qp] - (*_Fm_old)[_qp];
 
   double number_of_substeps = substepCheck(Fm_diff);
   if (number_of_substeps != 1)
@@ -79,12 +82,13 @@ ComputeLargeDeformationStress::computeQpProperties()
     substepping(Fm_diff, number_of_substeps);
   }
   else
+  {
     _elasticity_model->updateState(_Fm[_qp], _stress[_qp]);
-
+  }
   if (_viscoelasticity_model)
   {
     _viscoelasticity_model->setQp(_qp);
-    _stress[_qp] += _viscoelasticity_model->computeCauchyStress(_Fm[_qp], _Fm_old[_qp]);
+    _stress[_qp] += _viscoelasticity_model->computeCauchyStress(_Fm[_qp], (*_Fm_old)[_qp]);
   }
 }
 
@@ -113,7 +117,7 @@ ComputeLargeDeformationStress::substepping(ADRankTwoTensor & Fm_diff, double & n
   ADRankTwoTensor _temporary_deformation_gradient;
   Real dt_original = _dt;
   _dt = dt_original / number_of_substeps;
-  std::cout << number_of_substeps << std::endl;
+  std::cout << number_of_substeps << "--------------------------------" << std::endl;
 
   for (unsigned int istep = 0; istep < number_of_substeps; ++istep)
   {
