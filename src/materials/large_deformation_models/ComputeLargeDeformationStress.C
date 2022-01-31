@@ -74,9 +74,9 @@ void
 ComputeLargeDeformationStress::computeQpProperties()
 {
   _elasticity_model->setQp(_qp);
-  ADRankTwoTensor Fm_diff = _Fm[_qp] - (*_Fm_old)[_qp];
+  const ADRankTwoTensor Fm_diff = _Fm[_qp] - (*_Fm_old)[_qp];
 
-  double number_of_substeps = substepCheck(Fm_diff);
+  unsigned int number_of_substeps = substepCheck(Fm_diff);
   if (number_of_substeps != 1)
   {
     std::cout << "get here" << std::endl;
@@ -93,27 +93,41 @@ ComputeLargeDeformationStress::computeQpProperties()
   }
 }
 
-double
-ComputeLargeDeformationStress::substepCheck(ADRankTwoTensor & Fm_diff)
+unsigned int
+ComputeLargeDeformationStress::substepCheck(const ADRankTwoTensor & Fm_diff)
 {
   // Will be defined as params later
   unsigned int number_of_substeps = 1;
-  double max_inelastic_increment = 0.0001;
+  //  Real max_inelastic_increment = 0.001;
   //  unsigned int maximum_number_substeps = 25;
-  double substep_strain_tolerance = 0.1;
+  Real substep_strain_tolerance = 0.1;
   // Calculate Effective plastic strain to check for deformation tolerance
-  const ADReal contracted_elastic_strain = (Fm_diff).doubleContraction(Fm_diff);
-  const Real effective_elastic_strain =
-      std::sqrt(3.0 / 2.0 * MetaPhysicL::raw_value(contracted_elastic_strain));
-  const Real ratio = (effective_elastic_strain) / (max_inelastic_increment);
-  if (ratio > substep_strain_tolerance)
-    return number_of_substeps = std::ceil(ratio / substep_strain_tolerance);
-  else
-    return 1;
+  const ADReal contracted_elastic_diff = (Fm_diff).doubleContraction(Fm_diff);
+  // const ADReal contracted_elastic_diff = 0;
+  const Real effective_elastic_diff = std::sqrt(3.0 / 2.0 * raw_value(contracted_elastic_diff));
+
+  // There is an issue with the division of effective_elastic_diff and max_inelastic_incrememnt
+  // If they are not within a certain order of magnitude of each other it affects convergence.
+  // I have no idea how this is...
+  // Perhaps the number is too small?
+
+  if (!MooseUtils::absoluteFuzzyEqual(effective_elastic_diff, 0.0))
+  {
+    // When ratio is a certain value it is leads to convergence issues
+    // This seems to be at ratio > 1e-9??
+    const Real ratiotest = (10000) * (effective_elastic_diff); // / (10 * max_inelastic_increment);
+    if (ratiotest > substep_strain_tolerance)
+    {
+      std::cout << "here2" << std::endl;
+      number_of_substeps = std::ceil(ratiotest / substep_strain_tolerance);
+    }
+  }
+  return number_of_substeps;
 }
 
 void
-ComputeLargeDeformationStress::substepping(ADRankTwoTensor & Fm_diff, double & number_of_substeps)
+ComputeLargeDeformationStress::substepping(const ADRankTwoTensor & Fm_diff,
+                                           unsigned int & number_of_substeps)
 {
   ADRankTwoTensor _temporary_deformation_gradient;
   Real dt_original = _dt;

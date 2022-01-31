@@ -28,8 +28,8 @@ public:
 protected:
   virtual void initQpStatefulProperties() override;
   virtual void computeQpProperties() override;
-  void substepping(ADRankTwoTensor & Fm_diff, double & number_of_substeps);
-  double substepCheck(ADRankTwoTensor & Fm_diff);
+  void substepping(const ADRankTwoTensor & Fm_diff, unsigned int & number_of_substeps);
+  unsigned int substepCheck(const ADRankTwoTensor & Fm_diff);
   /// The elasticity model
   LargeDeformationElasticityModel * _elasticity_model;
 
