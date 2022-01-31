@@ -79,6 +79,7 @@ ComputeLargeDeformationStress::computeQpProperties()
   double number_of_substeps = substepCheck(Fm_diff);
   if (number_of_substeps != 1)
   {
+    std::cout << "get here" << std::endl;
     substepping(Fm_diff, number_of_substeps);
   }
   else
