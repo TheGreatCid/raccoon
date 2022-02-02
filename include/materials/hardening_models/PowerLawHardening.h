@@ -16,10 +16,10 @@ public:
   PowerLawHardening(const InputParameters & parameters);
 
   virtual ADReal plasticEnergy(const ADReal & ep, const unsigned int derivative = 0) override;
-  virtual ADReal plasticDissipation(const ADReal & delta_ep,
+  virtual ADReal plasticDissipation(const ADReal & epdot,
                                     const ADReal & ep,
                                     const unsigned int derivative) override;
- virtual ADReal thermalConjugate(const ADReal & ep) override;
+  virtual ADReal thermalConjugate(const ADReal & ep) override;
 
   ADReal piecewise();
   Real val(Real Tl, const std::vector<Real> & coeff, Real breaks);

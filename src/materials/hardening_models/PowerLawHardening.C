@@ -152,7 +152,7 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
 // }
 
 ADReal
-PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
+PowerLawHardening::plasticDissipation(const ADReal & epdot,
                                       const ADReal & ep,
                                       const unsigned int derivative)
 {
@@ -161,7 +161,7 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
     return _tqf * _n[_qp] * _sigma_y[_qp] * _ep0[_qp] / (_n[_qp] + 1) *
                (std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] + 1) - 1) +
            _sigma_y[_qp] * _epdot0[_qp] *
-               std::pow(((delta_ep / _dt) / _epdot0[_qp]), ((_m[_qp] + 1) / _m[_qp])) *
+               std::pow(((epdot) / _epdot0[_qp]), ((_m[_qp] + 1) / _m[_qp])) *
                (_m[_qp] / (_m[_qp] + 1));
   }
   if (derivative == 1)
@@ -178,7 +178,7 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
     // ADReal visc = 0;
     //	  if(delta_ep > 0)
     //
-    ADReal visc = _sigma_y[_qp] * (pow(1 + delta_ep / _dt / _epdot0[_qp], 1 / _m[_qp]) - 1);
+    ADReal visc = _sigma_y[_qp] * (pow(1 + epdot / _epdot0[_qp], 1 / _m[_qp]) - 1);
     // if(std::isnan(raw_value(visc)))
     //   {std::cout << raw_value(visc) << std::endl;
     //	std::cout << delta_ep << std::endl;:
@@ -207,8 +207,7 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
     // ADReal visc = 0;
 
     //    if(delta_ep > 0)
-    ADReal visc = _sigma_y[_qp] * std::pow((delta_ep / _dt / _epdot0[_qp]) + 1, 1 / _m[_qp] - 1) /
-                  (_dt * _epdot0[_qp] * _m[_qp]);
+    ADReal visc = 0;
     // std::cout << raw_value(_tqf * _gp[_qp] * _sigma_y[_qp] *
     //                            std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] - 1) / _n[_qp] /
     //                            _ep0[_qp] +
