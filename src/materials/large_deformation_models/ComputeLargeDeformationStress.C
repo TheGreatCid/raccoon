@@ -41,10 +41,8 @@ ComputeLargeDeformationStress::ComputeLargeDeformationStress(const InputParamete
   : Material(parameters),
     BaseNameInterface(parameters),
     _Fm(getADMaterialProperty<RankTwoTensor>(prependBaseName("mechanical_deformation_gradient"))),
-    _Fm_old(isParamValid("viscoelasticity_model")
-                ? &getMaterialPropertyOld<RankTwoTensor>(
-                      prependBaseName("mechanical_deformation_gradient"))
-                : nullptr),
+    _Fm_old(
+        getMaterialPropertyOld<RankTwoTensor>(prependBaseName("mechanical_deformation_gradient"))),
     _stress(declareADProperty<RankTwoTensor>(prependBaseName("stress"))),
     _maximum_number_substeps(getParam<unsigned>("maximum_number_substeps")),
     _max_inelastic_increment(getParam<Real>("max_inelastic_increment")),
@@ -91,7 +89,7 @@ ComputeLargeDeformationStress::computeQpProperties()
   _elasticity_model->setQp(_qp);
 
   // Calculate deformation gradient increment
-  const ADRankTwoTensor Fm_diff = _Fm[_qp] - (*_Fm_old)[_qp];
+  const ADRankTwoTensor Fm_diff = _Fm[_qp] - _Fm_old[_qp];
 
   // Check number of substeps
   unsigned int number_of_substeps = substepCheck(Fm_diff);
@@ -107,7 +105,7 @@ ComputeLargeDeformationStress::computeQpProperties()
   if (_viscoelasticity_model)
   {
     _viscoelasticity_model->setQp(_qp);
-    _stress[_qp] += _viscoelasticity_model->computeCauchyStress(_Fm[_qp], (*_Fm_old)[_qp]);
+    _stress[_qp] += _viscoelasticity_model->computeCauchyStress(_Fm[_qp], _Fm_old[_qp]);
   }
 }
 
@@ -160,7 +158,7 @@ ComputeLargeDeformationStress::substepping(const ADRankTwoTensor & Fm_diff,
     //           << std::endl;
 
     // Add increment to orignal deformation gradient
-    _temporary_deformation_gradient += (*_Fm_old)[_qp];
+    _temporary_deformation_gradient += _Fm_old[_qp];
     // std::cout << "tem2--" << MetaPhysicL::raw_value(_temporary_deformation_gradient(1, 1))
     //           << std::endl;
     // std::cout << "current--" << MetaPhysicL::raw_value(_Fm[_qp](1, 1)) << std::endl;
