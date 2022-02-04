@@ -41,7 +41,7 @@ protected:
 
   // @{ The mechanical strain excluding eigen strains from the total strain
   const ADMaterialProperty<RankTwoTensor> & _Fm;
-  const MaterialProperty<RankTwoTensor> * _Fm_old;
+  const MaterialProperty<RankTwoTensor> & _Fm_old;
   // @}
 
   /// The stress
