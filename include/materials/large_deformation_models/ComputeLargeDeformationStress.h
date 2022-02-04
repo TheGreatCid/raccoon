@@ -50,4 +50,7 @@ protected:
   Real _maximum_number_substeps;
   Real _max_inelastic_increment;
   Real _substep_strain_tolerance;
+  ADMaterialProperty<Real> & _substep_its;
+  ADMaterialProperty<Real> & _effective_fm_diff;
+  ADMaterialProperty<Real> & _ratio;
 };

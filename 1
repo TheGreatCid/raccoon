@@ -1,0 +1,347 @@
+Gc = 22.2
+l = 0.35
+psic = 7.9
+E = 207e3
+nu = 0.3
+rho = 8e-9
+#K = '${fparse E/3/(1-2*nu)}'
+#G = '${fparse E/2/(1+nu)}'
+eta = 1e-7
+#sigma_y = 2000 #Check if this value makes sense
+ep0 = 0.012
+beta = 0.01
+T0 = 293
+Rate = 20
+thermal_conductivity = 34
+specific_heat = 502e6#Need to change
+
+
+[MultiApps]
+  [tempsolv]
+    type = TransientMultiApp
+    input_files = 'tempsolv.i'
+    cli_args = 'rho=${rho};thermal_conductivity=${thermal_conductivity};specific_heat=${specific_heat};'
+    execute_on = 'TIMESTEP_END'
+  []
+[]
+
+[Transfers]
+  [from_T]
+    type = MultiAppMeshFunctionTransfer
+    multi_app = tempsolv
+    direction = from_multiapp
+    variable = T
+    source_variable = T
+  []
+  [to_heat]
+    type = MultiAppCopyTransfer
+    multi_app = tempsolv
+    direction = to_multiapp
+    variable = heat
+    source_variable = heat
+  []
+[]
+
+
+[GlobalParams]
+  displacements = 'disp_x disp_y'
+  out_of_plane_strain = 'strain_zz'
+  volumetric_locking_correction = true
+[]
+
+[Mesh]
+  [fmg]
+    type = FileMeshGenerator
+    file = ../gold/doubleindent.msh
+  []
+ []
+
+[Variables]
+  [disp_x]
+  []
+  [disp_y]
+  []
+  [strain_zz]
+  []
+[]
+
+[AuxVariables]
+  [stress_x]
+    order = CONSTANT
+    family = MONOMIAL
+  []
+  [stress_y]
+    order = CONSTANT
+    family = MONOMIAL
+  []
+  [stress_xy]
+    order = CONSTANT
+    family = MONOMIAL
+  []
+  [stress_z]
+    order = CONSTANT
+    family = MONOMIAL
+  []
+  [pressure]
+    order = CONSTANT
+    family = MONOMIAL
+  []
+  [d]
+  []
+  #
+  [effective_plastic_strain]
+    order = CONSTANT
+    family = MONOMIAL
+  []
+  #
+  [F]
+    order = CONSTANT
+    family = MONOMIAL
+  []
+  [d]
+  []
+  [yield_stress]
+    order = CONSTANT
+    family = MONOMIAL
+  []
+  [T]
+    order = CONSTANT
+    family = MONOMIAL
+    initial_condition = 293
+  []
+[]
+
+[AuxKernels]
+  [stressx]
+    type = ADRankTwoAux
+    variable = stress_x
+    rank_two_tensor = stress
+    index_i = 0
+    index_j = 0
+  []
+  [stressy]
+    type = ADRankTwoAux
+    variable = stress_y
+    rank_two_tensor = stress
+    index_i = 1
+    index_j = 1
+  []
+  [stressz]
+    type = ADRankTwoAux
+    variable = stress_z
+    rank_two_tensor = stress
+    index_i = 2
+    index_j = 2
+  []
+  [stressxy]
+    type = ADRankTwoAux
+    variable = stress_xy
+    rank_two_tensor = stress
+    index_i = 0
+    index_j = 1
+  []
+  [pressure]
+    type = ParsedAux
+    variable = pressure
+    function = stress_x+stress_y+stress_z
+    args = 'stress_x stress_y stress_z'
+  []
+  [yield_stress]
+    type = ADMaterialRealAux
+    variable = yield_stress
+    property = yield_stress
+  []
+[]
+
+[Kernels]
+  [plane_stress]
+    type = ADWeakPlaneStress
+    variable = strain_zz
+  []
+  [solid_x]
+    type = ADDynamicStressDivergenceTensors
+    variable = disp_x
+    alpha = '${fparse -1/3}'
+    component = 0
+  []
+  [solid_y]
+    type = ADDynamicStressDivergenceTensors
+    variable = disp_y
+    alpha = '${fparse -1/3}'
+    component = 1
+  []
+  [inertia_x]
+    type = InertialForce
+    variable = disp_x
+    density = 'reg_density'
+  []
+  [inertia_y]
+    type = InertialForce
+    variable = disp_y
+    density = 'reg_density'
+  []
+[]
+
+[BCs]
+
+[topbc]
+  type = ADFunctionDirichletBC
+  variable = disp_y
+  function  = '-900*t'
+  boundary = top
+  preset = false
+[]
+[botbc]
+  type = DirichletBC
+  variable = disp_y
+  value = 0
+  boundary = bottom
+[]
+[fixpoint]
+  type = DirichletBC
+  variable = disp_x
+  boundary = fix
+  value = 0
+[]
+[]
+[Materials]
+[newtonian_viscosity]
+        type = LargeDeformationNewtonianViscosity
+
+[]
+
+
+  [defgrad]
+    type = ComputePlaneDeformationGradient
+  []
+  [bulk_properties]
+    type = ADGenericConstantMaterial
+    prop_names = 'K G l Gc psic density viscosity'
+    prop_values = '${fparse E/3/(1-2*nu)} ${fparse E/2/(1+nu)} ${l} ${Gc} ${psic} ${rho} ${eta}'
+  []
+  [nodeg]
+    type = NoDegradation
+    phase_field = d
+    f_name = nodeg
+  []
+  [degradation]
+    type = RationalDegradationFunction
+    f_name = g
+    phase_field = d
+    parameter_names = 'p a2 a3 eta'
+    parameter_values = '2 1 0 1e-06'
+  []
+  [reg_density]
+    type = MaterialConverter
+    ad_props_in = 'density'
+    reg_props_out = 'reg_density'
+  []
+  [crack_geometric]
+    type = CrackGeometricFunction
+    f_name = alpha
+    function = 'd'
+    phase_field = d
+  []
+  [hencky]
+    type = HenckyIsotropicElasticity
+    bulk_modulus = K
+    shear_modulus = G
+    phase_field = d
+    degradation_function = nodeg
+    decomposition = SPECTRAL
+    output_properties = 'elastic_strain psie_active'
+    outputs = exodus
+  []
+  [J2]
+    #type = SmallDeformationJ2Plasticity
+    type =  LargeDeformationJ2Plasticity
+    hardening_model = power_law_hardening
+    relative_tolerance = 1e-08
+    output_properties = 'effective_plastic_strain heat'
+    outputs = exodus
+  []
+  [power_law_hardening]
+    type = PowerLawHardening
+    exponent_n = '${fparse 1/0.107}'
+    taylor_quinney_factor = 0.9
+    sigma_0 = 405
+    T = T
+    reference_plastic_strain_rate = 1.5e6
+    exponent_m = '${fparse 1/0.0117}'
+    exponent_v =  -0.75
+    sigy_func = TAN
+    reference_plastic_strain = 0.012
+    phase_field = d
+    T0 = 300
+    degradation_function = nodeg
+    eps = 1e-8
+    output_properties = 'psip_active'
+    outputs = exodus
+  []
+  [stress]
+    type = ComputeLargeDeformationStress
+    #type = ComputeSmallDeformationStress
+    elasticity_model = hencky
+    plasticity_model = J2
+    viscoelasticity_model = newtonian_viscosity
+  []
+[]
+[Dampers]
+[damp]
+        type = ElementJacobianDamper
+        max_increment = 0.1
+[]
+[]
+[Executioner]
+  type = Transient
+  end_time = 0.00025
+#  dt = 0.0000001
+  #line_search = bt
+  #end_time = 5e-
+  solve_type = NEWTON
+  dtmin = 1e-20
+  nl_max_its = 20
+  nl_rel_tol = 1e-8
+  nl_abs_tol = 1e-8
+[TimeIntegrator]
+        type = NewmarkBeta
+        gamma = '${fparse 5/6}'
+        beta = '${fparse 4/9}'
+[]
+  [TimeStepper]
+     type = IterationAdaptiveDT
+     dt = 0.000001
+     optimal_iterations = 8
+     iteration_window = 3
+
+   []
+  petsc_options_iname = '-pc_type'
+  petsc_options_value = 'lu'
+  automatic_scaling = true
+  # [Quadrature]
+  #   order = CONSTANT
+  # []
+  fixed_point_max_its = 100
+   fixed_point_rel_tol = 1e-08
+   fixed_point_abs_tol = 1e-08
+   #fixed_point_rel_tol = 1e-06
+   #fixed_point_abs_tol = 1e-08
+   accept_on_max_fixed_point_iteration = true
+  # abort_on_solve_fail = true
+[]
+[Outputs]
+ file_base = 'exodusfiles/doublenotch/doublenotch_test'
+  print_linear_residuals = false
+  exodus = true
+  interval = 1
+  checkpoint = true
+[]
+# [Postprocessors]
+#
+#   [disp_x]
+#     type = AverageNodalVariableValue
+#     boundary = 'load'
+#     variable = disp_x
+#
+#   []
+#[]

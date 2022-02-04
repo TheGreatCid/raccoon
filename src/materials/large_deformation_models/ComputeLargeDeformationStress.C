@@ -48,7 +48,10 @@ ComputeLargeDeformationStress::ComputeLargeDeformationStress(const InputParamete
     _stress(declareADProperty<RankTwoTensor>(prependBaseName("stress"))),
     _maximum_number_substeps(getParam<unsigned>("maximum_number_substeps")),
     _max_inelastic_increment(getParam<Real>("max_inelastic_increment")),
-    _substep_strain_tolerance(getParam<Real>("substep_strain_tolerance"))
+    _substep_strain_tolerance(getParam<Real>("substep_strain_tolerance")),
+    _substep_its(declareADProperty<Real>(prependBaseName("substep_its"))),
+    _effective_fm_diff(declareADProperty<Real>(prependBaseName("effective_fm_diff"))),
+    _ratio(declareADProperty<Real>(prependBaseName("ratio")))
 
 {
   if (getParam<bool>("use_displaced_mesh"))
@@ -125,12 +128,16 @@ ComputeLargeDeformationStress::substepCheck(const ADRankTwoTensor & Fm_diff)
 
   if (!MooseUtils::absoluteFuzzyEqual(effective_elastic_diff, 0.0))
   {
-
+    _effective_fm_diff[_qp] = effective_elastic_diff;
     const Real ratiotest = (effective_elastic_diff) / (_max_inelastic_increment);
+    _ratio[_qp] = ratiotest;
+
     if (ratiotest > _substep_strain_tolerance)
     {
+      _effective_fm_diff[_qp] = effective_elastic_diff;
       //  std::cout << "here2" << std::endl;
       number_of_substeps = std::ceil(ratiotest / _substep_strain_tolerance);
+      //    std::cout << number_of_substeps << std::endl;
     }
   }
   if (number_of_substeps > _maximum_number_substeps)
@@ -166,6 +173,7 @@ ComputeLargeDeformationStress::substepping(const ADRankTwoTensor & Fm_diff,
     // std::cout << "current--" << MetaPhysicL::raw_value(_Fm[_qp](1, 1)) << std::endl;
 
     // state update with current deformation gradient
+    _substep_its[_qp] += 1;
     _elasticity_model->updateState(_temporary_deformation_gradient, _stress[_qp]);
   }
   // Reset Dt
