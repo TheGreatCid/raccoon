@@ -12,16 +12,13 @@ PowerLawHardening::validParams()
   InputParameters params = PlasticHardeningModel::validParams();
   params.addClassDescription("Plastic hardening following a power law.");
 
-  params.addRequiredParam<MaterialPropertyName>("exponent_n",
-                                                "The exponent n in the power law hardening $n$");
+  params.addRequiredParam<Real>("n", "The exponent n in the power law hardening $n$");
 
-  params.addRequiredParam<MaterialPropertyName>("exponent_v",
-                                                "The exponent v in the power law hardening $n$");
-  params.addRequiredParam<MaterialPropertyName>(
-      "reference_plastic_strain", "The $\\epsilon_0$ parameter in the power law hardening");
-  params.addRequiredParam<MaterialPropertyName>(
-      "reference_plastic_strain_rate",
-      "The ref plastic strain rate parameter in the power law hardening");
+  params.addRequiredParam<Real>("m", "The exponent v in the power law hardening $n$");
+  params.addRequiredParam<Real>("reference_plastic_strain",
+                                "The $\\epsilon_0$ parameter in the power law hardening");
+  params.addRequiredParam<Real>("reference_plastic_strain_rate",
+                                "The ref plastic strain rate parameter in the power law hardening");
   params.addRequiredCoupledVar("phase_field", "Name of the phase-field (damage) variable");
   params.addParam<MaterialPropertyName>(
       "plastic_energy_density",
@@ -41,20 +38,21 @@ PowerLawHardening::validParams()
       "The Taylor-Quinney factor. 1 (default) for purely dissipative, 0 for purely energetic.");
   params.addRequiredParam<Real>(
       "eps", "A small number to help this perfect plasticity model to converge.");
+  params.addRequiredParam<Real>("A", "A");
+  params.addRequiredParam<Real>("B", "B");
+  params.addRequiredParam<Real>("C", "C");
+  params.addRequiredParam<Real>("Tm", "Melting temperature");
   return params;
 }
 
 PowerLawHardening::PowerLawHardening(const InputParameters & parameters)
   : PlasticHardeningModel(parameters),
     DerivativeMaterialPropertyNameInterface(),
-    _n(getADMaterialProperty<Real>(prependBaseName("exponent_n", true))),
-    _v(getADMaterialProperty<Real>(prependBaseName("exponent_v", true))),
-
-    _ep0(getADMaterialProperty<Real>(prependBaseName("reference_plastic_strain", true))),
-    _epdot0(getADMaterialProperty<Real>(prependBaseName("reference_plastic_strain_rate", true))),
-
+    _n(getParam<Real>("n")),
+    _m(getParam<Real>("m")),
+    _ep0(getParam<Real>("reference_plastic_strain")),
+    _epdot0(getParam<Real>("reference_plastic_strain_rate")),
     _d_name(getVar("phase_field", 0)->name()),
-
     // The strain energy density and its derivatives
     _psip_name(prependBaseName("plastic_energy_density", true)),
     _psip(declareADProperty<Real>(_psip_name)),
@@ -70,62 +68,31 @@ PowerLawHardening::PowerLawHardening(const InputParameters & parameters)
     _sigy_func(getParam<MooseEnum>("sigy_func").getEnum<Sigy_func>()),
     _T(adCoupledValue(prependBaseName("T"))),
     _tqf(getParam<Real>("taylor_quinney_factor")),
-    _eps(getParam<Real>("eps"))
+    _eps(getParam<Real>("eps")),
+    _A(getParam<Real>("A")),
+    _B(getParam<Real>("B")),
+    _C(getParam<Real>("C")),
+    _Tm(getParam<Real>("Tm"))
+
 {
 }
 ADReal
-PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivative)
+PowerLawHardening::plasticEnergy(const ADReal & /*ep*/, const unsigned int derivative)
 {
-  // if (_sigy_func == Sigy_func::exp)
-  // {
-  //   std::cout
-  //       << "get here--------------------------------------------------------------------------"
-  //       << std::endl;
-  //
-  //   _sigma_y[_qp] = _sigma_0[_qp] * (std::exp((_T0 - _T[_qp]) / 500));
-  // }
-  // else if (_sigy_func == Sigy_func::piece)
-  // {
-  //   _sigma_y[_qp] = _sigma_0[_qp] * piecewise(); //(std::exp((_T0[_qp] - _T[_qp]) / 500));
-  //   std::cout
-  //       << "get here--------------------------------------------------------------------------"
-  //       << std::endl;    return  std::pow(delta_ep / (_dt * _epdot0[_qp]), (1 / _m[_qp]) - 1) /
-  // (_dt * _epdot0[_qp] * _m[_qp]);
 
-  // }
-  // else
-  // {
-  // This JC Model For testing. It also has impacts in the LDJ2 by multiplying energy by
-  // ln(epdot/eddot0) _sigma_y[_qp] =
-  //(758+402*std::pow(ep,0.26))*(1-std::pow(((_T[_qp]-_T0)/(1500+275-_T0)),1.13));
-  //  _sigma_y[_qp] = _sigma_0[_qp] * ((-0.35) * std::atan(0.01 * _T[_qp] - 9.25) + 0.45);
-
-  // Another Test
-  // std::cout << raw_value(std::pow(_T[_qp] / _T0, _v[_qp])) << std::endl;
-  _sigma_y[_qp] = _sigma_0[_qp] * std::pow(_T[_qp] / _T0, _v[_qp]);
-  //_sigma_y[_qp] = _sigma_0[_qp];
-  //_sigma_y[_qp] = _sigma_0[_qp];
-  // }
-
-  // else
-  // {
-  //   paramError("sigy_func", "Wrong function input");
-  // }
   if (derivative == 0)
   {
-    _psip_active[_qp] = (1 - _tqf) * _n[_qp] * _sigma_y[_qp] * _ep0[_qp] / (_n[_qp] + 1) *
-                        (std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] + 1) - 1);
+    _psip_active[_qp] = 0;
     _psip[_qp] = _gp[_qp] * _psip_active[_qp];
     _dpsip_dd[_qp] = _dgp_dd[_qp] * _psip_active[_qp];
     return _psip[_qp];
   }
 
   if (derivative == 1)
-    return (1 - _tqf) * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp]);
+    return 0;
 
   if (derivative == 2)
-    return (1 - _tqf) * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] - 1) /
-           _n[_qp] / _ep0[_qp];
+    return 0;
 
   mooseError(name(), "internal error: unsupported derivative order.");
   return 0;
@@ -136,27 +103,57 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
                                       const ADReal & ep,
                                       const unsigned int derivative)
 {
+  if (ep == 0 || delta_ep == 0)
+  {
+    if ((delta_ep == 0 && ep != 0) || ep < 0)
+    {
+      _sigma_y[_qp] = _sigma_0[_qp] * (_A + _B * std::pow(ep / _ep0, _n)) *
+                      (1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m));
+    }
+    if (ep == 0)
+    {
+      _sigma_y[_qp] = _sigma_0[_qp] * (1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m));
+    }
+  }
+  else
+    _sigma_y[_qp] = _sigma_0[_qp] * (_A + _B * std::pow(ep / _ep0, _n)) * ((_C * _dt) / delta_ep) *
+                    (1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m));
   if (derivative == 0)
-    return _tqf * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], (_n[_qp] + 1) / 1) * delta_ep / _dt;
+  {
+    if (delta_ep == 0)
+      return _tqf * _gp[_qp] * _sigma_0[_qp] * (1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m));
 
+    return _tqf * _gp[_qp] * _sigma_y[_qp] * (_A + _B * std::pow(ep / _ep0, _n)) *
+           (_C * delta_ep / _dt * std::log(delta_ep / _dt / _epdot0) +
+            (delta_ep / _dt) * (-_C + 1)) *
+           (1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m));
+  }
   if (derivative == 1)
+  {
+    if (delta_ep <= 0 || ep <= 0)
+      return _sigma_y[_qp];
 
-    return _tqf * _sigma_y[_qp] * std::pow((1 + ep / _ep0[_qp]), 1 / _n[_qp]);
-
+    return _dt * _gp[_qp] * _tqf * _sigma_0[_qp] * (_A + _B * std::pow(ep / _ep0, _n)) *
+           ((_C * _dt) / delta_ep) * (1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m));
+  }
   if (derivative == 2)
-
-    return _tqf * _gp[_qp] * _sigma_y[_qp] * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp] - 1) /
-           _n[_qp] / _ep0[_qp];
+  {
+    if (delta_ep <= 0 || ep <= 0)
+      return _sigma_y[_qp];
+    return _dt * _tqf * _gp[_qp] * _sigma_0[_qp] *
+               (_B * _C * _n * _dt * std::pow(ep / _ep0, _n - 1)) / (_ep0 * delta_ep) -
+           (_C * _dt * (_A + _B * std::pow(ep / _ep0, _n))) / (delta_ep * delta_ep) *
+               (1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m));
+  }
   mooseError(name(), "internal error: unsupported derivative order.");
   return 0;
 }
 
 ADReal
-PowerLawHardening::thermalConjugate(const ADReal & ep)
+PowerLawHardening::thermalConjugate(const ADReal & /*ep*/)
 {
   // return 0 * ep;
-  return _T[_qp] * (1 - _tqf) * _gp[_qp] * _sigma_0[_qp] * std::pow(_T[_qp] / _T0, _v[_qp]) *
-         (_v[_qp] / _T0) * std::pow(1 + ep / _ep0[_qp], 1 / _n[_qp]);
+  return 0;
 }
 
 ADReal

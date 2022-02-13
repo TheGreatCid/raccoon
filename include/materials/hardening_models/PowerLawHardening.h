@@ -28,11 +28,10 @@ public:
 
 protected:
   // @{ The plastic energy parameters
-  const ADMaterialProperty<Real> & _n;
-  const ADMaterialProperty<Real> & _v;
-
-  const ADMaterialProperty<Real> & _ep0;
-  const ADMaterialProperty<Real> & _epdot0;
+  const Real _n;
+  const Real _m;
+  const Real _ep0;
+  const Real _epdot0;
 
   // @}
 
@@ -56,6 +55,10 @@ protected:
   const ADVariableValue & _T;
   const Real _tqf;
   const Real _eps;
+  const Real _A;
+  const Real _B;
+  const Real _C;
+  const Real _Tm;
 
   // @}
 };
