@@ -98,8 +98,6 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
       _psip_active[_qp] =
           _sigma_0[_qp] * (_A * ep + _B * std::pow(ep / _ep0, _n) / (_n + 1)) * temp();
     }
-    _psip_active[_qp] =
-        _sigma_0[_qp] * (_A * ep + _B * std::pow(ep / _ep0, _n) / (_n + 1)) * temp();
     _psip[_qp] = _gp[_qp] * _psip_active[_qp];
     _dpsip_dd[_qp] = _dgp_dd[_qp] * _psip_active[_qp];
     return _psip[_qp];
@@ -120,7 +118,9 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
       return 0;
     }
     else
+    {
       return (1 - _tqf) * _sigma_0[_qp] * temp() * (_B * _n * std::pow(ep / _ep0, _n)) / ep;
+    }
   }
   mooseError(name(), "internal error: unsupported derivative order.");
 }
@@ -130,15 +130,13 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
                                       const ADReal & ep,
                                       const unsigned int derivative)
 {
-  // must catch ep = 0 errors
+  // must catch delta_ep = 0 errors
 
   if (derivative == 0)
   {
-    if (ep < 0 || delta_ep <= 0)
+    if (delta_ep <= 0)
     {
-      return _sigma_0[_qp] * temp() *
-             (_A + _B * std::pow(ep / _ep0, _n) + _A * ep +
-              _B * std::pow(ep / _ep0, _n) / (_n + 1));
+      return _B * std::pow(ep / _ep0, _n) / (_n + 1);
     }
     else
     {
@@ -150,10 +148,9 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
   }
   if (derivative == 1)
   {
-    if (ep <= 0 || delta_ep <= 0)
+    if (delta_ep <= 0)
     {
-      std::cout << raw_value(ep) << std::endl;
-      return _sigma_0[_qp] * temp();
+      return _sigma_0[_qp] * temp() * _tqf * (_A + _B * std::pow(ep / _epdot0, _n));
     }
     else
     {
@@ -165,9 +162,10 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
   }
   if (derivative == 2)
   {
+
     if (ep <= 0 || delta_ep <= 0)
     {
-      return _sigma_0[_qp] * temp();
+      return 0;
     }
     else
     {

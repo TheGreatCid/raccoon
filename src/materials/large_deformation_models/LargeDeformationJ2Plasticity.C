@@ -17,7 +17,9 @@ LargeDeformationJ2Plasticity::validParams()
 }
 
 LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters & parameters)
-  : LargeDeformationPlasticityModel(parameters), _heat(declareADProperty<Real>("heat"))
+  : LargeDeformationPlasticityModel(parameters),
+    returnMappingJ2(parameters),
+    _heat(declareADProperty<Real>("heat"))
 {
 }
 
@@ -42,7 +44,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   ADReal phi = computeResidual(stress_dev_norm, delta_ep);
   if (phi > 0)
   {
-    returnMappingSolve(stress_dev_norm, delta_ep, _console);
+    returnMappingSolveJ2(stress_dev_norm, delta_ep);
   }
   _ep[_qp] = _ep_old[_qp] + delta_ep;
   ADRankTwoTensor delta_Fp = RaccoonUtils::exp(delta_ep * _Np[_qp]);
@@ -86,7 +88,15 @@ LargeDeformationJ2Plasticity::computeResidual(const ADReal & effective_trial_str
   // std::cout << "3-" << raw_value( _hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 1)) <<
   // std::endl; std::cout << "4-" << raw_value(_hardening_model->plasticDissipation(delta_ep,
   // _ep_old[_qp] + delta_ep, 1)) << std::endl;
-
+  // std::cout << raw_value(delta_ep) << std::endl;
+  // std::cout << "1 " << raw_value(_hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 1))
+  //           << std::endl;
+  // std::cout << raw_value(delta_ep) << std::endl;
+  //
+  // std::cout << "2 "
+  //           << raw_value(_hardening_model->plasticDissipation(delta_ep, _ep_old[_qp] + delta_ep,
+  //           1))
+  //           << std::endl;
   return effective_trial_stress -
          _elasticity_model->computeMandelStress(delta_ep * _Np[_qp], /*plasticity_update = */ true)
              .doubleContraction(_Np[_qp]) -
