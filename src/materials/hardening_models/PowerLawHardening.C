@@ -76,26 +76,53 @@ PowerLawHardening::PowerLawHardening(const InputParameters & parameters)
 
 {
 }
+
 ADReal
-PowerLawHardening::plasticEnergy(const ADReal & /*ep*/, const unsigned int derivative)
+PowerLawHardening::temp()
+{
+  return (1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m));
+}
+
+ADReal
+PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivative)
 {
 
   if (derivative == 0)
   {
-    _psip_active[_qp] = 0;
+    if (ep < 0)
+    {
+      _psip_active[_qp] = _sigma_0[_qp] * temp();
+    }
+    else
+    {
+      _psip_active[_qp] =
+          _sigma_0[_qp] * (_A * ep + _B * std::pow(ep / _ep0, _n) / (_n + 1)) * temp();
+    }
+    _psip_active[_qp] =
+        _sigma_0[_qp] * (_A * ep + _B * std::pow(ep / _ep0, _n) / (_n + 1)) * temp();
     _psip[_qp] = _gp[_qp] * _psip_active[_qp];
     _dpsip_dd[_qp] = _dgp_dd[_qp] * _psip_active[_qp];
     return _psip[_qp];
   }
 
   if (derivative == 1)
-    return 0;
-
+  {
+    if (ep < 0)
+    {
+      return (1 - _tqf) * _sigma_0[_qp] * temp() * _A;
+    }
+    return (1 - _tqf) * _sigma_0[_qp] * (_A + _B * std::pow(ep / _ep0, _n)) * temp();
+  }
   if (derivative == 2)
-    return 0;
-
+  {
+    if (ep <= 0)
+    {
+      return 0;
+    }
+    else
+      return (1 - _tqf) * _sigma_0[_qp] * temp() * (_B * _n * std::pow(ep / _ep0, _n)) / ep;
+  }
   mooseError(name(), "internal error: unsupported derivative order.");
-  return 0;
 }
 
 ADReal // Need to calculate this and add it accordingly
@@ -103,47 +130,55 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
                                       const ADReal & ep,
                                       const unsigned int derivative)
 {
-  if (ep == 0 || delta_ep == 0)
-  {
-    if ((delta_ep == 0 && ep != 0) || ep < 0)
-    {
-      _sigma_y[_qp] = _sigma_0[_qp] * (_A + _B * std::pow(ep / _ep0, _n)) *
-                      (1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m));
-    }
-    if (ep == 0)
-    {
-      _sigma_y[_qp] = _sigma_0[_qp] * (1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m));
-    }
-  }
-  else
-    _sigma_y[_qp] = _sigma_0[_qp] * (_A + _B * std::pow(ep / _ep0, _n)) * ((_C * _dt) / delta_ep) *
-                    (1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m));
+  // must catch ep = 0 errors
+
   if (derivative == 0)
   {
-    if (delta_ep == 0)
-      return _tqf * _gp[_qp] * _sigma_0[_qp] * (1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m));
-
-    return _tqf * _gp[_qp] * _sigma_y[_qp] * (_A + _B * std::pow(ep / _ep0, _n)) *
-           (_C * delta_ep / _dt * std::log(delta_ep / _dt / _epdot0) +
-            (delta_ep / _dt) * (-_C + 1)) *
-           (1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m));
+    if (ep < 0 || delta_ep <= 0)
+    {
+      return _sigma_0[_qp] * temp() *
+             (_A + _B * std::pow(ep / _ep0, _n) + _A * ep +
+              _B * std::pow(ep / _ep0, _n) / (_n + 1));
+    }
+    else
+    {
+      return _sigma_0[_qp] * temp() *
+             ((_A + _B * std::pow(ep / _ep0, _n)) *
+                  (_C * delta_ep * std::log(delta_ep / _dt / _epdot0) - 1) +
+              (_A * ep + _B * std::pow(ep / _ep0, _n) / (_n + 1)));
+    }
   }
   if (derivative == 1)
   {
-    if (delta_ep <= 0 || ep <= 0)
-      return _sigma_y[_qp];
+    if (ep <= 0 || delta_ep <= 0)
+    {
+      std::cout << raw_value(ep) << std::endl;
+      return _sigma_0[_qp] * temp();
+    }
+    else
+    {
 
-    return _dt * _gp[_qp] * _tqf * _sigma_0[_qp] * (_A + _B * std::pow(ep / _ep0, _n)) *
-           ((_C * _dt) / delta_ep) * (1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m));
+      return _sigma_0[_qp] * temp() *
+             (_A + _B * std::pow(ep / _ep0, _n) * _C * std::log(delta_ep / _epdot0) +
+              _tqf * (_A + _B * std::pow(ep / _epdot0, _n)));
+    }
   }
   if (derivative == 2)
   {
-    if (delta_ep <= 0 || ep <= 0)
-      return _sigma_y[_qp];
-    return _dt * _tqf * _gp[_qp] * _sigma_0[_qp] *
-               (_B * _C * _n * _dt * std::pow(ep / _ep0, _n - 1)) / (_ep0 * delta_ep) -
-           (_C * _dt * (_A + _B * std::pow(ep / _ep0, _n))) / (delta_ep * delta_ep) *
-               (1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m));
+    if (ep <= 0 || delta_ep <= 0)
+    {
+      return _sigma_0[_qp] * temp();
+    }
+    else
+    {
+      return _sigma_0[_qp] * temp() *
+             ((_C * (_A * _ep0 +
+                     _B * std::pow(ep / _ep0, _n - 1) * _n * delta_ep *
+                         std::log(delta_ep / _epdot0 * _dt) +
+                     ep)) /
+                  (_ep0 * delta_ep) +
+              _tqf * (_B * _n * std::pow(ep / _ep0, _n)) / ep);
+    }
   }
   mooseError(name(), "internal error: unsupported derivative order.");
   return 0;

@@ -27,6 +27,7 @@ public:
   //                                   const unsigned int derivative);
 
 protected:
+  ADReal temp();
   // @{ The plastic energy parameters
   const Real _n;
   const Real _m;
