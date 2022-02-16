@@ -28,6 +28,7 @@ returnMappingJ2::validParams()
                         "Factor applied to relative and absolute "
                         "tolerance for acceptable convergence if "
                         "iterations are no longer making progress");
+  params.addParam<Real>("lower_bound", 0, "lower bound for return mapping");
   return params;
 }
 
@@ -40,7 +41,8 @@ returnMappingJ2::returnMappingJ2(const InputParameters & parameters)
     _iteration(0),
     _initial_residual(0.0),
     _residual(0.0),
-    _max_its(1000)
+    _max_its(1000),
+    _lower_bound(parameters.get<Real>("lower_bound"))
 {
 }
 
@@ -68,15 +70,16 @@ returnMappingJ2::newtonIterations(const ADReal & effective_trial_stress, ADReal 
     scalar_increment = -_residual / computeDerivative(effective_trial_stress, scalar);
     scalar = scalar_old + scalar_increment;
     // Catch the lower limit
-    if (scalar < 0)
+    if (scalar < _lower_bound)
     {
       scalar = scalar_old;
+      // Stop newton iterations go to bo bifurication method
       return false;
     }
     scalar_old = scalar;
-    // Catch bad values
+    // Catch bad values -- Need to replace with solve state methods
     if (std::isnan(_residual) || std::isinf(MetaPhysicL::raw_value(_residual)))
-      std::cout << "NAN or INF redidual encountered" << std::endl;
+      std::cout << "NAN or INF residual encountered" << std::endl;
 
     if (_iteration == _max_its)
       std::cout << "REACHED MAX ITS" << std::endl;
@@ -87,31 +90,40 @@ returnMappingJ2::newtonIterations(const ADReal & effective_trial_stress, ADReal 
 void
 returnMappingJ2::bilinearIterations(const ADReal & effective_trial_stress, ADReal & scalar)
 {
-  ADReal lower = 0;
+  ADReal lower = _lower_bound;
   ADReal upper = scalar;
   _iteration = 0;
-  while (_iteration < _max_its && (lower - upper) > _absolute_tolerance)
+  ADReal midpoint;
+  if (computeResidual(effective_trial_stress, lower) *
+          computeResidual(effective_trial_stress, upper) >
+      0)
+  {
+    mooseException("Bisection Failed, no meaningful root found");
+  }
+
+  while (_iteration < _max_its && std::abs(upper - lower) > _absolute_tolerance)
   {
     // Use scalar value before NR went below zero, find midpoint
-    ADReal scalar = (lower + upper) / 2;
+    midpoint = (lower + upper) / 2;
 
-    if (computeResidual(effective_trial_stress, upper) *
+    if (computeResidual(effective_trial_stress, midpoint) *
             computeResidual(effective_trial_stress, lower) <
         0)
     {
-      upper = scalar;
+      upper = midpoint;
     }
     else
     {
-      lower = scalar;
+      lower = midpoint;
     }
     // Catch bad values
     if (std::isnan(_residual) || std::isinf(MetaPhysicL::raw_value(_residual)))
-      std::cout << "NAN or INF redidual encountered" << std::endl;
+      mooseException("NAN or INF residual encountered");
 
     if (_iteration == _max_its)
-      std::cout << "REACHED MAX ITS" << std::endl;
+      mooseException("REACHED MAX ITS");
   }
+  scalar = midpoint;
 }
 
 // This is pulled fropm ADSingleVariableReturnMapping

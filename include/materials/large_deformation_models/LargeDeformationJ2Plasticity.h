@@ -5,9 +5,8 @@
 #pragma once
 
 #include "LargeDeformationPlasticityModel.h"
-#include "returnMappingJ2.h"
 
-class LargeDeformationJ2Plasticity : public LargeDeformationPlasticityModel, public returnMappingJ2
+class LargeDeformationJ2Plasticity : public LargeDeformationPlasticityModel
 {
 public:
   static InputParameters validParams();
