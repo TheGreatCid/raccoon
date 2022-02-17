@@ -14,7 +14,7 @@ PowerLawHardening::validParams()
 
   params.addRequiredParam<Real>("n", "The exponent n in the power law hardening $n$");
 
-  params.addRequiredParam<Real>("m", "The exponent v in the power law hardening $n$");
+  params.addRequiredParam<Real>("m", "The exponent m in the power law hardening $n$");
   params.addRequiredParam<Real>("reference_plastic_strain",
                                 "The $\\epsilon_0$ parameter in the power law hardening");
   params.addRequiredParam<Real>("reference_plastic_strain_rate",
@@ -89,15 +89,10 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
 
   if (derivative == 0)
   {
-    if (ep < 0)
-    {
-      _psip_active[_qp] = _sigma_0[_qp] * temp();
-    }
-    else
-    {
-      _psip_active[_qp] =
-          _sigma_0[_qp] * (_A * ep + _B * std::pow(ep / _ep0, _n) / (_n + 1)) * temp();
-    }
+
+    _psip_active[_qp] =
+        _sigma_0[_qp] * (_A * ep + _B * std::pow(ep / _ep0, _n) / (_n + 1)) * temp();
+
     _psip[_qp] = _gp[_qp] * _psip_active[_qp];
     _dpsip_dd[_qp] = _dgp_dd[_qp] * _psip_active[_qp];
     return _psip[_qp];
@@ -105,10 +100,7 @@ PowerLawHardening::plasticEnergy(const ADReal & ep, const unsigned int derivativ
 
   if (derivative == 1)
   {
-    if (ep < 0)
-    {
-      return (1 - _tqf) * _sigma_0[_qp] * temp() * _A;
-    }
+
     return (1 - _tqf) * _sigma_0[_qp] * (_A + _B * std::pow(ep / _ep0, _n)) * temp();
   }
   if (derivative == 2)
@@ -134,9 +126,9 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
 
   if (derivative == 0)
   {
-    if (delta_ep <= 0)
+    if (MooseUtils::absoluteFuzzyEqual(delta_ep, 0))
     {
-      return _B * std::pow(ep / _ep0, _n) / (_n + 1);
+      return 0;
     }
     else
     {
@@ -148,9 +140,9 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
   }
   if (derivative == 1)
   {
-    if (delta_ep <= 0)
+    if (MooseUtils::absoluteFuzzyEqual(delta_ep, 0))
     {
-      return _sigma_0[_qp] * temp() * _tqf * (_A + _B * std::pow(ep / _epdot0, _n));
+      return 0;
     }
     else
     {
@@ -163,7 +155,7 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
   if (derivative == 2)
   {
 
-    if (ep <= 0 || delta_ep <= 0)
+    if (MooseUtils::absoluteFuzzyEqual(delta_ep, 0))
     {
       return 0;
     }
@@ -183,10 +175,12 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
 }
 
 ADReal
-PowerLawHardening::thermalConjugate(const ADReal & /*ep*/)
+PowerLawHardening::thermalConjugate(const ADReal & ep)
 {
   // return 0 * ep;
-  return 0;
+  // std::cout << raw_value((_T[_qp])) << std::endl;
+  return _T[_qp] * _sigma_0[_qp] * (1 - _tqf) * (_A + _B * std::pow(ep / _epdot0, _n)) *
+         (_m * (std::pow((_T0 - _T[_qp]) / (_T0 - _Tm), _m))) / (_T0 - _T[_qp]);
 }
 
 ADReal

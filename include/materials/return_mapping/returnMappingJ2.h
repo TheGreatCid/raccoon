@@ -52,4 +52,6 @@ private:
   ///@}
 
   const unsigned int _max_its;
+
+  const Real _lower_bound;
 };

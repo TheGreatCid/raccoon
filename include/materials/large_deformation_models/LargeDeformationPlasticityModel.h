@@ -6,14 +6,14 @@
 
 #include "Material.h"
 #include "ADRankTwoTensorForward.h"
-#include "ADSingleVariableReturnMappingSolution.h"
+#include "returnMappingJ2.h"
 #include "BaseNameInterface.h"
 #include "PlasticHardeningModel.h"
 
 class LargeDeformationElasticityModel;
 
 class LargeDeformationPlasticityModel : public Material,
-                                        public ADSingleVariableReturnMappingSolution,
+                                        public returnMappingJ2,
                                         public BaseNameInterface
 {
 public:
