@@ -13,6 +13,7 @@ LargeDeformationJ2Plasticity::validParams()
   InputParameters params = LargeDeformationPlasticityModel::validParams();
   params.addClassDescription("Large deformation $J_2$ plasticity. The exponential constitutive "
                              "update is used to update the plastic deformation.");
+  params += returnMappingJ2::validParams();
   return params;
 }
 
