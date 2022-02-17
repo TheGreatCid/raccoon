@@ -9,7 +9,7 @@ InputParameters
 LargeDeformationPlasticityModel::validParams()
 {
   InputParameters params = Material::validParams();
-  params += returnMappingJ2::validParams();
+  params += ADSingleVariableReturnMappingSolution::validParams();
   params += BaseNameInterface::validParams();
 
   params.addRequiredParam<MaterialName>("hardening_model", "Name of the plastic hardening model");
@@ -22,7 +22,7 @@ LargeDeformationPlasticityModel::validParams()
 
 LargeDeformationPlasticityModel::LargeDeformationPlasticityModel(const InputParameters & parameters)
   : Material(parameters),
-    returnMappingJ2(parameters),
+    ADSingleVariableReturnMappingSolution(parameters),
     BaseNameInterface(parameters),
     _Fp(declareADProperty<RankTwoTensor>(prependBaseName("plastic_deformation_gradient"))),
     _Fp_old(getMaterialPropertyOldByName<RankTwoTensor>(
