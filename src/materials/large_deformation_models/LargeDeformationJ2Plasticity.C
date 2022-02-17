@@ -17,9 +17,11 @@ LargeDeformationJ2Plasticity::validParams()
 }
 
 LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters & parameters)
-  : LargeDeformationPlasticityModel(parameters), _heat(declareADProperty<Real>("heat"))
+  : LargeDeformationPlasticityModel(parameters),
+    returnMappingJ2(parameters),
+    _heat(declareADProperty<Real>("heat"))
+
 {
-  _check_range = true;
 }
 
 void
@@ -43,7 +45,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   ADReal phi = computeResidual(stress_dev_norm, delta_ep);
   if (phi > 0)
   {
-    returnMappingSolve(stress_dev_norm, delta_ep, _console);
+    returnMappingSolveJ2(stress_dev_norm, delta_ep);
   }
   _ep[_qp] = _ep_old[_qp] + delta_ep;
   ADRankTwoTensor delta_Fp = RaccoonUtils::exp(delta_ep * _Np[_qp]);
