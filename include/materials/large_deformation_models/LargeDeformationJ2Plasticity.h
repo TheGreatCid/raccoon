@@ -5,9 +5,8 @@
 #pragma once
 
 #include "LargeDeformationPlasticityModel.h"
-#include "returnMappingJ2.h"
 
-class LargeDeformationJ2Plasticity : public LargeDeformationPlasticityModel, public returnMappingJ2
+class LargeDeformationJ2Plasticity : public LargeDeformationPlasticityModel
 {
 public:
   static InputParameters validParams();
@@ -15,6 +14,7 @@ public:
   LargeDeformationJ2Plasticity(const InputParameters & parameters);
 
   virtual void updateState(ADRankTwoTensor & stress, ADRankTwoTensor & Fe) override;
+  virtual ADReal minimumPermissibleValue(const ADReal &) const override { return 0; }
 
 protected:
   virtual ADReal computeResidual(const ADReal & effective_trial_stress,
