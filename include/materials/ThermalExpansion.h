@@ -29,7 +29,7 @@ protected:
   const MaterialProperty<RankTwoTensor> & _Fg_old;
 
   // The thermal expansion coefficient
-  const Function & _alpha;
+  const Real _alpha;
 
   // The current temperature
   const ADVariableValue & _T;
