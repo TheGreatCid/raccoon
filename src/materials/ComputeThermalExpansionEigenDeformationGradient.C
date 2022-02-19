@@ -2,12 +2,12 @@
 //* being developed at Dolbow lab at Duke University
 //* http://dolbow.pratt.duke.edu
 
-#include "ComputeInstantaneousThermalExpansionEigenDeformationGradient.h"
+#include "ComputeThermalExpansionEigenDeformationGradient.h"
 
-registerADMooseObject("raccoonApp", ComputeInstantaneousThermalExpansionEigenDeformationGradient);
+registerADMooseObject("raccoonApp", ComputeThermalExpansionEigenDeformationGradient);
 
 InputParameters
-ComputeInstantaneousThermalExpansionEigenDeformationGradient::validParams()
+ComputeThermalExpansionEigenDeformationGradient::validParams()
 {
   InputParameters params = Material::validParams();
   params += BaseNameInterface::validParams();
@@ -29,34 +29,29 @@ ComputeInstantaneousThermalExpansionEigenDeformationGradient::validParams()
   return params;
 }
 
-ComputeInstantaneousThermalExpansionEigenDeformationGradient::
-    ComputeInstantaneousThermalExpansionEigenDeformationGradient(const InputParameters & parameters)
+ComputeThermalExpansionEigenDeformationGradient::ComputeThermalExpansionEigenDeformationGradient(
+    const InputParameters & parameters)
   : Material(parameters),
     BaseNameInterface(parameters),
     _Fg(declareADProperty<RankTwoTensor>(prependBaseName("eigen_deformation_gradient_name", true))),
-    _Fg_old(getMaterialPropertyOldByName<RankTwoTensor>(
-        prependBaseName("eigen_deformation_gradient_name", true))),
     _alpha(getFunction("thermal_expansion_function")),
     _T(adCoupledValue("temperature")),
-    _T_old(coupledValueOld("temperature")),
     _T0(coupledValue("reference_temperature"))
 {
 }
 
 void
-ComputeInstantaneousThermalExpansionEigenDeformationGradient::initQpStatefulProperties()
+ComputeThermalExpansionEigenDeformationGradient::initQpStatefulProperties()
 {
-  _Fg[_qp].setToIdentity();
+  computeQpProperties();
 }
 
 void
-ComputeInstantaneousThermalExpansionEigenDeformationGradient::computeQpProperties()
+ComputeThermalExpansionEigenDeformationGradient::computeQpProperties()
 {
-  const Real old_temp = _t_step <= 1 ? _T0[_qp] : _T_old[_qp];
-
   const Point p;
   const Real alpha = _alpha.value(MetaPhysicL::raw_value(_T[_qp]), p);
-  const Real alpha_old = _alpha.value(old_temp, p);
-  const Real alpha_avg = (alpha + alpha_old) / 2;
-  _Fg[_qp] = (1 + alpha_avg * (_T[_qp] - old_temp)) * _Fg_old[_qp];
+
+  _Fg[_qp].setToIdentity();
+  _Fg[_qp] *= 1 + alpha * (_T[_qp] - _T0[_qp]);
 }
