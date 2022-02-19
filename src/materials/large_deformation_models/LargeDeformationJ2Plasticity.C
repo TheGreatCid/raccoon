@@ -20,8 +20,6 @@ LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters
   : LargeDeformationPlasticityModel(parameters)
 {
   _check_range = true;
-  _line_search = false;
-  _bracket_solution = false;
 }
 
 void

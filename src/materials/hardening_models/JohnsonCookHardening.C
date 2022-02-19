@@ -119,32 +119,29 @@ JohnsonCookHardening::plasticDissipation(const ADReal & delta_ep,
 
   if (derivative == 0)
   {
-    ADReal result = (_A + _B * std::pow(ep / _ep0, _n)) * _tqf * delta_ep;
+    result += (_A + _B * std::pow(ep / _ep0, _n)) * _tqf * delta_ep;
     if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
       result += (_A + _B * std::pow(ep / _ep0, _n)) *
                 (_C * std::log(delta_ep / _dt / _epdot0) - _C) * delta_ep;
-    result *= _sigma_0[_qp] * temperatureDependence();
   }
 
   if (derivative == 1)
   {
-    ADReal result = (_A + _B * std::pow(ep / _ep0, _n)) * _tqf;
+    result += (_A + _B * std::pow(ep / _ep0, _n)) * _tqf;
     if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
       result += (_A + _B * std::pow(ep / _ep0, _n)) * (_C * std::log(delta_ep / _dt / _epdot0));
-    result *= _sigma_0[_qp] * temperatureDependence();
   }
 
   if (derivative == 2)
   {
-    ADReal result = _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 * _tqf;
+    result += _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 * _tqf;
     if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
       result +=
           (_A + _B * std::pow(ep / _ep0, _n)) * _C / delta_ep +
           _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 * _C * std::log(delta_ep / _dt / _epdot0);
-    result *= _sigma_0[_qp] * temperatureDependence();
   }
 
-  return result;
+  return result * _sigma_0[_qp] * temperatureDependence();
 
   mooseError(name(), "internal error: unsupported derivative order.");
 }
