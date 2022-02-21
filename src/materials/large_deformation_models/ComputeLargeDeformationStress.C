@@ -23,6 +23,17 @@ ComputeLargeDeformationStress::validParams()
   params.addParam<MaterialName>("viscoelasticity_model", "Name of the viscoelasticity model");
 
   params.suppressParameter<bool>("use_displaced_mesh");
+  params.addParam<Real>("substep_strain_tolerance",
+                        0.1,
+                        "Maximum ratio of the initial elastic strain increment at start of the "
+                        "return mapping solve to the maximum inelastic strain allowable in a "
+                        "single substep. Reduce this value to increase the number of substeps");
+  params.addParam<unsigned>("maximum_number_substeps",
+                            1000,
+                            "The maximum number of substeps allowed before cutting the time step.");
+  params.addParam<Real>("max_inelastic_increment",
+                        1e-4,
+                        "The maximum inelastic strain increment allowed in a time step");
   return params;
 }
 
@@ -30,11 +41,13 @@ ComputeLargeDeformationStress::ComputeLargeDeformationStress(const InputParamete
   : Material(parameters),
     BaseNameInterface(parameters),
     _Fm(getADMaterialProperty<RankTwoTensor>(prependBaseName("mechanical_deformation_gradient"))),
-    _Fm_old(isParamValid("viscoelasticity_model")
-                ? &getMaterialPropertyOld<RankTwoTensor>(
-                      prependBaseName("mechanical_deformation_gradient"))
-                : nullptr),
-    _stress(declareADProperty<RankTwoTensor>(prependBaseName("stress")))
+    _Fm_old(
+        getMaterialPropertyOld<RankTwoTensor>(prependBaseName("mechanical_deformation_gradient"))),
+    _stress(declareADProperty<RankTwoTensor>(prependBaseName("stress"))),
+    _maximum_number_substeps(getParam<unsigned>("maximum_number_substeps")),
+    _max_inelastic_increment(getParam<Real>("max_inelastic_increment")),
+    _substep_strain_tolerance(getParam<Real>("substep_strain_tolerance"))
+
 {
   if (getParam<bool>("use_displaced_mesh"))
     mooseError("The stress calculator needs to run on the undisplaced mesh.");
@@ -54,6 +67,7 @@ ComputeLargeDeformationStress::initialSetup()
       isParamValid("plasticity_model")
           ? dynamic_cast<LargeDeformationPlasticityModel *>(&getMaterial("plasticity_model"))
           : nullptr;
+
   if (_plasticity_model)
     _elasticity_model->setPlasticityModel(_plasticity_model);
 
@@ -73,11 +87,85 @@ void
 ComputeLargeDeformationStress::computeQpProperties()
 {
   _elasticity_model->setQp(_qp);
-  _elasticity_model->updateState(_Fm[_qp], _stress[_qp]);
 
+  // Calculate deformation gradient increment
+  const ADRankTwoTensor Fm_diff = _Fm[_qp] - _Fm_old[_qp];
+
+  // Check number of substeps
+  unsigned int number_of_substeps = substepCheck(Fm_diff);
+  if (number_of_substeps != 1)
+  {
+    //    std::cout << "get here" << std::endl;
+    substepping(Fm_diff, number_of_substeps);
+  }
+  else
+  {
+    _elasticity_model->updateState(_Fm[_qp], _stress[_qp]);
+  }
   if (_viscoelasticity_model)
   {
     _viscoelasticity_model->setQp(_qp);
-    _stress[_qp] += _viscoelasticity_model->computeCauchyStress(_Fm[_qp], (*_Fm_old)[_qp]);
+    _stress[_qp] += _viscoelasticity_model->computeCauchyStress(_Fm[_qp], _Fm_old[_qp]);
   }
+}
+
+unsigned int
+ComputeLargeDeformationStress::substepCheck(const ADRankTwoTensor & Fm_diff)
+{
+  // Will be defined as params later
+  unsigned int number_of_substeps = 1;
+  //  unsigned int maximum_number_substeps = 25;
+  // Calculate Effective plastic strain to check for deformation tolerance
+  const ADReal contracted_elastic_diff = (Fm_diff).doubleContraction(Fm_diff);
+  // const ADReal contracted_elastic_diff = 0;
+  // Query the hardening model so not hard coded to J2
+  const Real effective_elastic_diff = std::sqrt(3.0 / 2.0 * raw_value(contracted_elastic_diff));
+
+  if (!MooseUtils::absoluteFuzzyEqual(effective_elastic_diff, 0.0))
+  {
+
+    const Real ratiotest = (effective_elastic_diff) / (_max_inelastic_increment);
+    if (ratiotest > _substep_strain_tolerance)
+    {
+      //  std::cout << "here2" << std::endl;
+      number_of_substeps = std::ceil(ratiotest / _substep_strain_tolerance);
+    }
+  }
+  if (number_of_substeps > _maximum_number_substeps)
+    mooseException("The number of substeps computed exceeds the maximum_number_substeps. The "
+                   "system time step will be cut.");
+  return number_of_substeps;
+}
+
+void
+ComputeLargeDeformationStress::substepping(const ADRankTwoTensor & Fm_diff,
+                                           unsigned int & number_of_substeps)
+{
+  ADRankTwoTensor _temporary_deformation_gradient;
+
+  // store original dt
+  Real dt_original = _dt;
+
+  // Split dt by number of substeps
+  _dt = dt_original / number_of_substeps;
+  // std::cout << number_of_substeps << "--------------------------------" << std::endl;
+
+  for (unsigned int istep = 0; istep < number_of_substeps; ++istep)
+  {
+    // Define deformation increment for current substep
+    _temporary_deformation_gradient = (static_cast<Real>(istep) + 1) / number_of_substeps * Fm_diff;
+    // std::cout << "temp1--" << MetaPhysicL::raw_value(_temporary_deformation_gradient(1, 1))
+    //           << std::endl;
+
+    // Add increment to orignal deformation gradient
+    _temporary_deformation_gradient += _Fm_old[_qp];
+    // std::cout << "tem2--" << MetaPhysicL::raw_value(_temporary_deformation_gradient(1, 1))
+    //           << std::endl;
+    // std::cout << "current--" << MetaPhysicL::raw_value(_Fm[_qp](1, 1)) << std::endl;
+
+    // state update with current deformation gradient
+    _elasticity_model->updateState(_temporary_deformation_gradient, _stress[_qp]);
+  }
+  // Reset Dt
+  _dt = dt_original;
 }

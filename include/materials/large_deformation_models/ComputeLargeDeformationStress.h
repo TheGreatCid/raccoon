@@ -28,7 +28,8 @@ public:
 protected:
   virtual void initQpStatefulProperties() override;
   virtual void computeQpProperties() override;
-
+  void substepping(const ADRankTwoTensor & Fm_diff, unsigned int & number_of_substeps);
+  unsigned int substepCheck(const ADRankTwoTensor & Fm_diff);
   /// The elasticity model
   LargeDeformationElasticityModel * _elasticity_model;
 
@@ -40,9 +41,13 @@ protected:
 
   // @{ The mechanical strain excluding eigen strains from the total strain
   const ADMaterialProperty<RankTwoTensor> & _Fm;
-  const MaterialProperty<RankTwoTensor> * _Fm_old;
+  const MaterialProperty<RankTwoTensor> & _Fm_old;
   // @}
 
   /// The stress
   ADMaterialProperty<RankTwoTensor> & _stress;
+
+  Real _maximum_number_substeps;
+  Real _max_inelastic_increment;
+  Real _substep_strain_tolerance;
 };
