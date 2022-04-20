@@ -82,6 +82,8 @@ ADReal
 JohnsonCookHardening::initialGuess(const ADReal & effective_trial_stress)
 {
   ADReal trial_over_stress = effective_trial_stress / _sigma_0[_qp] / temperatureDependence() - _A;
+  if (trial_over_stress < 0)
+    trial_over_stress = 0;
   return std::max(_ep0 * std::pow(trial_over_stress / _B, 1 / _n),
                   libMesh::TOLERANCE * libMesh::TOLERANCE);
 }
@@ -100,13 +102,17 @@ JohnsonCookHardening::plasticEnergy(const ADReal & ep, const unsigned int deriva
   }
 
   if (derivative == 1)
+  {
+
     return (1 - _tqf) * _sigma_0[_qp] * (_A + _B * std::pow(ep / _ep0, _n)) *
            temperatureDependence();
-
+  }
   if (derivative == 2)
+  {
+
     return (1 - _tqf) * _sigma_0[_qp] * _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 *
            temperatureDependence();
-
+  }
   mooseError(name(), "internal error: unsupported derivative order.");
 }
 
@@ -139,6 +145,10 @@ JohnsonCookHardening::plasticDissipation(const ADReal & delta_ep,
       result +=
           (_A + _B * std::pow(ep / _ep0, _n)) * _C / delta_ep +
           _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 * _C * std::log(delta_ep / _dt / _epdot0);
+    // if (std::isnan(result))
+    // {
+    //   std::cout << "issue - " << ep << " " << delta_ep << std::endl;
+    // }
   }
 
   return result * _sigma_0[_qp] * temperatureDependence();
@@ -149,6 +159,7 @@ JohnsonCookHardening::plasticDissipation(const ADReal & delta_ep,
 ADReal
 JohnsonCookHardening::thermalConjugate(const ADReal & ep)
 {
-  return _T[_qp] * (1 - _tqf) * _sigma_0[_qp] * (_A + _B * std::pow(ep / _ep0, _n)) *
+
+  return -_T[_qp] * (1 - _tqf) * _sigma_0[_qp] * (_A + _B * std::pow(ep / _ep0, _n)) *
          (_m * (std::pow((_T0 - _T[_qp]) / (_T0 - _Tm), _m))) / (_T0 - _T[_qp]);
 }

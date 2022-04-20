@@ -178,7 +178,7 @@ PowerLawHardening::plasticDissipation(const ADReal & delta_ep,
     // ADReal visc = 0;
     //	  if(delta_ep > 0)
     //
-    ADReal visc = _sigma_y[_qp] * (pow(1 + delta_ep / _dt / _epdot0[_qp], 1 / _m[_qp]) - 1);
+    ADReal visc = _sigma_y[_qp] * (std::pow(1 + delta_ep / _dt / _epdot0[_qp], 1 / _m[_qp]) - 1);
     // if(std::isnan(raw_value(visc)))
     //   {std::cout << raw_value(visc) << std::endl;
     //	std::cout << delta_ep << std::endl;:
