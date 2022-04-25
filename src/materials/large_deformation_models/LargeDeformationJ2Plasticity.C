@@ -7,23 +7,24 @@
 
 registerMooseObject("raccoonApp", LargeDeformationJ2Plasticity);
 
-InputParameters LargeDeformationJ2Plasticity::validParams() {
+InputParameters
+LargeDeformationJ2Plasticity::validParams()
+{
   InputParameters params = LargeDeformationPlasticityModel::validParams();
-  params.addClassDescription(
-      "Large deformation $J_2$ plasticity. The exponential constitutive "
-      "update is used to update the plastic deformation.");
+  params.addClassDescription("Large deformation $J_2$ plasticity. The exponential constitutive "
+                             "update is used to update the plastic deformation.");
   return params;
 }
 
-LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(
-    const InputParameters &parameters)
-    : LargeDeformationPlasticityModel(parameters),
-      _heat(declareADProperty<Real>("heat")) {
+LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters & parameters)
+  : LargeDeformationPlasticityModel(parameters), _heat(declareADProperty<Real>("heat"))
+{
   _check_range = true;
 }
 
-void LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor &stress,
-                                               ADRankTwoTensor &Fe) {
+void
+LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTensor & Fe)
+{
   // First assume no plastic increment
   ADReal delta_ep = 0;
   Fe = Fe * _Fp_old[_qp].inverse();
@@ -40,7 +41,8 @@ void LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor &stress,
 
   // Return mapping
   ADReal phi = computeResidual(stress_dev_norm, delta_ep);
-  if (phi > 0) {
+  if (phi > 0)
+  {
     returnMappingSolve(stress_dev_norm, delta_ep, _console);
   }
   _ep[_qp] = _ep_old[_qp] + delta_ep;
@@ -60,34 +62,43 @@ void LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor &stress,
   // _dt;
   //  std::cout <<"0 - " <<raw_value(_heat[_qp]) << std::endl;
 
-  if (delta_ep > 0 && _ep[_qp] > 0) {
-    _heat[_qp] = _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 1) *
-                 delta_ep / _dt;
+  if (delta_ep > 0 && _ep[_qp] > 0)
+  {
+    _heat[_qp] = _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 1) * delta_ep / _dt;
   }
-  _heat[_qp] += 0;//  std::cout <<"1 - " <<raw_value(_heat[_qp]) << std::endl;
-  if (std::isnan(_heat[_qp]) && _t > 0) {
+  else
+  {
+    _heat[_qp] = 0;
+  }
+  //  std::cout <<"1 - " <<raw_value(_heat[_qp]) << std::endl;
+  if (std::isnan(_heat[_qp]) && _t > 0)
+  {
     std::cout << "delta_ep " << delta_ep << " ep " << _ep[_qp] << std::endl;
     mooseError(name(), "-nan heat plastic plasticDissipation");
   }
-  if (delta_ep > 0 && _ep[_qp] > 0) {
+  if (delta_ep > 0 && _ep[_qp] > 0)
+  {
     _heat[_qp] += _hardening_model->thermalConjugate(_ep[_qp]) * delta_ep / _dt;
-}
+  }
   // std::cout <<"2 - " <<raw_value(_heat[_qp]) << std::endl;
   if (std::isnan(_heat[_qp]) && _t > 0)
     mooseError(name(), "-nan heat Thermal Conjugate");
 }
 
-Real LargeDeformationJ2Plasticity::computeReferenceResidual(
-    const ADReal &effective_trial_stress, const ADReal &delta_ep) {
-  return raw_value(effective_trial_stress -
-                   _elasticity_model
-                       ->computeMandelStress(delta_ep * _Np[_qp],
-                                             /*plasticity_update = */ true)
-                       .doubleContraction(_Np[_qp]));
+Real
+LargeDeformationJ2Plasticity::computeReferenceResidual(const ADReal & effective_trial_stress,
+                                                       const ADReal & delta_ep)
+{
+  return raw_value(effective_trial_stress - _elasticity_model
+                                                ->computeMandelStress(delta_ep * _Np[_qp],
+                                                                      /*plasticity_update = */ true)
+                                                .doubleContraction(_Np[_qp]));
 }
 
-ADReal LargeDeformationJ2Plasticity::computeResidual(
-    const ADReal &effective_trial_stress, const ADReal &delta_ep) {
+ADReal
+LargeDeformationJ2Plasticity::computeResidual(const ADReal & effective_trial_stress,
+                                              const ADReal & delta_ep)
+{
   // std::cout << "1-" << raw_value(effective_trial_stress) << std::endl;
   // std::cout << "2-" << raw_value(
   // _elasticity_model->computeMandelStress(delta_ep * _Np[_qp],
@@ -104,16 +115,15 @@ ADReal LargeDeformationJ2Plasticity::computeResidual(
                                    /*plasticity_update = */ true)
              .doubleContraction(_Np[_qp]) -
          _hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 1) -
-         _hardening_model->plasticDissipation(delta_ep, _ep_old[_qp] + delta_ep,
-                                              1);
+         _hardening_model->plasticDissipation(delta_ep, _ep_old[_qp] + delta_ep, 1);
 }
 
-ADReal LargeDeformationJ2Plasticity::computeDerivative(
-    const ADReal & /*effective_trial_stress*/, const ADReal &delta_ep) {
-  return -_elasticity_model
-              ->computeMandelStress(_Np[_qp], /*plasticity_update = */ true)
+ADReal
+LargeDeformationJ2Plasticity::computeDerivative(const ADReal & /*effective_trial_stress*/,
+                                                const ADReal & delta_ep)
+{
+  return -_elasticity_model->computeMandelStress(_Np[_qp], /*plasticity_update = */ true)
               .doubleContraction(_Np[_qp]) -
          _hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 2) -
-         _hardening_model->plasticDissipation(delta_ep, _ep_old[_qp] + delta_ep,
-                                              2);
+         _hardening_model->plasticDissipation(delta_ep, _ep_old[_qp] + delta_ep, 2);
 }
