@@ -99,16 +99,27 @@ ADReal
 LargeDeformationJ2Plasticity::computeResidual(const ADReal & effective_trial_stress,
                                               const ADReal & delta_ep)
 {
-  // std::cout << "1-" << raw_value(effective_trial_stress) << std::endl;
-  // std::cout << "2-" << raw_value(
-  // _elasticity_model->computeMandelStress(delta_ep * _Np[_qp],
-  // /*plasticity_update = */ true)
-  //   .doubleContraction(_Np[_qp])) << std::endl;
-  // std::cout << "3-" << raw_value(
-  // _hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 1)) << std::endl;
-  // std::cout << "4-" <<
-  // raw_value(_hardening_model->plasticDissipation(delta_ep, _ep_old[_qp] +
-  // delta_ep, 1)) << std::endl;
+  if (std::isnan(_elasticity_model
+                     ->computeMandelStress(delta_ep * _Np[_qp],
+                                           /*plasticity_update = */ true)
+                     .doubleContraction(_Np[_qp])))
+  {
+    if (std::isnan(delta_ep))
+    {
+      mooseError(name(), "-nan delta_ep");
+    }
+    mooseError(name(), "-nan mandel");
+  }
+
+  if (std::isnan(_hardening_model->plasticEnergy(_ep_old[_qp] + delta_ep, 1)))
+  {
+    mooseError(name(), "-nan p energy");
+  }
+
+  if (std::isnan(_hardening_model->plasticDissipation(delta_ep, _ep_old[_qp] + delta_ep, 1)))
+  {
+    mooseError(name(), "-nan p disp");
+  }
   return effective_trial_stress -
          _elasticity_model
              ->computeMandelStress(delta_ep * _Np[_qp],

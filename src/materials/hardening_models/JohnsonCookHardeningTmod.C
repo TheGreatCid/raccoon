@@ -83,7 +83,12 @@ JohnsonCookHardeningTmod::initialGuess(const ADReal & effective_trial_stress)
 {
   ADReal trial_over_stress = effective_trial_stress / _sigma_0[_qp] / temperatureDependence() - _A;
   if (trial_over_stress < 0)
-    trial_over_stress = 0;
+    trial_over_stress = libMesh::TOLERANCE * libMesh::TOLERANCE;
+  if (std::isnan(std::max(_ep0 * std::pow(trial_over_stress / _B, 1 / _n),
+                          libMesh::TOLERANCE * libMesh::TOLERANCE)))
+  {
+    mooseError(name(), "-nan initial guess");
+  }
   return std::max(_ep0 * std::pow(trial_over_stress / _B, 1 / _n),
                   libMesh::TOLERANCE * libMesh::TOLERANCE);
 }
@@ -103,7 +108,12 @@ JohnsonCookHardeningTmod::plasticEnergy(const ADReal & ep, const unsigned int de
 
   if (derivative == 1)
   {
+    if (std::isnan((1 - _tqf) * _sigma_0[_qp] * (_A + _B * std::pow(ep / _ep0, _n)) *
+                   temperatureDependence()))
 
+    {
+      mooseError(name(), "-nan p energy");
+    }
     return (1 - _tqf) * _sigma_0[_qp] * (_A + _B * std::pow(ep / _ep0, _n)) *
            temperatureDependence();
   }
@@ -136,6 +146,21 @@ JohnsonCookHardeningTmod::plasticDissipation(const ADReal & delta_ep,
     result += (_A + _B * std::pow(ep / _ep0, _n)) * _tqf;
     if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
       result += (_A + _B * std::pow(ep / _ep0, _n)) * (_C * std::log(delta_ep / _dt / _epdot0));
+    if (std::isnan(result))
+    {
+      if (std::isnan(delta_ep))
+      {
+        std::cout << "delta_ep " << delta_ep << " ep " << ep << std::endl;
+        mooseError(name(), "-nan delta_ep");
+      }
+      if (std::isnan(ep))
+      {
+        std::cout << "delta_ep " << delta_ep << " ep " << ep << std::endl;
+        mooseError(name(), "-nan ep");
+      }
+      std::cout << "delta_ep " << delta_ep << " ep " << ep << std::endl;
+      mooseError(name(), "-nan 1st Derivative");
+    }
   }
 
   if (derivative == 2)
@@ -145,10 +170,15 @@ JohnsonCookHardeningTmod::plasticDissipation(const ADReal & delta_ep,
       result +=
           (_A + _B * std::pow(ep / _ep0, _n)) * _C / delta_ep +
           _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 * _C * std::log(delta_ep / _dt / _epdot0);
-    // if (std::isnan(result))
-    // {
-    //   std::cout << "issue - " << ep << " " << delta_ep << std::endl;
-    // }
+    if (std::isnan(result))
+    {
+      std::cout << "issue - " << ep << " " << delta_ep << std::endl;
+    }
+    if (std::isnan(result))
+    {
+      std::cout << "delta_ep " << delta_ep << " ep " << ep << std::endl;
+      mooseError(name(), "-nan 2nd Derivative");
+    }
   }
 
   return result * _sigma_0[_qp] * temperatureDependence();
