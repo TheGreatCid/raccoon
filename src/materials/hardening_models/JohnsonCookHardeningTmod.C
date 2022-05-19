@@ -75,7 +75,7 @@ JohnsonCookHardeningTmod::JohnsonCookHardeningTmod(const InputParameters & param
 ADReal
 JohnsonCookHardeningTmod::temperatureDependence()
 {
-  return 1 - 0.08 * (std::exp((_T[_qp] - 280) / 500) - 1);
+  return std::max(1 - 0.08 * (std::exp((_T[_qp] - 280) / 500) - 1), 0.01);
 }
 
 ADReal
