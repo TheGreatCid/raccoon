@@ -17,7 +17,9 @@ LargeDeformationJ2Plasticity::validParams()
 }
 
 LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters & parameters)
-  : LargeDeformationPlasticityModel(parameters), _heat(declareADProperty<Real>("heat"))
+  : LargeDeformationPlasticityModel(parameters),
+    _heat(declareADProperty<Real>("heat")),
+    _trial(declareADProperty<Real>("trial"))
 {
   _check_range = true;
 }
@@ -38,7 +40,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
     stress_dev_norm.value() = libMesh::TOLERANCE * libMesh::TOLERANCE;
   stress_dev_norm = std::sqrt(1.5 * stress_dev_norm);
   _Np[_qp] = 1.5 * stress_dev / stress_dev_norm;
-
+  _trial[_qp] = stress_dev_norm;
   // Return mapping
   ADReal phi = computeResidual(stress_dev_norm, delta_ep);
   if (phi > 0)
