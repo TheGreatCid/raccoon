@@ -30,7 +30,8 @@ protected:
   const Real _ep0;
   const Real _epdot0;
   const Real _T0;
-  const ADVariableValue & _T;
+  // const ADVariableValue & _T;
+  const VariableValue & _T;
   const Real _tqf;
   const Real _A;
   const Real _B;

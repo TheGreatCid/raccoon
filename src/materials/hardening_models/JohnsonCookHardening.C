@@ -50,7 +50,8 @@ JohnsonCookHardening::JohnsonCookHardening(const InputParameters & parameters)
     _ep0(getParam<Real>("reference_plastic_strain")),
     _epdot0(getParam<Real>("reference_plastic_strain_rate")),
     _T0(getParam<Real>("T0")),
-    _T(adCoupledValue("T")),
+    //_T(adCoupledValue("T")),
+    _T(coupledValueOld("T")),
     _tqf(getParam<Real>("taylor_quinney_factor")),
     _A(getParam<Real>("A")),
     _B(getParam<Real>("B")),
@@ -75,6 +76,10 @@ JohnsonCookHardening::JohnsonCookHardening(const InputParameters & parameters)
 ADReal
 JohnsonCookHardening::temperatureDependence()
 {
+  if (std::isnan(1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m)))
+  {
+    mooseError(name(), "-nan Temp func");
+  }
   return 1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m);
 }
 
