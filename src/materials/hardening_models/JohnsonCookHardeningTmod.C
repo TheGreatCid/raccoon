@@ -108,13 +108,18 @@ JohnsonCookHardeningTmod::plasticEnergy(const ADReal & ep, const unsigned int de
 
   if (derivative == 1)
   {
-    if (std::isnan((1 - _tqf) * _sigma_0[_qp] * (_A + _B * std::pow(ep / _ep0, _n)) *
+    ADReal powfun = 0;
+    if(ep > 0)
+    {
+      powfun = std::pow(ep / _ep0, _n);
+    }
+    if (std::isnan((1 - _tqf) * _sigma_0[_qp] * (_A + _B * powfun) *
                    temperatureDependence()))
 
     {
       mooseError(name(), "-nan p energy");
     }
-    return (1 - _tqf) * _sigma_0[_qp] * (_A + _B * std::pow(ep / _ep0, _n)) *
+    return (1 - _tqf) * _sigma_0[_qp] * (_A + _B * powfun) *
            temperatureDependence();
   }
   if (derivative == 2)
@@ -143,9 +148,14 @@ JohnsonCookHardeningTmod::plasticDissipation(const ADReal & delta_ep,
 
   if (derivative == 1)
   {
-    result += (_A + _B * std::pow(ep / _ep0, _n)) * _tqf;
+    ADReal powfun = 0;
+    if(ep > 0)
+    {
+      powfun = std::pow(ep / _ep0, _n);
+    }
+    result += (_A + _B * powfun) * _tqf;
     if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
-      result += (_A + _B * std::pow(ep / _ep0, _n)) * (_C * std::log(delta_ep / _dt / _epdot0));
+      result += (_A + _B * powfun) * (_C * std::log(delta_ep / _dt / _epdot0));
     if (std::isnan(result))
     {
       if (std::isnan(delta_ep))
