@@ -21,7 +21,9 @@ LargeDeformationNewtonianViscosity::LargeDeformationNewtonianViscosity(
     const InputParameters & parameters)
   : LargeDeformationViscoelasticityModel(parameters),
     _eta(getADMaterialProperty<Real>(prependBaseName("viscosity", true))),
-    _g(getADMaterialProperty<Real>(prependBaseName("degradation_function", true)))
+    _g(getADMaterialProperty<Real>(prependBaseName("degradation_function", true))),
+    _D(declareADProperty<RankTwoTensor>(prependBaseName("D")))
+
 {
 }
 
@@ -31,6 +33,6 @@ LargeDeformationNewtonianViscosity::computeCauchyStress(const ADRankTwoTensor & 
 {
   ADRankTwoTensor Fm_dot = (Fm - Fm_old) / _dt;
   ADRankTwoTensor Fm_inv = Fm.inverse();
-  ADRankTwoTensor D = (Fm_dot * Fm_inv + Fm_inv.transpose() * Fm_dot.transpose()) / 2;
-  return _g[_qp] * _eta[_qp] * D.deviatoric();
+   _D[_qp] = (Fm_dot * Fm_inv + Fm_inv.transpose() * Fm_dot.transpose()) / 2;
+  return _g[_qp] * _eta[_qp] * _D[_qp].deviatoric();
 }
