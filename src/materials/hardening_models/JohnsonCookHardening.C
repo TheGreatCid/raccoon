@@ -165,6 +165,6 @@ ADReal
 JohnsonCookHardening::thermalConjugate(const ADReal & ep)
 {
 
-  return -_T[_qp] * (1 - _tqf) * _sigma_0[_qp] * (_A[_qp] + _B * std::pow(ep / _ep0, _n)) *
+  return _T[_qp] * (1 - _tqf) * _sigma_0[_qp] * (_A[_qp] + _B * std::pow(ep / _ep0, _n)) *
          (_m * (std::pow((_T0 - _T[_qp]) / (_T0 - _Tm), _m))) / (_T0 - _T[_qp]);
 }
