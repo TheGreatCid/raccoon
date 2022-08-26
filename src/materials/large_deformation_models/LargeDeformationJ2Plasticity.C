@@ -85,6 +85,9 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   // std::cout <<"2 - " <<raw_value(_heat[_qp]) << std::endl;
   if (std::isnan(_heat[_qp]) && _t > 0)
     mooseError(name(), "-nan heat Thermal Conjugate");
+
+
+  //std::cout << "ep = " << raw_value(_ep[_qp]) << std::endl;
 }
 
 Real
