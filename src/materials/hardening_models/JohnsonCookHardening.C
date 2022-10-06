@@ -38,6 +38,10 @@ JohnsonCookHardening::validParams()
       "psip",
       "Name of the plastic energy density computed by this material model");
   params.addParam<MaterialPropertyName>("degradation_function", "gp", "The degradation function");
+
+  // Adding in damage
+  params.addRequiredCoupledVar("phase_field", "Name of the phase-field (damage) variable");
+
   return params;
 }
 
@@ -69,7 +73,11 @@ JohnsonCookHardening::JohnsonCookHardening(const InputParameters & parameters)
     // The degradation function and its derivatives
     _gp_name(prependBaseName("degradation_function", true)),
     _gp(getADMaterialProperty<Real>(_gp_name)),
-    _dgp_dd(getADMaterialProperty<Real>(derivativePropertyName(_gp_name, {_d_name})))
+    _dgp_dd(getADMaterialProperty<Real>(derivativePropertyName(_gp_name, {_d_name}))),
+
+    // Adding in damage
+    _d(adCoupledvalue("d"));
+
 {
 }
 
@@ -86,7 +94,13 @@ JohnsonCookHardening::temperatureDependence()
 ADReal
 JohnsonCookHardening::initialGuess(const ADReal & effective_trial_stress)
 {
-  ADReal trial_over_stress = effective_trial_stress / _sigma_0[_qp] / temperatureDependence() - _A[_qp];
+
+  // Add condition for d > 0 then return zero for initial guess?
+  if (_d[_qp] > 0)
+    return 0;
+
+  ADReal trial_over_stress =
+      effective_trial_stress / _sigma_0[_qp] / temperatureDependence() - _A[_qp];
   if (trial_over_stress < 0)
     trial_over_stress = 0;
   return std::max(_ep0 * std::pow(trial_over_stress / _B, 1 / _n),
@@ -140,7 +154,8 @@ JohnsonCookHardening::plasticDissipation(const ADReal & delta_ep,
   {
     result += (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * _tqf;
     if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
-      result += (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * (_C * std::log(delta_ep / _dt / _epdot0));
+      result +=
+          (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * (_C * std::log(delta_ep / _dt / _epdot0));
   }
 
   if (derivative == 2)

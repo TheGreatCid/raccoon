@@ -86,8 +86,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   if (std::isnan(_heat[_qp]) && _t > 0)
     mooseError(name(), "-nan heat Thermal Conjugate");
 
-
-  //std::cout << "ep = " << raw_value(_ep[_qp]) << std::endl;
+  // std::cout << "ep = " << raw_value(_ep[_qp]) << std::endl;
 }
 
 Real
@@ -104,6 +103,11 @@ ADReal
 LargeDeformationJ2Plasticity::computeResidual(const ADReal & effective_trial_stress,
                                               const ADReal & delta_ep)
 {
+  // if (delta_ep < 1e-12)
+  // {
+  //   return 0;
+  // }
+
   if (std::isnan(_elasticity_model
                      ->computeMandelStress(delta_ep * _Np[_qp],
                                            /*plasticity_update = */ true)
