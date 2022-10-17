@@ -38,6 +38,9 @@ JohnsonCookHardening::validParams()
       "psip",
       "Name of the plastic energy density computed by this material model");
   params.addParam<MaterialPropertyName>("degradation_function", "gp", "The degradation function");
+
+  params.addRequiredCoupledVar("d", "phase-field");
+
   return params;
 }
 
@@ -67,7 +70,9 @@ JohnsonCookHardening::JohnsonCookHardening(const InputParameters & parameters)
     // The degradation function and its derivatives
     _gp_name(prependBaseName("degradation_function", true)),
     _gp(getADMaterialProperty<Real>(_gp_name)),
-    _dgp_dd(getADMaterialProperty<Real>(derivativePropertyName(_gp_name, {_d_name})))
+    _dgp_dd(getADMaterialProperty<Real>(derivativePropertyName(_gp_name, {_d_name}))),
+
+    _d(coupledValue("d"))
 {
 }
 
@@ -80,6 +85,8 @@ JohnsonCookHardening::temperatureDependence()
 ADReal
 JohnsonCookHardening::initialGuess(const ADReal & effective_trial_stress)
 {
+  if (_d[_qp] > 0)
+    return 0;
   ADReal trial_over_stress =
       effective_trial_stress / _sigma_0[_qp] / temperatureDependence() - _A[_qp];
   if (trial_over_stress < 0)

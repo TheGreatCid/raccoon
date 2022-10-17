@@ -55,6 +55,8 @@ protected:
   const ADMaterialProperty<Real> & _dgp_dd;
   // @}
 
+  const VariableValue & _d;
+
 private:
   ADReal temperatureDependence();
 };
