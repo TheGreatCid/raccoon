@@ -31,4 +31,5 @@ protected:
 
   virtual Real computeReferenceResidual(const ADReal & effective_trial_stress,
                                         const ADReal & delta_ep) override;
+  const VariableValue & _d;
 };

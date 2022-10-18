@@ -13,11 +13,14 @@ LargeDeformationJ2Plasticity::validParams()
   InputParameters params = LargeDeformationPlasticityModel::validParams();
   params.addClassDescription("Large deformation $J_2$ plasticity. The exponential constitutive "
                              "update is used to update the plastic deformation.");
+  params.addRequiredCoupledVar("d", "phase-field");
+
   return params;
 }
 
 LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters & parameters)
-  : LargeDeformationPlasticityModel(parameters)
+  : LargeDeformationPlasticityModel(parameters), _d(coupledValue("d"))
+
 {
   _check_range = true;
 }
@@ -71,6 +74,8 @@ ADReal
 LargeDeformationJ2Plasticity::computeResidual(const ADReal & effective_trial_stress,
                                               const ADReal & delta_ep)
 {
+  if (_d[_qp] > 0 && delta_ep < 1e-10)
+    return 0;
   return effective_trial_stress -
          _elasticity_model
              ->computeMandelStress(delta_ep * _Np[_qp],
