@@ -74,8 +74,13 @@ ADReal
 LargeDeformationJ2Plasticity::computeResidual(const ADReal & effective_trial_stress,
                                               const ADReal & delta_ep)
 {
+	if (_d[_qp] > 0)
+	   mooseException("d greater than zero");
   if (_d[_qp] > 0 && delta_ep < 1e-10)
-    return 0;
+  {    
+	mooseException("Got through IF statement");
+        return 0;
+  }
   return effective_trial_stress -
          _elasticity_model
              ->computeMandelStress(delta_ep * _Np[_qp],
