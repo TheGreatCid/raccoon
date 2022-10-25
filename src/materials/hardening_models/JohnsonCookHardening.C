@@ -73,10 +73,7 @@ JohnsonCookHardening::JohnsonCookHardening(const InputParameters & parameters)
     // The degradation function and its derivatives
     _gp_name(prependBaseName("degradation_function", true)),
     _gp(getADMaterialProperty<Real>(_gp_name)),
-    _dgp_dd(getADMaterialProperty<Real>(derivativePropertyName(_gp_name, {_d_name}))),
-
-    // Adding in damage
-    _d(adCoupledvalue("d"));
+    _dgp_dd(getADMaterialProperty<Real>(derivativePropertyName(_gp_name, {_d_name})))
 
 {
 }
@@ -94,10 +91,6 @@ JohnsonCookHardening::temperatureDependence()
 ADReal
 JohnsonCookHardening::initialGuess(const ADReal & effective_trial_stress)
 {
-
-  // Add condition for d > 0 then return zero for initial guess?
-  if (_d[_qp] > 0)
-    return 0;
 
   ADReal trial_over_stress =
       effective_trial_stress / _sigma_0[_qp] / temperatureDependence() - _A[_qp];
