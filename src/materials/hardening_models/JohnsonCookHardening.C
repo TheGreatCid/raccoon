@@ -120,30 +120,30 @@ JohnsonCookHardening::plasticDissipation(const ADReal & delta_ep,
                                          const unsigned int derivative)
 {
   ADReal result = 0;
-
+  ADReal tol = 1e-7;
   if (derivative == 0)
   {
     result += (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * _tqf * delta_ep;
-    if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
-      result += (_A[_qp] + _B * std::pow(ep / _ep0, _n)) *
-                (_C * std::log(delta_ep / _dt / _epdot0) - _C) * delta_ep;
+    // if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
+    result += (_A[_qp] + _B * std::pow(ep / _ep0, _n)) *
+              (_C * std::log((delta_ep + tol) / _dt / _epdot0) - _C) * delta_ep;
   }
 
   if (derivative == 1)
   {
     result += (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * _tqf;
-    if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
-      result +=
-          (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * (_C * std::log(delta_ep / _dt / _epdot0));
+    // if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
+    result += (_A[_qp] + _B * std::pow(ep / _ep0, _n)) *
+              (_C * std::log((delta_ep + tol) / _dt / _epdot0));
   }
 
   if (derivative == 2)
   {
     result += _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 * _tqf;
-    if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
-      result +=
-          (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * _C / delta_ep +
-          _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 * _C * std::log(delta_ep / _dt / _epdot0);
+    // if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
+    result += (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * _C / (delta_ep + tol) +
+              _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 * _C *
+                  std::log((delta_ep + tol) / _dt / _epdot0);
   }
 
   return result * _sigma_0[_qp] * temperatureDependence();
