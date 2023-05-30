@@ -1,3 +1,5 @@
+.vscode
+*.zsh
 .libs
 *.la
 *.lo
