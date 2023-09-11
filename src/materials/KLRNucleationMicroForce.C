@@ -107,8 +107,8 @@ KLRNucleationMicroForce::computeQpProperties()
   // Compute the external driving force required to recover the desired strength envelope.
   _ex_driving[_qp] =
       (beta_2 * std::sqrt(J2) + beta_1 * I1 + beta_0) +
-      (1.0 - std::sqrt(I1 * I1) / I1) / pow(_g[_qp], 1.5) *
+      (1.0 - std::sqrt(I1 * I1) / I1) / std::pow(_g[_qp], 1.5) *
           (J2 / 2.0 / _mu[_qp] + I1 * I1 / 6.0 / (3.0 * _lambda[_qp] + 2.0 * _mu[_qp]));
 
-  _stress_balance[_qp] = J2 / _mu[_qp] + pow(I1, 2) / 9.0 / K - _ex_driving[_qp] - M;
+  _stress_balance[_qp] = J2 / _mu[_qp] + std::pow(I1, 2) / 9.0 / K - _ex_driving[_qp] - M;
 }
