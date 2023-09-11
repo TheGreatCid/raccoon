@@ -97,7 +97,7 @@ KLBFNucleationMicroForce::computeQpProperties()
                   gamma_0 * (std::pow(_sigma_cs[_qp], 3) - std::pow(_sigma_ts[_qp], 3));
   ADReal beta_2 =
       std::sqrt(3.0) * ((-gamma_1 * M + gamma_2) * (_sigma_cs[_qp] + _sigma_ts[_qp]) +
-                        gamma_0 * (std::pow(_sigma_cs[_qp], 3) + pow(_sigma_ts[_qp], 3)));
+                        gamma_0 * (std::pow(_sigma_cs[_qp], 3) + std::pow(_sigma_ts[_qp], 3)));
   ADReal beta_3 = _L[_qp] * _sigma_ts[_qp] / _mu[_qp] / K / _Gc[_qp];
 
   // Compute the external driving force required to recover the desired strength envelope.
