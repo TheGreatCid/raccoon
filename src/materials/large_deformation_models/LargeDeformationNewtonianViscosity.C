@@ -22,7 +22,7 @@ LargeDeformationNewtonianViscosity::LargeDeformationNewtonianViscosity(
   : LargeDeformationViscoelasticityModel(parameters),
     _eta(getADMaterialProperty<Real>(prependBaseName("viscosity", true))),
     _g(getADMaterialProperty<Real>(prependBaseName("degradation_function", true))),
-    _D(declareADProperty<RankTwoTensor>(prependBaseName("deformation_rate")))
+    _D(declareADProperty<RankTwoTensor>(prependBaseName("D")))
 
 {
 }
