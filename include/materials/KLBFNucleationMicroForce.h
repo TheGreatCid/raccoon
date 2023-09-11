@@ -10,8 +10,6 @@
 
 /**
  * The class implements the external driving force to recover a Drucker-Prager
-
-
  * strength envelope. See Kumar et. al. https://doi.org/10.1016/j.jmps.2020.104027 for model 2020.
  * all parameters are required to be Material type, not double type
  */
