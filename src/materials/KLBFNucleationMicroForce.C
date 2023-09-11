@@ -3,19 +3,18 @@
 //* http://dolbow.pratt.duke.edu
 
 #include "Function.h"
-#include "NucleationMicroForce.h"
+#include "KLBFNucleationMicroForce.h"
 
-registerADMooseObject("raccoonApp", NucleationMicroForce);
+registerADMooseObject("raccoonApp", KLBFNucleationMicroForce);
 
 InputParameters
-NucleationMicroForce::validParams()
+KLBFNucleationMicroForce::validParams()
 {
   InputParameters params = Material::validParams();
   params += BaseNameInterface::validParams();
 
-  params.addClassDescription(
-      "This class computes the external driving force for nucleation given "
-      "a Drucker-Prager strength envelope. The implementation follows Kumar et. al. (2020).");
+  params.addClassDescription("This class computes the external driving force for nucleation given "
+                             "a Drucker-Prager strength envelope developed by Kumar et al. (2020)");
 
   params.addParam<MaterialPropertyName>(
       "fracture_toughness", "Gc", "energy release rate or fracture toughness");
@@ -49,7 +48,7 @@ NucleationMicroForce::validParams()
   return params;
 }
 
-NucleationMicroForce::NucleationMicroForce(const InputParameters & parameters)
+KLBFNucleationMicroForce::KLBFNucleationMicroForce(const InputParameters & parameters)
   : Material(parameters),
     BaseNameInterface(parameters),
     _ex_driving(declareADProperty<Real>(prependBaseName("external_driving_force_name", true))),
@@ -67,16 +66,10 @@ NucleationMicroForce::NucleationMicroForce(const InputParameters & parameters)
 }
 
 void
-NucleationMicroForce::computeQpProperties()
+KLBFNucleationMicroForce::computeQpProperties()
 {
   // The bulk modulus
   ADReal K = _lambda[_qp] + 2 * _mu[_qp] / 3;
-
-  // Parameters in the strength surface
-  ADReal gamma_0 =
-      (_mu[_qp] + 3 * K) * _sigma_ts[_qp] * _L[_qp] / _Gc[_qp] / 18 / _mu[_qp] / _mu[_qp] / K / K;
-  ADReal gamma_1 = (1.0 + _delta[_qp]) / (2.0 * _sigma_ts[_qp] * _sigma_cs[_qp]);
-  ADReal gamma_2 = (8 * _mu[_qp] + 24 * K - 27 * _sigma_ts[_qp]) / 144 / _mu[_qp] / K;
 
   // The mobility
   ADReal M = _Gc[_qp] / _L[_qp] / _c0[_qp];
@@ -86,20 +79,28 @@ NucleationMicroForce::computeQpProperties()
   ADRankTwoTensor stress_dev = _stress[_qp].deviatoric();
   ADReal J2 = 0.5 * stress_dev.doubleContraction(stress_dev);
 
-  // Just to be extra careful... J2 is for sure non-negative.
+  // Just to be extra careful... J2 is for sure non-negative but descritization and interpolation
+  // might bring surprise
   mooseAssert(J2 >= 0, "Negative J2");
 
   // define zero J2's derivative
   if (MooseUtils::absoluteFuzzyEqual(J2, 0))
     J2.value() = libMesh::TOLERANCE * libMesh::TOLERANCE;
 
-  // Compute the external driving force required to recover the desired strength envelope.
+  // Parameters in the strength surface
+  ADReal gamma_0 =
+      (_mu[_qp] + 3 * K) * _sigma_ts[_qp] * _L[_qp] / _Gc[_qp] / 18 / _mu[_qp] / _mu[_qp] / K / K;
+  ADReal gamma_1 = (1.0 + _delta[_qp]) / (2.0 * _sigma_ts[_qp] * _sigma_cs[_qp]);
+  ADReal gamma_2 = (8 * _mu[_qp] + 24 * K - 27 * _sigma_ts[_qp]) / 144 / _mu[_qp] / K;
   ADReal beta_0 = _delta[_qp] * M;
   ADReal beta_1 = (-gamma_1 * M - gamma_2) * (_sigma_cs[_qp] - _sigma_ts[_qp]) -
                   gamma_0 * (pow(_sigma_cs[_qp], 3) - pow(_sigma_ts[_qp], 3));
   ADReal beta_2 = std::sqrt(3.0) * ((-gamma_1 * M + gamma_2) * (_sigma_cs[_qp] + _sigma_ts[_qp]) +
                                     gamma_0 * (pow(_sigma_cs[_qp], 3) + pow(_sigma_ts[_qp], 3)));
   ADReal beta_3 = _L[_qp] * _sigma_ts[_qp] / _mu[_qp] / K / _Gc[_qp];
+
+  // Compute the external driving force required to recover the desired strength envelope.
   _ex_driving[_qp] = (beta_2 * std::sqrt(J2) + beta_1 * I1 + beta_0) / (1 + beta_3 * I1 * I1);
+
   _stress_balance[_qp] = J2 / _mu[_qp] + pow(I1, 2) / 9.0 / K - _ex_driving[_qp] - M;
 }
