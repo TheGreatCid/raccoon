@@ -2,17 +2,25 @@
 //* being developed at Dolbow lab at Duke University
 //* http://dolbow.pratt.duke.edu
 
-#pragma once
+#include "RateDegradationFunction.h"
 
-#include "DegradationFunctionBase.h"
+registerMooseObject("raccoonApp", RateDegradationFunction);
 
-/**
- * Predefined power degradation function
- */
-class RateDegradationFunction : public DegradationFunctionBase
+InputParameters
+RateDegradationFunction::validParams()
 {
-public:
-  static InputParameters validParams();
+  InputParameters params = DegradationFunctionBase::validParams();
+  params.addClassDescription("defines the power degradation function $g(d) = exp(-ddot*p)$.");
+  params.addCoupledVar("heat_source_var", "The coupled variable describing the heat source");
 
-  RateDegradationFunction(const InputParameters & parameters);
-};
+  params.set<std::string>("function") = "exp(ddot*p)";
+
+  const std::vector<std::string> default_params = {"p"};
+  params.set<std::vector<std::string>>("parameter_names") = default_params;
+  return params;
+}
+
+RateDegradationFunction::RateDegradationFunction(const InputParameters & parameters)
+  : DegradationFunctionBase(parameters)
+{
+}

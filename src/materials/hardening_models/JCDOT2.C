@@ -2,12 +2,12 @@
 //* being developed at Dolbow lab at Duke University
 //* http://dolbow.pratt.duke.edu
 
-#include "JCDOT.h"
+#include "JCDOT2.h"
 
-registerMooseObject("raccoonApp", JCDOT);
+registerMooseObject("raccoonApp", JCDOT2);
 
 InputParameters
-JCDOT::validParams()
+JCDOT2::validParams()
 {
   InputParameters params = PlasticHardeningModel::validParams();
   params.addClassDescription("The Johnson-Cook plasticity model.");
@@ -22,6 +22,11 @@ JCDOT::validParams()
                                 "The ref plastic strain rate parameter in the JC model");
   params.addRequiredParam<Real>("T0", "Reference temperature of the material");
   params.addRequiredCoupledVar("T", "Temperature");
+  params.addRangeCheckedParam<Real>(
+      "taylor_quinney_factor",
+      1,
+      "taylor_quinney_factor<=1 & taylor_quinney_factor>=0",
+      "The Taylor-Quinney factor. 1 (default) for purely dissipative, 0 for purely energetic.");
   params.addRequiredParam<MaterialPropertyName>("A", "'A' parameter for the JC model");
   params.addRequiredParam<Real>("B", "'B' parameter for the JC model");
   params.addRequiredParam<Real>("C", "'C' parameter for the JC model");
@@ -32,11 +37,19 @@ JCDOT::validParams()
       "plastic_energy_density",
       "psip",
       "Name of the plastic energy density computed by this material model");
+  params.addParam<MaterialPropertyName>(
+      "plastic_energy_vis_density",
+      "psip_vis",
+      "Name of the plastic energy density computed by this material model");
   params.addParam<MaterialPropertyName>("degradation_function", "gp", "The degradation function");
+  params.addRequiredCoupledVar("ddot_phase_field", "Name of the phase-field (damage) variable");
+  params.addParam<MaterialPropertyName>(
+      "ddot_degradation_function", "gp_ddot", "The degradation function");
+
   return params;
 }
 
-JCDOT::JCDOT(const InputParameters & parameters)
+JCDOT2::JCDOT2(const InputParameters & parameters)
   : PlasticHardeningModel(parameters),
     DerivativeMaterialPropertyNameInterface(),
     _sigma_0(getADMaterialProperty<Real>(prependBaseName("sigma_0", true))),
@@ -46,33 +59,46 @@ JCDOT::JCDOT(const InputParameters & parameters)
     _epdot0(getParam<Real>("reference_plastic_strain_rate")),
     _T0(getParam<Real>("T0")),
     _T(coupledValueOld("T")),
+    _tqf(getParam<Real>("taylor_quinney_factor")),
     _A(getADMaterialProperty<Real>("A")),
     _B(getParam<Real>("B")),
     _C(getParam<Real>("C")),
     _Tm(getParam<Real>("Tm")),
     _d_name(getVar("phase_field", 0)->name()),
+    _ddot_name(getVar("ddot_phase_field", 0)->name()),
 
     // The strain energy density and its derivatives
     _psip_name(prependBaseName("plastic_energy_density", true)),
     _psip(declareADProperty<Real>(_psip_name)),
+
+    _psip_vis_name(prependBaseName("plastic_energy_vis_density", true)),
+    _psip_vis(declareADProperty<Real>(_psip_vis_name)),
+
     _psip_active(declareADProperty<Real>(_psip_name + "_active")),
+    _psip_active_vis(declareADProperty<Real>(_psip_name + "_active_vis")),
     _dpsip_dd(declareADProperty<Real>(derivativePropertyName(_psip_name, {_d_name}))),
+    _dpsip_vis_dddot(declareADProperty<Real>(derivativePropertyName(_psip_vis_name, {_d_name}))),
 
     // The degradation function and its derivatives
     _gp_name(prependBaseName("degradation_function", true)),
     _gp(getADMaterialProperty<Real>(_gp_name)),
-    _dgp_dddot(getADMaterialProperty<Real>(derivativePropertyName(_gp_name, {_d_name})))
+    _dgp_dd(getADMaterialProperty<Real>(derivativePropertyName(_gp_name, {_d_name}))),
+
+    _gp_ddot_name(prependBaseName("ddot_degradation_function", true)),
+    _gp_ddot(getADMaterialProperty<Real>(_gp_ddot_name)),
+    _dgp_dddot(getADMaterialProperty<Real>(derivativePropertyName(_gp_ddot_name, {_ddot_name})))
+
 {
 }
 
 ADReal // Temperature degradation
-JCDOT::temperatureDependence()
+JCDOT2::temperatureDependence()
 {
   return 1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m);
 }
 
 ADReal
-JCDOT::initialGuess(const ADReal & effective_trial_stress)
+JCDOT2::initialGuess(const ADReal & effective_trial_stress)
 {
   ADReal trial_over_stress =
       effective_trial_stress / _sigma_0[_qp] / temperatureDependence() - _A[_qp];
@@ -83,46 +109,55 @@ JCDOT::initialGuess(const ADReal & effective_trial_stress)
 }
 
 ADReal
-JCDOT::plasticEnergy(const ADReal & ep, const unsigned int derivative)
+JCDOT2::plasticEnergy(const ADReal & ep, const unsigned int derivative)
 {
   if (derivative == 0)
   {
-    return ep * 0;
+    _psip_active[_qp] = (1 - _tqf) * _sigma_0[_qp] *
+                        (_A[_qp] * ep + _B * _ep0 * std::pow(ep / _ep0, _n + 1) / (_n + 1)) *
+                        temperatureDependence();
+    _psip[_qp] = _gp[_qp] * _psip_active[_qp];
+    _dpsip_dd[_qp] = _dgp_dd[_qp] * _psip_active[_qp];
+    return _psip[_qp];
   }
 
   if (derivative == 1)
   {
-    return ep * 0;
+    return _gp[_qp] * (1 - _tqf) * _sigma_0[_qp] * (_A[_qp] + _B * std::pow(ep / _ep0, _n)) *
+           temperatureDependence();
   }
   if (derivative == 2)
   {
-    return ep * 0;
+    return _gp[_qp] * (1 - _tqf) * _sigma_0[_qp] * _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 *
+           temperatureDependence();
   }
   mooseError(name(), "internal error: unsupported derivative order.");
 }
 
 ADReal
-JCDOT::plasticDissipation(const ADReal & delta_ep, const ADReal & ep, const unsigned int derivative)
+JCDOT2::plasticDissipation(const ADReal & delta_ep,
+                           const ADReal & ep,
+                           const unsigned int derivative)
 {
   ADReal result = 0;
 
   if (derivative == 0)
   {
-    result += (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * (1 - _C);
+    result += (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * _tqf * delta_ep;
     if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
     {
-      result +=
-          (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * (_C * std::log(delta_ep / _dt / _epdot0));
+      result += (_A[_qp] + _B * std::pow(ep / _ep0, _n)) *
+                (_C * std::log(delta_ep / _dt / _epdot0) - _C) * delta_ep;
     }
 
-    result *= delta_ep;
-    _psip_active[_qp] = result;
-    _dpsip_dd[_qp] = _dgp_dddot[_qp] * _psip_active[_qp];
+    _psip_active_vis[_qp] = result / _dt;
+    _psip_vis[_qp] = _gp_ddot[_qp] * _psip_active_vis[_qp];
+    _dpsip_vis_dddot[_qp] = _dgp_dddot[_qp] * _psip_active_vis[_qp];
   }
 
   if (derivative == 1)
   {
-    result += (_A[_qp] + _B * std::pow(ep / _ep0, _n));
+    result += (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * _tqf;
     if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
       result +=
           (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * (_C * std::log(delta_ep / _dt / _epdot0));
@@ -130,21 +165,23 @@ JCDOT::plasticDissipation(const ADReal & delta_ep, const ADReal & ep, const unsi
 
   if (derivative == 2)
   {
-    result += (_n * _B * std::pow(ep / _ep0, _n - 1)) / _ep0;
+    result += _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 * _tqf;
     if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
-      result += (_C / delta_ep) * (_A[_qp] + _B * std::pow(ep / _ep0, _n)) +
-                (_n * _B * std::pow(ep / _ep0, _n - 1)) *
-                    (_C * std::log(delta_ep / _dt / _epdot0)) / _ep0;
+      result +=
+          (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * _C / delta_ep +
+          _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 * _C * std::log(delta_ep / _dt / _epdot0);
   }
 
-  return _gp[_qp] * result * _sigma_0[_qp] * temperatureDependence();
+  return _gp_ddot[_qp] * result * _sigma_0[_qp] * temperatureDependence();
 
   mooseError(name(), "internal error: unsupported derivative order.");
 }
 
 ADReal // Thermal conjugate term
-JCDOT::thermalConjugate(const ADReal & ep)
+JCDOT2::thermalConjugate(const ADReal & ep)
 {
 
-  return ep * 0;
+  return _gp[_qp] * _T[_qp] * (1 - _tqf) * _sigma_0[_qp] *
+         (_A[_qp] + _B * std::pow(ep / _ep0, _n)) *
+         (_m * (std::pow((_T0 - _T[_qp]) / (_T0 - _Tm), _m))) / (_T0 - _T[_qp]);
 }
