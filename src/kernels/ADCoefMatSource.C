@@ -35,6 +35,5 @@ ADCoefMatSource::precomputeQpResidual()
   ADReal factor = 1.0;
   for (auto prop : _props)
     factor *= (*prop)[_qp];
-
   return factor * _coef;
 }

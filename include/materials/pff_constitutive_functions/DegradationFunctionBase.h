@@ -15,7 +15,4 @@ public:
   static InputParameters validParams();
 
   DegradationFunctionBase(const InputParameters & parameters);
-
-protected:
-  const ADVariableValue _d_dot;
 };

@@ -18,7 +18,7 @@ DegradationFunctionBase::validParams()
 }
 
 DegradationFunctionBase::DegradationFunctionBase(const InputParameters & parameters)
-  : CustomParsedFunctionBase(parameters), _d_dot(adCoupledDot("phase_field"))
+  : CustomParsedFunctionBase(parameters)
 
 {
 }

@@ -75,9 +75,9 @@ JCDOT2::JCDOT2(const InputParameters & parameters)
     _psip_vis(declareADProperty<Real>(_psip_vis_name)),
 
     _psip_active(declareADProperty<Real>(_psip_name + "_active")),
-    _psip_active_vis(declareADProperty<Real>(_psip_name + "_active_vis")),
+    _psip_active_vis(declareADProperty<Real>(_psip_vis_name + "_active")),
     _dpsip_dd(declareADProperty<Real>(derivativePropertyName(_psip_name, {_d_name}))),
-    _dpsip_vis_dddot(declareADProperty<Real>(derivativePropertyName(_psip_vis_name, {_d_name}))),
+    _dpsip_vis_dddot(declareADProperty<Real>(derivativePropertyName(_psip_vis_name, {_ddot_name}))),
 
     // The degradation function and its derivatives
     _gp_name(prependBaseName("degradation_function", true)),

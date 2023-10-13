@@ -11,9 +11,8 @@ RateDegradationFunction::validParams()
 {
   InputParameters params = DegradationFunctionBase::validParams();
   params.addClassDescription("defines the power degradation function $g(d) = exp(-ddot*p)$.");
-  params.addCoupledVar("heat_source_var", "The coupled variable describing the heat source");
 
-  params.set<std::string>("function") = "exp(ddot*p)";
+  params.set<std::string>("function") = "exp(-ddot*p)";
 
   const std::vector<std::string> default_params = {"p"};
   params.set<std::vector<std::string>>("parameter_names") = default_params;

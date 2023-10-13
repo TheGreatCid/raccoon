@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "ADKernelValue.h"
+#include "ADKernel.h"
 
-class ADTimeDerivativeCustom : public ADKernelValue
+class ADTimeDerivativeCustom : public ADKernel
 {
 public:
   static InputParameters validParams();
@@ -14,6 +14,6 @@ public:
   ADTimeDerivativeCustom(const InputParameters & parameters);
 
 protected:
-  virtual ADReal precomputeQpResidual() override;
-  const ADVariableValue _d_dot;
+  virtual ADReal computeQpResidual() override;
+  const ADVariableValue & _d_dot;
 };

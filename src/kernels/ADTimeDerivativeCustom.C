@@ -17,12 +17,12 @@ ADTimeDerivativeCustom::validParams()
 }
 
 ADTimeDerivativeCustom::ADTimeDerivativeCustom(const InputParameters & parameters)
-  : ADKernelValue(parameters), _d_dot(adCoupledDot("deriv_var"))
+  : ADKernel(parameters), _d_dot(adCoupledDot("deriv_var"))
 {
 }
 
 ADReal
-ADTimeDerivativeCustom::precomputeQpResidual()
+ADTimeDerivativeCustom::computeQpResidual()
 {
   return _test[_i][_qp] * (_u[_qp] - _d_dot[_qp]);
 }

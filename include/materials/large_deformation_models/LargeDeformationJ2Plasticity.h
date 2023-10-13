@@ -31,4 +31,8 @@ protected:
 
   virtual Real computeReferenceResidual(const ADReal & effective_trial_stress,
                                         const ADReal & delta_ep) override;
+
+  ADMaterialProperty<Real> & _phi;
+  ADMaterialProperty<Real> & _flowstress;
+  ADMaterialProperty<Real> & _visflowstress;
 };
