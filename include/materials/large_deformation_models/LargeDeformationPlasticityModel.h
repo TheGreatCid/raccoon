@@ -9,6 +9,7 @@
 #include "ADSingleVariableReturnMappingSolution.h"
 #include "BaseNameInterface.h"
 #include "PlasticHardeningModel.h"
+#include "PsicDegModel.h"
 
 class LargeDeformationElasticityModel;
 
@@ -45,6 +46,9 @@ public:
 
 protected:
   virtual void initQpStatefulProperties() override;
+
+  /// The psic_model
+  PsicDegModel * _psic_model;
 
   /// The elasticity model
   LargeDeformationElasticityModel * _elasticity_model;
