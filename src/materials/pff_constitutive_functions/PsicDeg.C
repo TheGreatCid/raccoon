@@ -43,6 +43,12 @@ PsicDeg::PsicDeg(const InputParameters & parameters)
     _psic_orig(getParam<Real>("psic_orig"))
 {
 }
+
+ADReal
+PsicDeg::initialGuess(const ADReal & effective_trial_stress)
+{
+  return 0.5 * effective_trial_stress * _psie_active[_qp];
+}
 ADReal
 PsicDeg::elasticEnergy(const ADReal & ep, const unsigned int derivative)
 {

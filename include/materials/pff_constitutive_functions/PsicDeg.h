@@ -14,10 +14,11 @@ public:
   PsicDeg(const InputParameters & parameters);
 
   virtual ADReal elasticEnergy(const ADReal & ep, const unsigned int derivative) override;
+  virtual ADReal initialGuess(const ADReal & effective_trial_stress) override;
 
 protected:
   const ADMaterialProperty<Real> & _psie_active;
-   /// The fracture toughness
+  /// The fracture toughness
   const ADMaterialProperty<Real> & _Gc;
 
   /// The normalization constant
@@ -33,5 +34,4 @@ protected:
   const Real _D;
   const VariableValue & _d;
   const Real _psic_orig;
-
 };

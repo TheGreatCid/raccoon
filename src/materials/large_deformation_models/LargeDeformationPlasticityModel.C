@@ -53,7 +53,10 @@ LargeDeformationPlasticityModel::setQp(unsigned int qp)
 {
   _qp = qp;
   _hardening_model->setQp(qp);
-  _psic_model->setQp(qp);
+  if (isParamValid("psic_model"))
+  {
+    _psic_model->setQp(qp);
+  }
 }
 
 void
