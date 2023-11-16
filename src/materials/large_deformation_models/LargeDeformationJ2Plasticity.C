@@ -20,7 +20,8 @@ LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters
   : LargeDeformationPlasticityModel(parameters),
     _phi(declareADProperty<Real>("phi")),
     _flowstress(declareADProperty<Real>("flowstress")),
-    _visflowstress(declareADProperty<Real>("visflowstress"))
+    _visflowstress(declareADProperty<Real>("visflowstress")),
+    _trial(declareADProperty<Real>("trial"))
 
 {
   _check_range = true;
@@ -32,7 +33,8 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   // First assume no plastic increment
   ADReal delta_ep = 0;
   Fe = Fe * _Fp_old[_qp].inverse();
-  stress = _elasticity_model->computeMandelStress(Fe);
+  stress =
+      _elasticity_model->computeMandelStress(0.5 * RaccoonUtils::log(Fe.transpose() * Fe), true);
 
   // Compute the flow direction following the Prandtl-Reuss flow rule.
   // We guard against zero denominator.
@@ -43,6 +45,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   stress_dev_norm = std::sqrt(1.5 * stress_dev_norm);
   _Np[_qp] = 1.5 * stress_dev / stress_dev_norm;
   // Return mapping
+  _trial[_qp] = stress_dev_norm;
   _phi[_qp] = computeResidual(stress_dev_norm, delta_ep);
   if (_phi[_qp] > 0)
     returnMappingSolve(stress_dev_norm, delta_ep, _console);

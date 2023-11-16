@@ -35,4 +35,5 @@ protected:
   ADMaterialProperty<Real> & _phi;
   ADMaterialProperty<Real> & _flowstress;
   ADMaterialProperty<Real> & _visflowstress;
+  ADMaterialProperty<Real> & _trial;
 };

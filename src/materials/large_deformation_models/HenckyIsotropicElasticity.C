@@ -85,7 +85,11 @@ HenckyIsotropicElasticity::computeMandelStressNoDecomposition(const ADRankTwoTen
   // Here, we keep the volumetric part no matter what. But ideally, in the case of J2 plasticity,
   // the volumetric part of the flow should be zero, and we could save some operations.
   ADRankTwoTensor stress_intact = _K[_qp] * strain.trace() * I2 + 2 * _G[_qp] * strain.deviatoric();
-  ADRankTwoTensor stress = _g[_qp] * stress_intact;
+  ADRankTwoTensor stress;
+  if (!plasticity_update)
+    stress = _g[_qp] * stress_intact;
+  else
+    stress = stress_intact;
 
   // If plasticity_update == false, then we are not in the middle of a plasticity update, hence we
   // compute the strain energy density

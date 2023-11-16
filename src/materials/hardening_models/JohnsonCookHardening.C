@@ -103,12 +103,16 @@ JohnsonCookHardening::plasticEnergy(const ADReal & ep, const unsigned int deriva
 
   if (derivative == 1)
   {
-    return _gp[_qp] * (1 - _tqf) * _sigma_0[_qp] * (_A[_qp] + _B * std::pow(ep / _ep0, _n)) *
+    // return _gp[_qp] * (1 - _tqf) * _sigma_0[_qp] * (_A[_qp] + _B * std::pow(ep / _ep0, _n)) *
+    //    temperatureDependence();
+    return (1 - _tqf) * _sigma_0[_qp] * (_A[_qp] + _B * std::pow(ep / _ep0, _n)) *
            temperatureDependence();
   }
   if (derivative == 2)
   {
-    return _gp[_qp] * (1 - _tqf) * _sigma_0[_qp] * _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 *
+    // return _gp[_qp] * (1 - _tqf) * _sigma_0[_qp] * _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 *
+    //        temperatureDependence();
+    return (1 - _tqf) * _sigma_0[_qp] * _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 *
            temperatureDependence();
   }
   mooseError(name(), "internal error: unsupported derivative order.");
@@ -146,8 +150,8 @@ JohnsonCookHardening::plasticDissipation(const ADReal & delta_ep,
           _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 * _C * std::log(delta_ep / _dt / _epdot0);
   }
 
-  return _gp[_qp] * result * _sigma_0[_qp] * temperatureDependence();
-
+  // return _gp[_qp] * result * _sigma_0[_qp] * temperatureDependence();
+  return result * _sigma_0[_qp] * temperatureDependence();
   mooseError(name(), "internal error: unsupported derivative order.");
 }
 
@@ -155,7 +159,9 @@ ADReal // Thermal conjugate term
 JohnsonCookHardening::thermalConjugate(const ADReal & ep)
 {
 
-  return _gp[_qp] * _T[_qp] * (1 - _tqf) * _sigma_0[_qp] *
-         (_A[_qp] + _B * std::pow(ep / _ep0, _n)) *
-         (_m * (std::pow((_T0 - _T[_qp]) / (_T0 - _Tm), _m))) / (_T0 - _T[_qp]);
+  // return _gp[_qp] * _T[_qp] * (1 - _tqf) * _sigma_0[_qp] *
+  //        (_A[_qp] + _B * std::pow(ep / _ep0, _n)) *
+  //        (_m * (std::pow((_T0 - _T[_qp]) / (_T0 - _Tm), _m))) / (_T0 - _T[_qp]);
+  return (1 - _tqf) * _sigma_0[_qp] * _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 *
+         temperatureDependence();
 }
