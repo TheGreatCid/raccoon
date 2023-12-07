@@ -13,6 +13,9 @@ LargeDeformationJ2Plasticity::validParams()
   InputParameters params = LargeDeformationPlasticityModel::validParams();
   params.addClassDescription("Large deformation $J_2$ plasticity. The exponential constitutive "
                              "update is used to update the plastic deformation.");
+  params.addRequiredParam<MaterialPropertyName>("ep_old_store", "store");
+  params.addRequiredParam<bool>("recover", "do you want to recover");
+
   return params;
 }
 
@@ -20,8 +23,9 @@ LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters
   : LargeDeformationPlasticityModel(parameters),
     _phi(declareADProperty<Real>("phi")),
     _flowstress(declareADProperty<Real>("flowstress")),
-    _visflowstress(declareADProperty<Real>("visflowstress"))
-
+    _visflowstress(declareADProperty<Real>("visflowstress")),
+    _ep_old_store(getADMaterialProperty<Real>("ep_old_store")),
+    _recover(getParam<bool>("recover"))
 {
   _check_range = true;
 }
@@ -43,11 +47,31 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   stress_dev_norm = std::sqrt(1.5 * stress_dev_norm);
   _Np[_qp] = 1.5 * stress_dev / stress_dev_norm;
   // Return mapping
+
+  // if (_recover == true && _t_step == 1)
+  // {
+  //   std::cout << "stress" << MetaPhysicL::raw_value(stress_dev_norm) << std::endl;
+  // }
+
   _phi[_qp] = computeResidual(stress_dev_norm, delta_ep);
   if (_phi[_qp] > 0)
     returnMappingSolve(stress_dev_norm, delta_ep, _console);
 
-  _ep[_qp] = _ep_old[_qp] + delta_ep;
+  // Use stored old value if using a recover algorithm
+
+  if (_recover == true && _t_step == 1)
+  {
+    _ep[_qp] = _ep_old_store[_qp] + delta_ep;
+    // std::cout << "here" << std::endl;
+    // std::cout << MetaPhysicL::raw_value(_ep[_qp]) << std::endl;
+  }
+  else
+  {
+    _ep[_qp] = _ep_old[_qp] + delta_ep;
+    // std::cout << "AHHHHHHHHHHHHH" << std::endl;
+    // std::cout << MetaPhysicL::raw_value(_ep_old[_qp]) << std::endl;
+  }
+
   if (_ep[_qp] == 0)
   {
     _ep[_qp] = 1e-20;
