@@ -24,7 +24,6 @@ LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters
     _phi(declareADProperty<Real>("phi")),
     _flowstress(declareADProperty<Real>("flowstress")),
     _visflowstress(declareADProperty<Real>("visflowstress")),
-    _ep_old_store(getADMaterialProperty<Real>("ep_old_store")),
     _recover(getParam<bool>("recover"))
 {
   _check_range = true;
@@ -59,18 +58,20 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
 
   // Use stored old value if using a recover algorithm
 
-  if (_recover == true && _t_step == 1)
-  {
-    _ep[_qp] = _ep_old_store[_qp] + delta_ep;
-    // std::cout << "here" << std::endl;
-    // std::cout << MetaPhysicL::raw_value(_ep[_qp]) << std::endl;
-  }
-  else
-  {
-    _ep[_qp] = _ep_old[_qp] + delta_ep;
-    // std::cout << "AHHHHHHHHHHHHH" << std::endl;
-    // std::cout << MetaPhysicL::raw_value(_ep_old[_qp]) << std::endl;
-  }
+  // if (_recover == true && _t_step == 1)
+  // {
+  //   _ep[_qp] = _ep_old_store[_qp] + delta_ep;
+  //   // std::cout << "here" << std::endl;
+  //   // std::cout << MetaPhysicL::raw_value(_ep[_qp]) << std::endl;
+  // }
+  // else
+  // {
+  //   _ep[_qp] = _ep_old[_qp] + delta_ep;
+  //   // std::cout << "AHHHHHHHHHHHHH" << std::endl;
+  //   // std::cout << MetaPhysicL::raw_value(_ep_old[_qp]) << std::endl;
+  // }
+  // if (_t_step == 1)
+  std::cout << MetaPhysicL::raw_value(_ep_old[_qp]) << std::endl;
 
   if (_ep[_qp] == 0)
   {

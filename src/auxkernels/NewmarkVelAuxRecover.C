@@ -9,7 +9,7 @@
 
 #include "NewmarkVelAuxRecover.h"
 
-registerMooseObject("RACCOON", NewmarkVelAuxRecover);
+registerMooseObject("raccoonApp", NewmarkVelAuxRecover);
 
 InputParameters
 NewmarkVelAuxRecover::validParams()

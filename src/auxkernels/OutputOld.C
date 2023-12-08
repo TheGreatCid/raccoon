@@ -10,7 +10,7 @@
 #include "OutputOld.h"
 #include "SystemBase.h"
 
-registerMooseObject("MooseApp", OutputOld);
+registerMooseObject("raccoonApp", OutputOld);
 
 InputParameters
 OutputOld::validParams()
@@ -25,7 +25,7 @@ OutputOld::validParams()
 OutputOld::OutputOld(const InputParameters & parameters)
   : AuxKernel(parameters),
     _v(coupledValue("source")),
-    _v_old(coupledValueOld("source_old")),
+    _v_old(coupledValueOld("source")),
     _source_variable(*getVar("source", 0))
 {
   if (_var.feType().family != _source_variable.feType().family)

@@ -31,7 +31,9 @@ LargeDeformationPlasticityModel::LargeDeformationPlasticityModel(const InputPara
     _ep(declareADProperty<Real>(prependBaseName("effective_plastic_strain"))),
     _ep_old(getMaterialPropertyOldByName<Real>(prependBaseName("effective_plastic_strain"))),
     _Np(declareADProperty<RankTwoTensor>(prependBaseName("flow_direction"))),
-    _heat(declareADProperty<Real>(prependBaseName("plastic_heat_generation")))
+    _heat(declareADProperty<Real>(prependBaseName("plastic_heat_generation"))),
+    _ep_old_store(getADMaterialProperty<Real>("ep_old_store"))
+
 {
 }
 
@@ -69,6 +71,11 @@ LargeDeformationPlasticityModel::setElasticityModel(
 void
 LargeDeformationPlasticityModel::initQpStatefulProperties()
 {
+  // _ep[_qp] = 0;
+  //   _Fp[_qp].setToIdentity();
+  _ep[_qp] = _ep_old_store[_qp];
   _Fp[_qp].setToIdentity();
-  _ep[_qp] = 0;
+  _Fp[_qp] *= _ep[_qp];
+  std::cout << "here" << std::endl;
+  std::cout << MetaPhysicL::raw_value(_Fp[_qp]) << std::endl;
 }
