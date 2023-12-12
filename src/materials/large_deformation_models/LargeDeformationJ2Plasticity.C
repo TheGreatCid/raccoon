@@ -13,9 +13,9 @@ LargeDeformationJ2Plasticity::validParams()
   InputParameters params = LargeDeformationPlasticityModel::validParams();
   params.addClassDescription("Large deformation $J_2$ plasticity. The exponential constitutive "
                              "update is used to update the plastic deformation.");
-  params.addRequiredParam<MaterialPropertyName>("ep_old_store", "store");
   params.addRequiredParam<bool>("recover", "do you want to recover");
-
+  params.addRequiredParam<MaterialPropertyName>("ep_old_store", "store");
+  params.addRequiredParam<MaterialPropertyName>("Fp_store", "Fp_store");
   return params;
 }
 
@@ -24,6 +24,8 @@ LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters
     _phi(declareADProperty<Real>("phi")),
     _flowstress(declareADProperty<Real>("flowstress")),
     _visflowstress(declareADProperty<Real>("visflowstress")),
+    _ep_old_store(getADMaterialProperty<Real>("ep_old_store")),
+    _Fp_store(getADMaterialProperty<RankTwoTensor>("Fp_store")),
     _recover(getParam<bool>("recover"))
 {
   _check_range = true;
@@ -34,8 +36,18 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
 {
   // First assume no plastic increment
   ADReal delta_ep = 0;
-  Fe = Fe * _Fp_old[_qp].inverse();
+  if (_recover == true && _t_step == 1)
+  {
+    // std::cout << "here" << std::endl;
+    Fe = Fe * _Fp_store[_qp].inverse();
+    // std::cout << "here2" << std::endl;
+  }
+  else
+  {
+    Fe = Fe * _Fp_old[_qp].inverse();
+  }
   stress = _elasticity_model->computeMandelStress(Fe);
+  // std::cout << MetaPhysicL::raw_value(_Fp_old[_qp]) << std::endl;
 
   // Compute the flow direction following the Prandtl-Reuss flow rule.
   // We guard against zero denominator.
@@ -58,20 +70,20 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
 
   // Use stored old value if using a recover algorithm
 
-  // if (_recover == true && _t_step == 1)
-  // {
-  //   _ep[_qp] = _ep_old_store[_qp] + delta_ep;
-  //   // std::cout << "here" << std::endl;
-  //   // std::cout << MetaPhysicL::raw_value(_ep[_qp]) << std::endl;
-  // }
-  // else
-  // {
-  //   _ep[_qp] = _ep_old[_qp] + delta_ep;
-  //   // std::cout << "AHHHHHHHHHHHHH" << std::endl;
-  //   // std::cout << MetaPhysicL::raw_value(_ep_old[_qp]) << std::endl;
-  // }
+  if (_recover == true && _t_step == 1)
+  {
+    _ep[_qp] = _ep_old_store[_qp] + delta_ep;
+    // std::cout << "here" << std::endl;
+    // std::cout << MetaPhysicL::raw_value(_ep[_qp]) << std::endl;
+  }
+  else
+  {
+    _ep[_qp] = _ep_old[_qp] + delta_ep;
+    // std::cout << "AHHHHHHHHHHHHH" << std::endl;
+    // std::cout << MetaPhysicL::raw_value(_ep_old[_qp]) << std::endl;
+  }
   // if (_t_step == 1)
-  std::cout << MetaPhysicL::raw_value(_ep_old[_qp]) << std::endl;
+  // std::cout << MetaPhysicL::raw_value(_ep_old[_qp]) << std::endl;
 
   if (_ep[_qp] == 0)
   {

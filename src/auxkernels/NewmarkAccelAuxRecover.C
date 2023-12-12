@@ -45,7 +45,7 @@ NewmarkAccelAuxRecover::computeValue()
   if (!isNodal())
     mooseError("must run on a nodal variable");
   Real accel_old;
-  if (_t_step == 1)
+  if (_t_step == 0)
     accel_old = _accel_old_store[_qp];
   else
   {
@@ -56,9 +56,12 @@ NewmarkAccelAuxRecover::computeValue()
 
   // Calculates acceeleration using Newmark time integration method
   if (_t_step == 1)
+  {
     return 1.0 / _beta *
            ((_disp[_qp] - _disp_old_store[_qp]) / (_dt * _dt) - _u_old_store[_qp] / _dt -
             accel_old * (0.5 - _beta));
+    std::cout << "here" << std::endl;
+  }
   else
   {
     return 1.0 / _beta *

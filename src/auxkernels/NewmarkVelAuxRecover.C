@@ -39,7 +39,7 @@ Real
 NewmarkVelAuxRecover::computeValue()
 {
   Real vel_old;
-  if (_t_step == 1)
+  if (_t_step == 0)
   {
     vel_old = _u_old_store[_qp];
   }
@@ -50,9 +50,9 @@ NewmarkVelAuxRecover::computeValue()
   if (!isNodal())
     mooseError("must run on a nodal variable");
   // Calculates Velocity using Newmark time integration scheme
-  if (_t_step == 1)
+  if (_t_step == 0)
   {
-    return vel_old + (_dt * (1 - _gamma)) * _accel_old_store[_qp] + _gamma * _dt * _accel[_qp];
+    return vel_old; // + (_dt * (1 - _gamma)) * _accel_old_store[_qp] + _gamma * _dt * _accel[_qp];
   }
   else
   {

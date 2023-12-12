@@ -36,5 +36,8 @@ protected:
   ADMaterialProperty<Real> & _flowstress;
   ADMaterialProperty<Real> & _visflowstress;
   // const ADMaterialProperty<Real> & _ep_old_store;
+  // const bool & _recover;
+  const ADMaterialProperty<Real> & _ep_old_store;
+  const ADMaterialProperty<RankTwoTensor> & _Fp_store;
   const bool & _recover;
 };
