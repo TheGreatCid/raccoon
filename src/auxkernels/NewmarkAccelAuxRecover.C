@@ -21,7 +21,6 @@ NewmarkAccelAuxRecover::validParams()
   params.addRequiredParam<Real>("beta", "beta parameter for Newmark method");
   params.addRequiredCoupledVar("u_old_store", "u_old_store");
   params.addRequiredCoupledVar("accel_old_store", "accel_old_store");
-  params.addRequiredCoupledVar("disp_old_store", "disp_old_store");
 
   return params;
 }
@@ -34,8 +33,7 @@ NewmarkAccelAuxRecover::NewmarkAccelAuxRecover(const InputParameters & parameter
     _u_old(uOld()),
     _beta(getParam<Real>("beta")),
     _u_old_store(coupledValue("u_old_store")),
-    _accel_old_store(coupledValue("accel_old_store")),
-    _disp_old_store(coupledValue("disp_old_store"))
+    _accel_old_store(coupledValue("accel_old_store"))
 {
 }
 
@@ -55,17 +53,18 @@ NewmarkAccelAuxRecover::computeValue()
     return accel_old;
 
   // Calculates acceeleration using Newmark time integration method
-  if (_t_step == 1)
-  {
-    return 1.0 / _beta *
-           ((_disp[_qp] - _disp_old_store[_qp]) / (_dt * _dt) - _u_old_store[_qp] / _dt -
-            accel_old * (0.5 - _beta));
-    std::cout << "here" << std::endl;
-  }
-  else
-  {
-    return 1.0 / _beta *
-           ((_disp[_qp] - _disp_old[_qp]) / (_dt * _dt) - _vel_old[_qp] / _dt -
-            accel_old * (0.5 - _beta));
-  }
+  // if (_t_step == 1)
+  // {
+  //   return 1.0 / _beta *
+  //          ((_disp[_qp] - _disp_old_store[_qp]) / (_dt * _dt) - _u_old_store[_qp] / _dt -
+  //           accel_old * (0.5 - _beta));
+  //   std::cout << "here" << std::endl;
+  // }
+  // else
+  // {
+  // std::cout << _disp_old[_qp] << std::endl;
+  return 1.0 / _beta *
+         ((_disp[_qp] - _disp_old[_qp]) / (_dt * _dt) - _vel_old[_qp] / _dt -
+          accel_old * (0.5 - _beta));
+  // }
 }

@@ -50,12 +50,13 @@ NewmarkVelAuxRecover::computeValue()
   if (!isNodal())
     mooseError("must run on a nodal variable");
   // Calculates Velocity using Newmark time integration scheme
-  if (_t_step == 0)
-  {
-    return vel_old; // + (_dt * (1 - _gamma)) * _accel_old_store[_qp] + _gamma * _dt * _accel[_qp];
-  }
-  else
-  {
-    return vel_old + (_dt * (1 - _gamma)) * _accel_old[_qp] + _gamma * _dt * _accel[_qp];
-  }
+  // if (_t_step == 0)
+  // {
+  //   return vel_old; // + (_dt * (1 - _gamma)) * _accel_old_store[_qp] + _gamma * _dt *
+  //   _accel[_qp];
+  // }
+  // else
+  // {
+  return vel_old + (_dt * (1 - _gamma)) * _accel_old[_qp] + _gamma * _dt * _accel[_qp];
+  // }
 }

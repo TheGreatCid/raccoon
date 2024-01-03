@@ -23,6 +23,7 @@ ComputeDeformationGradient::validParams()
       "volumetric_locking_correction", false, "Flag to correct volumetric locking");
   params.addParam<std::vector<MaterialPropertyName>>(
       "eigen_deformation_gradient_names", "List of eigen deformation gradients to be applied");
+  params.addRequiredParam<MaterialPropertyName>("F_store", "F_store");
 
   params.suppressParameter<bool>("use_displaced_mesh");
   return params;
@@ -42,7 +43,8 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _Fm(declareADProperty<RankTwoTensor>(prependBaseName("mechanical_deformation_gradient"))),
     _Fg_names(prependBaseName(
         getParam<std::vector<MaterialPropertyName>>("eigen_deformation_gradient_names"))),
-    _Fgs(_Fg_names.size())
+    _Fgs(_Fg_names.size()),
+    _F_store(getADMaterialProperty<RankTwoTensor>("F_store"))
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
@@ -87,6 +89,9 @@ ComputeDeformationGradient::displacementIntegrityCheck()
 void
 ComputeDeformationGradient::initQpStatefulProperties()
 {
+
+  // _F[_qp] = _F_store[_qp];
+  // _Fm[_qp] = _F_store[_qp];
   _F[_qp].setToIdentity();
   _Fm[_qp].setToIdentity();
 }
@@ -113,6 +118,9 @@ ComputeDeformationGradient::computeProperties()
       A(2, 2) = computeQpOutOfPlaneGradDisp();
     _F[_qp] = A;
     _F[_qp].addIa(1.0);
+
+    // Multiply in old deformation
+    _F[_qp] *= _F_store[_qp];
 
     if (_volumetric_locking_correction)
       ave_F_det += _F[_qp].det() * _JxW[_qp] * _coord[_qp];

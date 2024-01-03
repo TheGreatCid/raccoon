@@ -63,25 +63,21 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   // {
   //   std::cout << "stress" << MetaPhysicL::raw_value(stress_dev_norm) << std::endl;
   // }
-
+  if (_recover == true && _t_step == 0)
+  {
+    _ep[_qp] = _ep_old_store[_qp];
+    _Fp[_qp] = _Fp_store[_qp];
+  }
   _phi[_qp] = computeResidual(stress_dev_norm, delta_ep);
   if (_phi[_qp] > 0)
     returnMappingSolve(stress_dev_norm, delta_ep, _console);
 
   // Use stored old value if using a recover algorithm
-
-  if (_recover == true && _t_step == 1)
-  {
+  if (_t_step == 1)
     _ep[_qp] = _ep_old_store[_qp] + delta_ep;
-    // std::cout << "here" << std::endl;
-    // std::cout << MetaPhysicL::raw_value(_ep[_qp]) << std::endl;
-  }
   else
-  {
     _ep[_qp] = _ep_old[_qp] + delta_ep;
-    // std::cout << "AHHHHHHHHHHHHH" << std::endl;
-    // std::cout << MetaPhysicL::raw_value(_ep_old[_qp]) << std::endl;
-  }
+
   // if (_t_step == 1)
   // std::cout << MetaPhysicL::raw_value(_ep_old[_qp]) << std::endl;
 
@@ -90,7 +86,10 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
     _ep[_qp] = 1e-20;
   }
   ADRankTwoTensor delta_Fp = RaccoonUtils::exp(delta_ep * _Np[_qp]);
-  _Fp[_qp] = delta_Fp * _Fp_old[_qp];
+  if (_t_step == 1)
+    _Fp[_qp] = delta_Fp * _Fp_store[_qp];
+  else
+    _Fp[_qp] = delta_Fp * _Fp_old[_qp];
 
   // Update stress and energy
   Fe = Fe * delta_Fp.inverse();
@@ -127,7 +126,11 @@ ADReal
 LargeDeformationJ2Plasticity::computeResidual(const ADReal & effective_trial_stress,
                                               const ADReal & delta_ep)
 {
-  ADReal ep = _ep_old[_qp] + delta_ep;
+  ADReal ep;
+  if (_t_step == 1)
+    ep = _ep_old_store[_qp] + delta_ep;
+  else
+    ep = _ep_old[_qp] + delta_ep;
   if (ep == 0)
   {
     ep = 1e-20;
@@ -145,7 +148,11 @@ ADReal
 LargeDeformationJ2Plasticity::computeDerivative(const ADReal & /*effective_trial_stress*/,
                                                 const ADReal & delta_ep)
 {
-  ADReal ep = _ep_old[_qp] + delta_ep;
+  ADReal ep;
+  if (_t_step == 1)
+    ep = _ep_old_store[_qp] + delta_ep;
+  else
+    ep = _ep_old[_qp] + delta_ep;
   if (ep == 0)
   {
     ep = 1e-20;

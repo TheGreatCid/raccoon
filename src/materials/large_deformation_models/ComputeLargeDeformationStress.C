@@ -75,9 +75,9 @@ ComputeLargeDeformationStress::initQpStatefulProperties()
 void
 ComputeLargeDeformationStress::computeQpProperties()
 {
-  _stress_old_store[_qp] = _stress_old[_qp];
   _elasticity_model->setQp(_qp);
   _elasticity_model->updateState(_Fm[_qp], _stress[_qp]);
+  _stress_old_store[_qp] = _stress_old[_qp];
 
   if (_viscoelasticity_model)
   {

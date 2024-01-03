@@ -33,5 +33,5 @@ protected:
   Real _beta;
   const VariableValue & _u_old_store;
   const VariableValue & _accel_old_store;
-  const VariableValue & _disp_old_store;
+  // const VariableValue & _disp_old_store;
 };
