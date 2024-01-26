@@ -127,7 +127,7 @@ LargeDeformationJ2Plasticity::computeResidual(const ADReal & effective_trial_str
                                               const ADReal & delta_ep)
 {
   ADReal ep;
-  if (_t_step == 1)
+  if (_t_step == 1 && _recover == true)
     ep = _ep_old_store[_qp] + delta_ep;
   else
     ep = _ep_old[_qp] + delta_ep;
@@ -149,7 +149,7 @@ LargeDeformationJ2Plasticity::computeDerivative(const ADReal & /*effective_trial
                                                 const ADReal & delta_ep)
 {
   ADReal ep;
-  if (_t_step == 1)
+  if (_t_step == 1 && _recover == true)
     ep = _ep_old_store[_qp] + delta_ep;
   else
     ep = _ep_old[_qp] + delta_ep;
