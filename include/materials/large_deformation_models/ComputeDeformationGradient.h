@@ -60,4 +60,7 @@ protected:
 
   // @}
   const ADMaterialProperty<RankTwoTensor> & _F_store;
+
+  // is this recovering?
+  const bool _recover;
 };

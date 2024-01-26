@@ -24,6 +24,7 @@ ComputeDeformationGradient::validParams()
   params.addParam<std::vector<MaterialPropertyName>>(
       "eigen_deformation_gradient_names", "List of eigen deformation gradients to be applied");
   params.addRequiredParam<MaterialPropertyName>("F_store", "F_store");
+  params.addParam<bool>("recover", false, "Are you trying to recover");
 
   params.suppressParameter<bool>("use_displaced_mesh");
   return params;
@@ -44,7 +45,8 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _Fg_names(prependBaseName(
         getParam<std::vector<MaterialPropertyName>>("eigen_deformation_gradient_names"))),
     _Fgs(_Fg_names.size()),
-    _F_store(getADMaterialProperty<RankTwoTensor>("F_store"))
+    _F_store(getADMaterialProperty<RankTwoTensor>("F_store")),
+    _recover(getParam<bool>("recover"))
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
@@ -118,10 +120,10 @@ ComputeDeformationGradient::computeProperties()
       A(2, 2) = computeQpOutOfPlaneGradDisp();
     _F[_qp] = A;
     _F[_qp].addIa(1.0);
-
-    // Multiply in old deformation
-    _F[_qp] *= _F_store[_qp];
-
+    if (_recover == true)
+    { // Multiply in old deformation
+      _F[_qp] *= _F_store[_qp];
+    }
     if (_volumetric_locking_correction)
       ave_F_det += _F[_qp].det() * _JxW[_qp] * _coord[_qp];
   }
