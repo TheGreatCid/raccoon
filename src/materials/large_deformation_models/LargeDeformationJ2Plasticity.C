@@ -73,7 +73,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
     returnMappingSolve(stress_dev_norm, delta_ep, _console);
 
   // Use stored old value if using a recover algorithm
-  if (_t_step == 1)
+  if (_t_step == 1 && _recover == true)
     _ep[_qp] = _ep_old_store[_qp] + delta_ep;
   else
     _ep[_qp] = _ep_old[_qp] + delta_ep;
