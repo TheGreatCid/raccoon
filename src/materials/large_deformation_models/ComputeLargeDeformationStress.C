@@ -37,7 +37,6 @@ ComputeLargeDeformationStress::ComputeLargeDeformationStress(const InputParamete
     _stress(declareADProperty<RankTwoTensor>(prependBaseName("stress"))),
     _stress_old(getMaterialPropertyOld<RankTwoTensor>("stress")),
     _stress_old_store(declareADProperty<RankTwoTensor>("stress_old_store"))
-
 {
   if (getParam<bool>("use_displaced_mesh"))
     mooseError("The stress calculator needs to run on the undisplaced mesh.");
