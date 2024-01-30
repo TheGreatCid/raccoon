@@ -59,7 +59,7 @@ protected:
   std::vector<const ADMaterialProperty<RankTwoTensor> *> _Fgs;
 
   // @}
-  const ADMaterialProperty<RankTwoTensor> & _F_store;
+  const ADMaterialProperty<RankTwoTensor> * _F_store;
 
   // is this recovering?
   const bool _recover;
