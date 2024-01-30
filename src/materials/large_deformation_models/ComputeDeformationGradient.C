@@ -25,7 +25,8 @@ ComputeDeformationGradient::validParams()
       "eigen_deformation_gradient_names", "List of eigen deformation gradients to be applied");
   params.addParam<MaterialPropertyName>("F_store", "F_store");
   params.addParam<bool>("recover", false, "Are you trying to recover");
-
+  params.addRequiredParam<VariableName>(
+      "from_variable", "The name of the variable in the file that is to be extracted");
   params.suppressParameter<bool>("use_displaced_mesh");
   return params;
 }

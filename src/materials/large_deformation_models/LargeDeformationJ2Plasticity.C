@@ -42,9 +42,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   ADReal delta_ep = 0;
   if (_recover == true && _t_step == 1)
   {
-    // std::cout << "here" << std::endl;
     Fe = Fe * (*_Fp_store)[_qp].inverse();
-    // std::cout << "here2" << std::endl;
   }
   else
   {

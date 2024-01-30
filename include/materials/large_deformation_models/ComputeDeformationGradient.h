@@ -7,7 +7,6 @@
 #include "Material.h"
 #include "BaseNameInterface.h"
 #include "ADRankTwoTensorForward.h"
-
 /**
  * This class computes the deformation gradient
  */
