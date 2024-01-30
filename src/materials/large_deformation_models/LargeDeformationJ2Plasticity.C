@@ -14,8 +14,8 @@ LargeDeformationJ2Plasticity::validParams()
   params.addClassDescription("Large deformation $J_2$ plasticity. The exponential constitutive "
                              "update is used to update the plastic deformation.");
   params.addParam<bool>("recover", false, "do you want to recover");
-  params.addRequiredParam<MaterialPropertyName>("ep_old_store", "store");
-  params.addRequiredParam<MaterialPropertyName>("Fp_store", "Fp_store");
+  params.addParam<MaterialPropertyName>("ep_old_store", "store");
+  params.addParam<MaterialPropertyName>("Fp_store", "Fp_store");
   return params;
 }
 
@@ -24,8 +24,12 @@ LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters
     _phi(declareADProperty<Real>("phi")),
     _flowstress(declareADProperty<Real>("flowstress")),
     _visflowstress(declareADProperty<Real>("visflowstress")),
-    _ep_old_store(getADMaterialProperty<Real>("ep_old_store")),
-    _Fp_store(getADMaterialProperty<RankTwoTensor>("Fp_store")),
+    _ep_old_store(isParamValid("ep_old_store")
+                      ? &getADMaterialProperty<Real>(prependBaseName("ep_old_store"))
+                      : nullptr),
+    _Fp_store(isParamValid("Fp_store")
+                  ? &getADMaterialProperty<RankTwoTensor>(prependBaseName("Fp_store"))
+                  : nullptr),
     _recover(getParam<bool>("recover"))
 {
   _check_range = true;
@@ -39,7 +43,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   if (_recover == true && _t_step == 1)
   {
     // std::cout << "here" << std::endl;
-    Fe = Fe * _Fp_store[_qp].inverse();
+    Fe = Fe * (*_Fp_store)[_qp].inverse();
     // std::cout << "here2" << std::endl;
   }
   else
@@ -65,8 +69,8 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   // }
   if (_recover == true && _t_step == 0)
   {
-    _ep[_qp] = _ep_old_store[_qp];
-    _Fp[_qp] = _Fp_store[_qp];
+    _ep[_qp] = (*_ep_old_store)[_qp];
+    _Fp[_qp] = (*_Fp_store)[_qp];
   }
   _phi[_qp] = computeResidual(stress_dev_norm, delta_ep);
   if (_phi[_qp] > 0)
@@ -74,7 +78,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
 
   // Use stored old value if using a recover algorithm
   if (_t_step == 1 && _recover == true)
-    _ep[_qp] = _ep_old_store[_qp] + delta_ep;
+    _ep[_qp] = (*_ep_old_store)[_qp] + delta_ep;
   else
     _ep[_qp] = _ep_old[_qp] + delta_ep;
 
@@ -87,7 +91,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   }
   ADRankTwoTensor delta_Fp = RaccoonUtils::exp(delta_ep * _Np[_qp]);
   if (_t_step == 1 && _recover == true)
-    _Fp[_qp] = delta_Fp * _Fp_store[_qp];
+    _Fp[_qp] = delta_Fp * (*_Fp_store)[_qp];
   else
     _Fp[_qp] = delta_Fp * _Fp_old[_qp];
 
@@ -128,7 +132,7 @@ LargeDeformationJ2Plasticity::computeResidual(const ADReal & effective_trial_str
 {
   ADReal ep;
   if (_t_step == 1 && _recover == true)
-    ep = _ep_old_store[_qp] + delta_ep;
+    ep = (*_ep_old_store)[_qp] + delta_ep;
   else
     ep = _ep_old[_qp] + delta_ep;
   if (ep == 0)
@@ -150,7 +154,7 @@ LargeDeformationJ2Plasticity::computeDerivative(const ADReal & /*effective_trial
 {
   ADReal ep;
   if (_t_step == 1 && _recover == true)
-    ep = _ep_old_store[_qp] + delta_ep;
+    ep = (*_ep_old_store)[_qp] + delta_ep;
   else
     ep = _ep_old[_qp] + delta_ep;
   if (ep == 0)
