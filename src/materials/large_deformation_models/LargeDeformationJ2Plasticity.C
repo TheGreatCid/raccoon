@@ -86,7 +86,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
     _ep[_qp] = 1e-20;
   }
   ADRankTwoTensor delta_Fp = RaccoonUtils::exp(delta_ep * _Np[_qp]);
-  if (_t_step == 1)
+  if (_t_step == 1 && _recover == true)
     _Fp[_qp] = delta_Fp * _Fp_store[_qp];
   else
     _Fp[_qp] = delta_Fp * _Fp_old[_qp];
