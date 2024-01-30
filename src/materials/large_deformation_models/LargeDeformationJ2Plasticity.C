@@ -13,7 +13,7 @@ LargeDeformationJ2Plasticity::validParams()
   InputParameters params = LargeDeformationPlasticityModel::validParams();
   params.addClassDescription("Large deformation $J_2$ plasticity. The exponential constitutive "
                              "update is used to update the plastic deformation.");
-  params.addRequiredParam<bool>("recover", "do you want to recover");
+  params.addParam<bool>("recover", false, "do you want to recover");
   params.addRequiredParam<MaterialPropertyName>("ep_old_store", "store");
   params.addRequiredParam<MaterialPropertyName>("Fp_store", "Fp_store");
   return params;
