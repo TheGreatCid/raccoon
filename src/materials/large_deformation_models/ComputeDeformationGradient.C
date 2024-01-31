@@ -124,7 +124,6 @@ ComputeDeformationGradient::computeProperties()
     // Multiply in old deformation
     if (_recover == true)
     {
-      std::cout << "here" << std::endl;
       _F[_qp] *= (*_F_store)[_qp];
     }
     if (_volumetric_locking_correction)
