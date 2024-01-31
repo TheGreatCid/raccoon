@@ -7,11 +7,10 @@
 #include "Material.h"
 #include "BaseNameInterface.h"
 #include "ADRankTwoTensorForward.h"
-#include "SolutionICArr.h"
 /**
  * This class computes the deformation gradient
  */
-class ComputeDeformationGradient : public SolutionICArr, public BaseNameInterface
+class ComputeDeformationGradient : public Material, public BaseNameInterface
 {
 public:
   static InputParameters validParams();
