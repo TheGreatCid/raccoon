@@ -15,6 +15,7 @@ InputParameters
 NewmarkAccelAuxRecover::validParams()
 {
   InputParameters params = AuxKernel::validParams();
+  //params += 
   params.addClassDescription("Computes the current acceleration using the Newmark method.");
   params.addRequiredCoupledVar("displacement", "displacement variable");
   params.addRequiredCoupledVar("velocity", "velocity variable");
