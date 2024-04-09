@@ -11,7 +11,6 @@ LargeDeformationPlasticityModel::validParams()
   InputParameters params = Material::validParams();
   params += ADSingleVariableReturnMappingSolution::validParams();
   params += BaseNameInterface::validParams();
-
   params.addRequiredParam<MaterialName>("hardening_model", "Name of the plastic hardening model");
 
   params.set<bool>("compute") = false;
