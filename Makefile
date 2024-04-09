@@ -32,7 +32,7 @@ ALL_MODULES         := no
 CHEMICAL_REACTIONS  := no
 CONTACT             := no
 FLUID_PROPERTIES    := no
-HEAT_CONDUCTION     := yes
+HEAT_TRANSFER       := yes
 MISC                := no
 NAVIER_STOKES       := no
 PHASE_FIELD         := yes
@@ -40,7 +40,7 @@ RDG                 := no
 RICHARDS            := no
 SOLID_MECHANICS     := no
 STOCHASTIC_TOOLS    := no
-TENSOR_MECHANICS    := yes
+SOLID_MECHANICS     := yes
 XFEM                := no
 POROUS_FLOW         := no
 
