@@ -15,7 +15,7 @@
 InputParameters
 SolutionICArr::validParams()
 {
-  InputParameters params = SolutionICArr::validParams();
+  InputParameters params = SolutionUserObject::validParams();
   params.addRequiredParam<UserObjectName>("solution_uo",
                                           "The SolutionUserObject to extract data from.");
   params.addParam<std::vector<std::string>>(
