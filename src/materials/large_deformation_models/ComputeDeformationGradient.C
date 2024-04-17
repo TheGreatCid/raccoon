@@ -41,7 +41,7 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
                                    !this->isBoundaryMaterial()),
     _current_elem_volume(_assembly.elemVolume()),
     _F(declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient"))),
-    _F_NoFbar(declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient_noFbar"))),
+    _F_NoFbar(declareADProperty<RankTwoTensor>(prependBaseName("dg_noFbar"))),
     _F_store_Fbar(declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient_noFbar"))),
     _Fm(declareADProperty<RankTwoTensor>(prependBaseName("mechanical_deformation_gradient"))),
     _Fg_names(prependBaseName(
