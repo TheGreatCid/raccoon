@@ -49,6 +49,12 @@ protected:
   /// The total deformation gradient
   ADMaterialProperty<RankTwoTensor> & _F;
 
+  ///Deformation gradient without volume averaging - For recovery methods
+  ADMaterialProperty<RankTwoTensor> & _F_NoFbar;
+
+  // Store volume averaged F_bar_store
+  ADMaterialProperty<RankTwoTensor> & _F_store_Fbar;
+
   // The mechanical deformation gradient (after excluding eigen deformation gradients from the total
   // deformation gradient)
   ADMaterialProperty<RankTwoTensor> & _Fm;

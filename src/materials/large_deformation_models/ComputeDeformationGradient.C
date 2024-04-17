@@ -41,6 +41,8 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
                                    !this->isBoundaryMaterial()),
     _current_elem_volume(_assembly.elemVolume()),
     _F(declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient"))),
+    _F_NoFbar(declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient_noFbar"))),
+    _F_store_Fbar(declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient_noFbar"))),
     _Fm(declareADProperty<RankTwoTensor>(prependBaseName("mechanical_deformation_gradient"))),
     _Fg_names(prependBaseName(
         getParam<std::vector<MaterialPropertyName>>("eigen_deformation_gradient_names"))),
@@ -124,7 +126,18 @@ ComputeDeformationGradient::computeProperties()
     // Multiply in old deformation
     if (_recover == true)
     {
-      _F[_qp] *= (*_F_store)[_qp];
+      ADReal ave_F_det_init;
+      // Volume average the stored F
+      if (_t_step == 0)
+      {
+        // Get average
+        for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
+          ave_F_det_init += _F[_qp].det() * _JxW[_qp] * _coord[_qp];
+        // Get averaged initial deformation tensor
+        for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
+          _F_store_Fbar[_qp] *= std::cbrt(ave_F_det / (*_F_store)[_qp].det());
+      }
+      _F[_qp] *= _F_store_Fbar[_qp];
     }
     if (_volumetric_locking_correction)
       ave_F_det += _F[_qp].det() * _JxW[_qp] * _coord[_qp];
@@ -135,6 +148,8 @@ ComputeDeformationGradient::computeProperties()
 
   for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
   {
+    // Store _F[_qp] before volume averaging
+    _F_NoFbar[_qp] = _F[_qp];
     if (_volumetric_locking_correction)
       _F[_qp] *= std::cbrt(ave_F_det / _F[_qp].det());
 
