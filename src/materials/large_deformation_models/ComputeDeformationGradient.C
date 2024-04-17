@@ -3,6 +3,7 @@
 //* http://dolbow.pratt.duke.edu
 
 #include "ComputeDeformationGradient.h"
+#include "Material.h"
 
 registerADMooseObject("raccoonApp", ComputeDeformationGradient);
 
@@ -22,10 +23,9 @@ ComputeDeformationGradient::validParams()
   params.addParam<bool>(
       "volumetric_locking_correction", false, "Flag to correct volumetric locking");
   params.addParam<std::vector<MaterialPropertyName>>(
-      "eigen_deformation_gradient_names", "List of eigen deformation gradients to be applied");
+      "eigen_deformation_gradient_names", {}, "List of eigen deformation gradients to be applied");
   params.addParam<MaterialPropertyName>("F_store", "F_store");
   params.addParam<bool>("recover", false, "Are you trying to recover");
-
   params.suppressParameter<bool>("use_displaced_mesh");
   return params;
 }
@@ -41,6 +41,8 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
                                    !this->isBoundaryMaterial()),
     _current_elem_volume(_assembly.elemVolume()),
     _F(declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient"))),
+    _F_NoFbar(declareADProperty<RankTwoTensor>(prependBaseName("dg_noFbar"))),
+    _F_store_Fbar(declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient_noFbar"))),
     _Fm(declareADProperty<RankTwoTensor>(prependBaseName("mechanical_deformation_gradient"))),
     _Fg_names(prependBaseName(
         getParam<std::vector<MaterialPropertyName>>("eigen_deformation_gradient_names"))),
@@ -60,7 +62,7 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
 void
 ComputeDeformationGradient::initialSetup()
 {
-  if (!isParamValid("viscoelasticity_model") && _recover == true)
+  if (!isParamValid("F_store") && _recover == true)
     mooseError("Need F_store variable!");
   displacementIntegrityCheck();
 
@@ -124,8 +126,18 @@ ComputeDeformationGradient::computeProperties()
     // Multiply in old deformation
     if (_recover == true)
     {
-      std::cout << "here" << std::endl;
-      _F[_qp] *= (*_F_store)[_qp];
+      ADReal ave_F_det_init;
+      // Volume average the stored F
+      if (_t_step == 0)
+      {
+        // Get average
+        for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
+          // ave_F_det_init += _F[_qp].det() * _JxW[_qp] * _coord[_qp];
+          // Get averaged initial deformation tensor
+          for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
+            _F_store_Fbar[_qp] *= std::cbrt(ave_F_det / (*_F_store)[_qp].det());
+      }
+      _F[_qp] *= _F_store_Fbar[_qp];
     }
     if (_volumetric_locking_correction)
       ave_F_det += _F[_qp].det() * _JxW[_qp] * _coord[_qp];
@@ -136,6 +148,8 @@ ComputeDeformationGradient::computeProperties()
 
   for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
   {
+    // Store _F[_qp] before volume averaging
+    _F_NoFbar[_qp] = _F[_qp];
     if (_volumetric_locking_correction)
       _F[_qp] *= std::cbrt(ave_F_det / _F[_qp].det());
 

@@ -49,6 +49,8 @@ protected:
 
   /// The total deformation gradient
   ADMaterialProperty<RankTwoTensor> & _F;
+  ADMaterialProperty<RankTwoTensor> & _F_NoFbar;
+  ADMaterialProperty<RankTwoTensor> & _F_store_Fbar;
 
   // The mechanical deformation gradient (after excluding eigen deformation gradients from the total
   // deformation gradient)
