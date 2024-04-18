@@ -3,6 +3,7 @@
 //* http://dolbow.pratt.duke.edu
 
 #include "LargeDeformationJ2Plasticity.h"
+#include "MooseError.h"
 #include "RaccoonUtils.h"
 
 registerMooseObject("raccoonApp", LargeDeformationJ2Plasticity);
@@ -33,6 +34,10 @@ LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters
     _recover(getParam<bool>("recover"))
 {
   _check_range = true;
+  if (!isParamValid("Fp_store") && _recover == false)
+  {
+    mooseError("Must have F_store if recovering");
+  }
 }
 
 void
