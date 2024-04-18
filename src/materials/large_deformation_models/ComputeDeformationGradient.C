@@ -22,7 +22,7 @@ ComputeDeformationGradient::validParams()
       "The displacements appropriate for the simulation geometry and coordinate system");
   params.addParam<bool>(
       "volumetric_locking_correction", false, "Flag to correct volumetric locking");
- params.addParam<std::vector<MaterialPropertyName>>(
+  params.addParam<std::vector<MaterialPropertyName>>(
       "eigen_deformation_gradient_names", {}, "List of eigen deformation gradients to be applied");
   params.addParam<MaterialPropertyName>("F_store", "F_store");
   params.addParam<bool>("recover", false, "Are you trying to recover");
@@ -132,8 +132,10 @@ ComputeDeformationGradient::computeProperties()
       {
         // Get average
         for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
-          ave_F_det_init += _F[_qp].det() * _JxW[_qp] * _coord[_qp];
+          ave_F_det_init += (*_F_store)[_qp].det() * _JxW[_qp] * _coord[_qp];
         // Get averaged initial deformation tensor
+        ave_F_det_init /= _current_elem_volume;
+
         for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
           _F_store_Fbar[_qp] *= std::cbrt(ave_F_det / (*_F_store)[_qp].det());
       }
