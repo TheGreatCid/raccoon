@@ -9,7 +9,7 @@
 
 #include "NewmarkAccelAuxRecover.h"
 
-registerMooseObject("TensorMechanicsApp", NewmarkAccelAuxRecover);
+registerMooseObject("RaccoonApp", NewmarkAccelAuxRecover);
 
 InputParameters
 NewmarkAccelAuxRecover::validParams()
