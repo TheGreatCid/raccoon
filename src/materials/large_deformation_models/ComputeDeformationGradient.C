@@ -72,6 +72,8 @@ ComputeDeformationGradient::initialSetup()
     _disp.push_back(&_ad_zero);
     _grad_disp.push_back(&_ad_grad_zero);
   }
+
+  // Apply volume averaging to inputed deformation gradient
 }
 
 void
@@ -93,7 +95,6 @@ ComputeDeformationGradient::displacementIntegrityCheck()
                "There must be two displacement variables provided, one in r-direction another in "
                "z-direction");
 }
-
 void
 ComputeDeformationGradient::initQpStatefulProperties()
 {
@@ -113,6 +114,24 @@ ComputeDeformationGradient::computeQpOutOfPlaneGradDisp()
 void
 ComputeDeformationGradient::computeProperties()
 {
+
+  if (_recover == true && _t_step == 0)
+  {
+    ADReal ave_F_det_init;
+
+    // Get average
+    for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
+    {
+      _F_store_Fbar[_qp] = (*_F_store)[_qp];
+      ave_F_det_init += (*_F_store)[_qp].det() * _JxW[_qp] * _coord[_qp];
+    }
+    // Get averaged initial deformation tensor
+    ave_F_det_init /= _current_elem_volume;
+
+    for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
+      _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / (*_F_store)[_qp].det());
+  }
+
   ADReal ave_F_det = 0;
 
   for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
@@ -126,22 +145,8 @@ ComputeDeformationGradient::computeProperties()
     // Multiply in old deformation
     if (_recover == true)
     {
-      ADReal ave_F_det_init;
       // Volume average the stored F
-      if (_t_step == 0)
-      {
-        // Get average
-        for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
-        {
-          _F_store_Fbar[_qp] = (*_F_store)[_qp];
-          ave_F_det_init += (*_F_store)[_qp].det() * _JxW[_qp] * _coord[_qp];
-        }
-        // Get averaged initial deformation tensor
-        ave_F_det_init /= _current_elem_volume;
 
-        for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
-          _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / (*_F_store)[_qp].det());
-      }
       _F[_qp] *= _F_store_Fbar[_qp];
     }
     if (_volumetric_locking_correction)
