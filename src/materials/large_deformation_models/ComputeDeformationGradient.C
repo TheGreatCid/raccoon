@@ -117,7 +117,7 @@ ComputeDeformationGradient::computeProperties()
 
   if (_recover == true && _t_step == 0)
   {
-    ADReal ave_F_det_init;
+    ADReal ave_F_det_init = 0;
 
     // Get average
     for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
