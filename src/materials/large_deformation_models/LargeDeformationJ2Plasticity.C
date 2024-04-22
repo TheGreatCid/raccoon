@@ -34,7 +34,7 @@ LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters
     _recover(getParam<bool>("recover"))
 {
   _check_range = true;
-  if (!isParamValid("Fp_store") && _recover == false)
+  if (!isParamValid("Fp_store") && _recover == true)
   {
     mooseError("Must have F_store if recovering");
   }

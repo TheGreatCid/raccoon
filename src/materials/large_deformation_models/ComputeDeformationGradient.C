@@ -42,7 +42,7 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _current_elem_volume(_assembly.elemVolume()),
     _F(declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient"))),
     _F_NoFbar(declareADProperty<RankTwoTensor>(prependBaseName("dg_noFbar"))),
-    _F_store_Fbar(declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient_noFbar"))),
+    _F_store_Fbar(declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient_Fbar"))),
     _Fm(declareADProperty<RankTwoTensor>(prependBaseName("mechanical_deformation_gradient"))),
     _Fg_names(prependBaseName(
         getParam<std::vector<MaterialPropertyName>>("eigen_deformation_gradient_names"))),
@@ -132,12 +132,15 @@ ComputeDeformationGradient::computeProperties()
       {
         // Get average
         for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
+        {
+          _F_store_Fbar[_qp] = (*_F_store)[_qp];
           ave_F_det_init += (*_F_store)[_qp].det() * _JxW[_qp] * _coord[_qp];
+        }
         // Get averaged initial deformation tensor
         ave_F_det_init /= _current_elem_volume;
 
         for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
-          _F_store_Fbar[_qp] *= std::cbrt(ave_F_det / (*_F_store)[_qp].det());
+          _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / (*_F_store)[_qp].det());
       }
       _F[_qp] *= _F_store_Fbar[_qp];
     }
