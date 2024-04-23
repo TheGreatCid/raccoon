@@ -7,6 +7,7 @@
 #include "Material.h"
 #include "BaseNameInterface.h"
 #include "ADRankTwoTensorForward.h"
+#include "SolutionUserObject.h"
 
 /**
  * This class computes the deformation gradient
@@ -21,6 +22,8 @@ public:
   void initialSetup() override;
 
   void computeProperties() override;
+
+  void computeQpProperties() override;
 
   void initStatefulProperties(unsigned int n_points) override;
 
@@ -43,7 +46,7 @@ protected:
   /// Gradient of displacements
   std::vector<const ADVariableGradient *> _grad_disp;
 
-  /// Whether to apply volumetric locaking correction
+  /// Whether to apply volumetric locking correction
   const bool _volumetric_locking_correction;
 
   /// The current element volume
@@ -53,7 +56,7 @@ protected:
   ADMaterialProperty<RankTwoTensor> & _F;
   ADMaterialProperty<RankTwoTensor> & _F_NoFbar;
   ADMaterialProperty<RankTwoTensor> & _F_store_Fbar;
-
+  const MaterialProperty<RankTwoTensor> & _F_store_Fbar_old;
   // The mechanical deformation gradient (after excluding eigen deformation gradients from the total
   // deformation gradient)
   ADMaterialProperty<RankTwoTensor> & _Fm;
@@ -61,10 +64,10 @@ protected:
   // @{ Eigen deformation gradients
   std::vector<MaterialPropertyName> _Fg_names;
   std::vector<const ADMaterialProperty<RankTwoTensor> *> _Fgs;
-
   // @}
-  const ADMaterialProperty<RankTwoTensor> * _F_store;
 
   // is this recovering?
   const bool _recover;
+
+  const SolutionUserObject * _solution_object_ptr;
 };

@@ -2,8 +2,11 @@
 //* being developed at Dolbow lab at Duke University
 //* http://dolbow.pratt.duke.edu
 
+#include "ADRankTwoTensorForward.h"
 #include "ComputeDeformationGradient.h"
 #include "Material.h"
+#include "MooseTypes.h"
+#include "SolutionUserObject.h"
 
 registerADMooseObject("raccoonApp", ComputeDeformationGradient);
 
@@ -12,6 +15,7 @@ ComputeDeformationGradient::validParams()
 {
   InputParameters params = Material::validParams();
   params += BaseNameInterface::validParams();
+
   params.addClassDescription(
       "This class computes the deformation gradient. Eigen deformation gradients are extracted "
       "from the total deformation gradient. The F-bar approach can optionally be used to correct "
@@ -27,6 +31,7 @@ ComputeDeformationGradient::validParams()
   params.addParam<MaterialPropertyName>("F_store", "F_store");
   params.addParam<bool>("recover", false, "Are you trying to recover");
   params.suppressParameter<bool>("use_displaced_mesh");
+  params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
   return params;
 }
 
@@ -43,27 +48,32 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _F(declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient"))),
     _F_NoFbar(declareADProperty<RankTwoTensor>(prependBaseName("dg_noFbar"))),
     _F_store_Fbar(declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient_Fbar"))),
+    _F_store_Fbar_old(
+        getMaterialPropertyOld<RankTwoTensor>(prependBaseName("deformation_gradient_Fbar"))),
     _Fm(declareADProperty<RankTwoTensor>(prependBaseName("mechanical_deformation_gradient"))),
     _Fg_names(prependBaseName(
         getParam<std::vector<MaterialPropertyName>>("eigen_deformation_gradient_names"))),
     _Fgs(_Fg_names.size()),
-    _F_store(isParamValid("F_store")
-                 ? &getADMaterialProperty<RankTwoTensor>(prependBaseName("F_store"))
-                 : nullptr),
-    _recover(getParam<bool>("recover"))
+    _recover(getParam<bool>("recover")),
+    _solution_object_ptr(NULL)
+
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
-    _Fgs[i] = &getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
+    _Fgs[i] = &Material::getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
 
-  if (getParam<bool>("use_displaced_mesh"))
-    paramError("use_displaced_mesh", "The strain calculator needs to run on the undisplaced mesh.");
+  if (MaterialBase::getParam<bool>("use_displaced_mesh"))
+    MaterialBase::paramError("use_displaced_mesh",
+                             "The strain calculator needs to run on the undisplaced mesh.");
 }
 
 void
 ComputeDeformationGradient::initialSetup()
 {
-  if (!isParamValid("F_store") && _recover == true)
-    mooseError("Need F_store variable!");
+  if (_recover == true)
+    _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
+
+  if (!isParamValid("solution") && _recover == true)
+    MaterialBase::mooseError("Need solution object!");
   displacementIntegrityCheck();
 
   // set unused dimensions to zero
@@ -80,43 +90,66 @@ void
 ComputeDeformationGradient::displacementIntegrityCheck()
 {
   // Checking for consistency between mesh size and length of the provided displacements vector
-  if (_ndisp != _mesh.dimension())
-    paramError(
+  if (_ndisp != MaterialBase::_mesh.dimension())
+    MaterialBase::paramError(
         "displacements",
         "The number of variables supplied in 'displacements' must match the mesh dimension.");
 
   // Don't use F-bar in 1D
   if (_ndisp == 1 && _volumetric_locking_correction)
-    paramError("volumetric_locking_correction", "has to be set to false for 1-D problems.");
+    MaterialBase::paramError("volumetric_locking_correction",
+                             "has to be set to false for 1-D problems.");
 
   // Check for RZ
   if (getBlockCoordSystem() == Moose::COORD_RZ && _ndisp != 2)
-    paramError("displacements",
-               "There must be two displacement variables provided, one in r-direction another in "
-               "z-direction");
+    MaterialBase::paramError(
+        "displacements",
+        "There must be two displacement variables provided, one in r-direction another in "
+        "z-direction");
 }
 
 void
 ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
 {
-
-  // Formality for compiler
-  int n_point_hold = n_points;
   if (_recover == true)
   {
-    ADReal ave_F_det_init = 0 + 0 * n_point_hold;
+    ADReal ave_F_det_init = 0;
 
+    // Temp holder for current element def grad
+    ADRankTwoTensor curr_F;
     // Get average
-    for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
+    for (_qp = 0; _qp < n_points; ++_qp)
     {
-      _F_store_Fbar[_qp] = (*_F_store)[_qp];
-      ave_F_det_init += (*_F_store)[_qp].det() * _JxW[_qp] * _coord[_qp];
+
+      Point curr_Point = _q_point[_qp];
+
+      // Populate tensor from solution object
+      for (int i_ind = 0; i_ind < 3; i_ind++)
+        for (int j_ind = 0; j_ind < 3; j_ind++)
+        {
+          curr_F(i_ind, j_ind) = _solution_object_ptr->pointValue(
+              1, curr_Point, "dg_noFbar_" + std::to_string(i_ind) + std::to_string(j_ind), nullptr);
+        }
+
+      _F_store_Fbar[_qp] = curr_F;
+      ave_F_det_init += curr_F.det() * _JxW[_qp] * _coord[_qp];
     }
     // Get averaged initial deformation tensor
     ave_F_det_init /= _current_elem_volume;
 
-    for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
-      _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / (*_F_store)[_qp].det());
+    for (_qp = 0; _qp < n_points; ++_qp)
+    {
+      // Populate current degrad tensor
+      Point curr_Point = _q_point[_qp];
+      for (int i_ind = 0; i_ind < 3; i_ind++)
+        for (int j_ind = 0; j_ind < 3; j_ind++)
+        {
+          curr_F(i_ind, j_ind) = _solution_object_ptr->pointValue(
+              1, curr_Point, "dg_noFbar_" + std::to_string(i_ind) + std::to_string(j_ind), nullptr);
+        }
+      // Store value
+      _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / curr_F.det());
+    }
   }
 }
 
@@ -125,6 +158,12 @@ ComputeDeformationGradient::initQpStatefulProperties()
 {
   _F[_qp].setToIdentity();
   _Fm[_qp].setToIdentity();
+}
+
+void
+ComputeDeformationGradient::computeQpProperties()
+{
+  _F_store_Fbar[_qp] = _F_store_Fbar_old[_qp];
 }
 
 ADReal
