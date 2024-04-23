@@ -95,6 +95,31 @@ ComputeDeformationGradient::displacementIntegrityCheck()
                "There must be two displacement variables provided, one in r-direction another in "
                "z-direction");
 }
+
+void
+ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
+{
+
+  // Formality for compiler
+  int n_point_hold = n_points;
+  if (_recover == true)
+  {
+    ADReal ave_F_det_init = 0 + 0 * n_point_hold;
+
+    // Get average
+    for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
+    {
+      _F_store_Fbar[_qp] = (*_F_store)[_qp];
+      ave_F_det_init += (*_F_store)[_qp].det() * _JxW[_qp] * _coord[_qp];
+    }
+    // Get averaged initial deformation tensor
+    ave_F_det_init /= _current_elem_volume;
+
+    for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
+      _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / (*_F_store)[_qp].det());
+  }
+}
+
 void
 ComputeDeformationGradient::initQpStatefulProperties()
 {
@@ -114,23 +139,6 @@ ComputeDeformationGradient::computeQpOutOfPlaneGradDisp()
 void
 ComputeDeformationGradient::computeProperties()
 {
-
-  if (_recover == true && _t_step == 0)
-  {
-    ADReal ave_F_det_init = 0;
-
-    // Get average
-    for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
-    {
-      _F_store_Fbar[_qp] = (*_F_store)[_qp];
-      ave_F_det_init += (*_F_store)[_qp].det() * _JxW[_qp] * _coord[_qp];
-    }
-    // Get averaged initial deformation tensor
-    ave_F_det_init /= _current_elem_volume;
-
-    for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
-      _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / (*_F_store)[_qp].det());
-  }
 
   ADReal ave_F_det = 0;
 
