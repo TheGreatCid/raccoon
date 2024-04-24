@@ -5,6 +5,7 @@
 #pragma once
 
 #include "LargeDeformationPlasticityModel.h"
+#include "SolutionUserObject.h"
 
 class LargeDeformationJ2Plasticity : public LargeDeformationPlasticityModel
 {
@@ -35,9 +36,8 @@ protected:
   ADMaterialProperty<Real> & _phi;
   ADMaterialProperty<Real> & _flowstress;
   ADMaterialProperty<Real> & _visflowstress;
-  // const ADMaterialProperty<Real> & _ep_old_store;
+  ADMaterialProperty<Real> & _ep_old_store;
   // const bool & _recover;
-  const ADMaterialProperty<Real> * _ep_old_store;
-  const ADMaterialProperty<RankTwoTensor> * _Fp_store;
   const bool & _recover;
+  const SolutionUserObject * _solution_object_ptr;
 };

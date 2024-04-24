@@ -69,13 +69,13 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
 void
 ComputeDeformationGradient::initialSetup()
 {
-  if (_recover == true)
-    _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
-
   if (!isParamValid("solution") && _recover == true)
     MaterialBase::mooseError("Need solution object!");
+
   displacementIntegrityCheck();
 
+  if (_recover == true)
+    _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
   // set unused dimensions to zero
   for (unsigned i = _ndisp; i < 3; ++i)
   {

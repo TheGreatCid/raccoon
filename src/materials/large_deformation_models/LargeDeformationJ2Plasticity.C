@@ -2,6 +2,7 @@
 //* being developed at Dolbow lab at Duke University
 //* http://dolbow.pratt.duke.edu
 
+#include "ADRankTwoTensorForward.h"
 #include "LargeDeformationJ2Plasticity.h"
 #include "MooseError.h"
 #include "RaccoonUtils.h"
@@ -15,8 +16,7 @@ LargeDeformationJ2Plasticity::validParams()
   params.addClassDescription("Large deformation $J_2$ plasticity. The exponential constitutive "
                              "update is used to update the plastic deformation.");
   params.addParam<bool>("recover", false, "do you want to recover");
-  params.addParam<MaterialPropertyName>("ep_old_store", "store");
-  params.addParam<MaterialPropertyName>("Fp_store", "Fp_store");
+  params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
   return params;
 }
 
@@ -25,30 +25,48 @@ LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters
     _phi(declareADProperty<Real>("phi")),
     _flowstress(declareADProperty<Real>("flowstress")),
     _visflowstress(declareADProperty<Real>("visflowstress")),
-    _ep_old_store(isParamValid("ep_old_store")
-                      ? &getADMaterialProperty<Real>(prependBaseName("ep_old_store"))
-                      : nullptr),
-    _Fp_store(isParamValid("Fp_store")
-                  ? &getADMaterialProperty<RankTwoTensor>(prependBaseName("Fp_store"))
-                  : nullptr),
-    _recover(getParam<bool>("recover"))
+    _ep_old_store(declareADProperty<Real>("ep_old_store")),
+    _recover(getParam<bool>("recover")),
+    _solution_object_ptr(NULL)
 {
   _check_range = true;
-  if (!isParamValid("Fp_store") && _recover == true)
-  {
-    mooseError("Must have F_store if recovering");
-  }
+
+  if (!isParamValid("solution") && _recover == true)
+    MaterialBase::mooseError("Need solution object!");
+
+  if (_recover == true)
+    _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
 }
 
 void
 LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTensor & Fe)
 {
+
+  ADRankTwoTensor curr_Fp;
+  // Populate F_temp;
+  if (_t_step < 2)
+  {
+    Point curr_Point = _q_point[_qp];
+
+    _ep_old_store[_qp] =
+        _solution_object_ptr->pointValue(1, curr_Point, "effective_plastic_strain", nullptr);
+    for (int i_ind = 0; i_ind < 3; i_ind++)
+      for (int j_ind = 0; j_ind < 3; j_ind++)
+      {
+        curr_Fp(i_ind, j_ind) = _solution_object_ptr->pointValue(
+            1,
+            curr_Point,
+            "plastic_deformation_gradient_" + std::to_string(i_ind) + std::to_string(j_ind),
+            nullptr);
+      }
+  }
   // First assume no plastic increment
   ADReal delta_ep = 0;
   if (_recover == true && _t_step == 1)
   {
+
     // std::cout << "here" << std::endl;
-    Fe = Fe * (*_Fp_store)[_qp].inverse();
+    Fe = Fe * curr_Fp.inverse();
     // std::cout << "here2" << std::endl;
   }
   else
@@ -74,8 +92,8 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   // }
   if (_recover == true && _t_step == 0)
   {
-    _ep[_qp] = (*_ep_old_store)[_qp];
-    _Fp[_qp] = (*_Fp_store)[_qp];
+    _ep[_qp] = _ep_old_store[_qp];
+    _Fp[_qp] = curr_Fp;
   }
   _phi[_qp] = computeResidual(stress_dev_norm, delta_ep);
   if (_phi[_qp] > 0)
@@ -83,7 +101,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
 
   // Use stored old value if using a recover algorithm
   if (_t_step == 1 && _recover == true)
-    _ep[_qp] = (*_ep_old_store)[_qp] + delta_ep;
+    _ep[_qp] = _ep_old_store[_qp] + delta_ep;
   else
     _ep[_qp] = _ep_old[_qp] + delta_ep;
 
@@ -96,7 +114,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   }
   ADRankTwoTensor delta_Fp = RaccoonUtils::exp(delta_ep * _Np[_qp]);
   if (_t_step == 1 && _recover == true)
-    _Fp[_qp] = delta_Fp * (*_Fp_store)[_qp];
+    _Fp[_qp] = delta_Fp * curr_Fp;
   else
     _Fp[_qp] = delta_Fp * _Fp_old[_qp];
 
@@ -137,7 +155,7 @@ LargeDeformationJ2Plasticity::computeResidual(const ADReal & effective_trial_str
 {
   ADReal ep;
   if (_t_step == 1 && _recover == true)
-    ep = (*_ep_old_store)[_qp] + delta_ep;
+    ep = _ep_old_store[_qp] + delta_ep;
   else
     ep = _ep_old[_qp] + delta_ep;
   if (ep == 0)
@@ -159,7 +177,7 @@ LargeDeformationJ2Plasticity::computeDerivative(const ADReal & /*effective_trial
 {
   ADReal ep;
   if (_t_step == 1 && _recover == true)
-    ep = (*_ep_old_store)[_qp] + delta_ep;
+    ep = _ep_old_store[_qp] + delta_ep;
   else
     ep = _ep_old[_qp] + delta_ep;
   if (ep == 0)
