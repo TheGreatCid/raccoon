@@ -10,6 +10,7 @@
 #include "ADDynamicStressDivergenceTensorsRecover.h"
 #include "ADRankTwoTensorForward.h"
 #include "ElasticityTensorTools.h"
+#include "Assembly.h"
 
 registerMooseObject("raccoonApp", ADDynamicStressDivergenceTensorsRecover);
 
@@ -45,7 +46,10 @@ ADDynamicStressDivergenceTensorsRecover::ADDynamicStressDivergenceTensorsRecover
     _zeta(getMaterialProperty<Real>("zeta")),
     _alpha(getParam<Real>("alpha")),
     _static_initialization(getParam<bool>("static_initialization")),
-    _solution_object_ptr(NULL)
+    _solution_object_ptr(NULL),
+    _assembly_undisplaced(_fe_problem.assembly(_tid, this->_sys.number())),
+    _q_point_undisplaced(_assembly_undisplaced.qPoints())
+
 {
   _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
 }
@@ -80,7 +84,7 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
   }
   else if (_dt > 0 && _t_step == 1)
   {
-    Point curr_Point = _q_point[_qp];
+    Point curr_Point = _q_point_undisplaced[_qp];
 
     // Get recovered stresses
     ADRankTwoTensor stress_old_curr;
@@ -116,7 +120,7 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
 
     // Get recovered stresses
     ADRankTwoTensor stress_old_curr;
-    Point curr_Point = _q_point[_qp];
+    Point curr_Point = _q_point_undisplaced[_qp];
 
     for (int i_ind = 0; i_ind < 3; i_ind++)
       for (int j_ind = 0; j_ind < 3; j_ind++)

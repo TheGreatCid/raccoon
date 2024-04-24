@@ -39,4 +39,6 @@ protected:
   const bool _static_initialization;
 
   const SolutionUserObject * _solution_object_ptr;
+  Assembly & _assembly_undisplaced;
+  const MooseArray<Point> & _q_point_undisplaced;
 };
