@@ -10,6 +10,7 @@
 #pragma once
 
 #include "ADStressDivergenceTensors.h"
+#include "SolutionUserObject.h"
 
 /**
  * ADDynamicStressDivergenceTensorsRecover is the automatic
@@ -37,6 +38,5 @@ protected:
   const Real _alpha;
   const bool _static_initialization;
 
-  const ADMaterialProperty<RankTwoTensor> & _stress_old_store;
-  const ADMaterialProperty<RankTwoTensor> & _stress_older_store;
+  const SolutionUserObject * _solution_object_ptr;
 };

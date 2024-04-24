@@ -8,6 +8,7 @@
 //* https://www.gnu.org/licenses/lgpl-2.1.html
 
 #include "ADDynamicStressDivergenceTensorsRecover.h"
+#include "ADRankTwoTensorForward.h"
 #include "ElasticityTensorTools.h"
 
 registerMooseObject("raccoonApp", ADDynamicStressDivergenceTensorsRecover);
@@ -30,8 +31,8 @@ ADDynamicStressDivergenceTensorsRecover::validParams()
                         "equilibrium under gravity by running a "
                         "quasi-static analysis (by solving Ku = F) "
                         "in the first time step");
-  params.addRequiredParam<MaterialPropertyName>("stress_old", "old stress");
-  params.addRequiredParam<MaterialPropertyName>("stress_older", "older stress");
+  params.addRequiredParam<UserObjectName>("solution",
+                                          "The SolutionUserObject to extract data from.");
 
   return params;
 }
@@ -44,9 +45,9 @@ ADDynamicStressDivergenceTensorsRecover::ADDynamicStressDivergenceTensorsRecover
     _zeta(getMaterialProperty<Real>("zeta")),
     _alpha(getParam<Real>("alpha")),
     _static_initialization(getParam<bool>("static_initialization")),
-    _stress_old_store(getADMaterialProperty<RankTwoTensor>("stress_old")),
-    _stress_older_store(getADMaterialProperty<RankTwoTensor>("stress_older"))
+    _solution_object_ptr(NULL)
 {
+  _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
 }
 
 ADReal
@@ -79,33 +80,60 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
   }
   else if (_dt > 0 && _t_step == 1)
   {
-    residual = _stress[_qp].row(_component) * _grad_test[_i][_qp] *
-                   (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
-               (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) *
-                   _stress_old_store[_qp].row(_component) * _grad_test[_i][_qp] +
-               (_alpha * _zeta[_qp] / _dt) * _stress_older_store[_qp].row(_component) *
-                   _grad_test[_i][_qp];
+    Point curr_Point = _q_point[_qp];
 
-    if (_volumetric_locking_correction)
-      residual +=
-          (_stress[_qp].trace() * (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
-           (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * _stress_old_store[_qp].trace() +
-           (_alpha * _zeta[_qp] / _dt) * _stress_older_store[_qp].trace()) /
-          3.0 * (_avg_grad_test[_i] - _grad_test[_i][_qp](_component));
-  }
-  else if (_dt > 0 && _t_step == 2)
-  {
+    // Get recovered stresses
+    ADRankTwoTensor stress_old_curr;
+    ADRankTwoTensor stress_older_curr;
+    // Populate tensor from solution object
+    for (int i_ind = 0; i_ind < 3; i_ind++)
+      for (int j_ind = 0; j_ind < 3; j_ind++)
+      {
+        stress_old_curr(i_ind, j_ind) = _solution_object_ptr->pointValue(
+            1, curr_Point, "stress_" + std::to_string(i_ind) + std::to_string(j_ind), nullptr);
+        stress_older_curr(i_ind, j_ind) = _solution_object_ptr->pointValue(
+            1,
+            curr_Point,
+            "stress_old_store_" + std::to_string(i_ind) + std::to_string(j_ind),
+            nullptr);
+      }
+
     residual =
         _stress[_qp].row(_component) * _grad_test[_i][_qp] *
             (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
-        (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * _stress_old[_qp].row(_component) *
+        (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * stress_old_curr.row(_component) *
             _grad_test[_i][_qp] +
-        (_alpha * _zeta[_qp] / _dt) * _stress_old_store[_qp].row(_component) * _grad_test[_i][_qp];
+        (_alpha * _zeta[_qp] / _dt) * stress_older_curr.row(_component) * _grad_test[_i][_qp];
+
+    if (_volumetric_locking_correction)
+      residual += (_stress[_qp].trace() * (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
+                   (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * stress_old_curr.trace() +
+                   (_alpha * _zeta[_qp] / _dt) * stress_older_curr.trace()) /
+                  3.0 * (_avg_grad_test[_i] - _grad_test[_i][_qp](_component));
+  }
+  else if (_dt > 0 && _t_step == 2)
+  {
+
+    // Get recovered stresses
+    ADRankTwoTensor stress_old_curr;
+    Point curr_Point = _q_point[_qp];
+
+    for (int i_ind = 0; i_ind < 3; i_ind++)
+      for (int j_ind = 0; j_ind < 3; j_ind++)
+      {
+        stress_old_curr(i_ind, j_ind) = _solution_object_ptr->pointValue(
+            1, curr_Point, "stress_" + std::to_string(i_ind) + std::to_string(j_ind), nullptr);
+      }
+    residual = _stress[_qp].row(_component) * _grad_test[_i][_qp] *
+                   (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
+               (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) *
+                   _stress_old[_qp].row(_component) * _grad_test[_i][_qp] +
+               (_alpha * _zeta[_qp] / _dt) * stress_old_curr.row(_component) * _grad_test[_i][_qp];
 
     if (_volumetric_locking_correction)
       residual += (_stress[_qp].trace() * (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
                    (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * _stress_old[_qp].trace() +
-                   (_alpha * _zeta[_qp] / _dt) * _stress_old_store[_qp].trace()) /
+                   (_alpha * _zeta[_qp] / _dt) * stress_old_curr.trace()) /
                   3.0 * (_avg_grad_test[_i] - _grad_test[_i][_qp](_component));
   }
   else if (_dt > 0)
