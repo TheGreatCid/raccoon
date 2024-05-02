@@ -56,7 +56,7 @@ NewmarkAccelAuxRecover::computeValue()
   {
     accel_old = _u_old[_qp];
   }
-  if (_dt == 0)
+  if (_t_step == 0)
     return accel_old;
 
   // Calculates acceeleration using Newmark time integration method
