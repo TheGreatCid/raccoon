@@ -17,7 +17,9 @@ public:
 
 protected:
   virtual GenericReal<true> computeQpResidual();
+
   virtual Real computeQpJacobian();
+
   virtual void computeResidualAdditional();
 
 private:

@@ -126,10 +126,10 @@ ADInertialForceRecover::computeQpResidual()
       ADReal inert_old = _solution_object_ptr->pointValue(1, curr_Point, _inert_name, nullptr);
       ADReal vel_old = _solution_object_ptr->pointValue(1, curr_Point, _vel_old_name, nullptr);
       ADReal accel_old = _solution_object_ptr->pointValue(1, curr_Point, _accel_old_name, nullptr);
-
+      std::cout << inert_old << " " << vel_old << " " << accel_old << std::endl;
       auto accel =
           1.0 / _beta *
-          (((_u[_qp] - inert_old) / (_dt * _dt)) - vel_old / _dt - accel_old * (0.5 - _beta));
+          (((_u[_qp] - (*_u_old)[_qp]) / (_dt * _dt)) - vel_old / _dt - accel_old * (0.5 - _beta));
       auto vel = vel_old + (_dt * (1.0 - _gamma)) * accel_old + _gamma * _dt * accel;
       return _test[_i][_qp] * _density[_qp] *
              (accel + vel * _eta[_qp] * (1.0 + _alpha) - _alpha * _eta[_qp] * vel_old);
