@@ -34,6 +34,8 @@ ADInertialForceRecover::validParams()
                         "by HHT time integration scheme");
   params.addParam<MaterialPropertyName>(
       "density", "density", "Name of Material Property that provides the density");
+  params.addRequiredParam<UserObjectName>("solution",
+                                          "The SolutionUserObject to extract data from.");
   params.addRequiredParam<VariableName>("inert_name",
                                         "name of inertial variable to get from solution object");
   return params;
@@ -56,6 +58,8 @@ ADInertialForceRecover::ADInertialForceRecover(const InputParameters & parameter
     _inert_name(getParam<VariableName>("inert_name"))
 
 {
+  _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
+
   if (_has_beta && _has_gamma && _has_velocity && _has_acceleration)
   {
     _vel_old = &this->coupledValueOld("velocity");
