@@ -44,7 +44,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
 
   ADRankTwoTensor curr_Fp;
   // Populate F_temp;
-  if (_t_step < 2)
+  if (_t_step < 2 && _recover == true)
   {
     Point curr_Point = _q_point[_qp];
 
