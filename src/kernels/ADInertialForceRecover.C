@@ -3,7 +3,7 @@
 #include "TimeIntegrator.h"
 #include "NonlinearSystemBase.h"
 
-registerMooseObject("RaccoonApp", ADInertialForceRecover);
+registerMooseObject("raccoonApp", ADInertialForceRecover);
 
 InputParameters
 ADInertialForceRecover::validParams()
