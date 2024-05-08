@@ -49,6 +49,8 @@ private:
 
   const SolutionUserObject * _solution_object_ptr;
   VariableName _inert_name;
+  VariableName _vel_old_name;
+  VariableName _accel_old_name;
 
   // Use the variables from ADTimeKernel
   using ADTimeKernel::_dt;

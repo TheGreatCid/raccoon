@@ -38,6 +38,10 @@ ADInertialForceRecover::validParams()
                                           "The SolutionUserObject to extract data from.");
   params.addRequiredParam<VariableName>("inert_name",
                                         "name of inertial variable to get from solution object");
+  params.addRequiredParam<VariableName>("vel_old_name",
+                                        "name of vel variable to get from solution object");
+  params.addRequiredParam<VariableName>("accel_old_name",
+                                        "name of accel variable to get from solution object");
   return params;
 }
 
@@ -55,7 +59,9 @@ ADInertialForceRecover::ADInertialForceRecover(const InputParameters & parameter
     _alpha(this->getParam<Real>("alpha")),
     _time_integrator(*_sys.getTimeIntegrator()),
     _solution_object_ptr(NULL),
-    _inert_name(getParam<VariableName>("inert_name"))
+    _inert_name(getParam<VariableName>("inert_name")),
+    _vel_old_name(getParam<VariableName>("vel_old_name")),
+    _accel_old_name(getParam<VariableName>("accel_old_name"))
 
 {
   _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
@@ -118,14 +124,15 @@ ADInertialForceRecover::computeQpResidual()
     {
       Point curr_Point = _q_point[_qp];
       ADReal inert_old = _solution_object_ptr->pointValue(1, curr_Point, _inert_name, nullptr);
+      ADReal vel_old = _solution_object_ptr->pointValue(1, curr_Point, _vel_old_name, nullptr);
+      ADReal accel_old = _solution_object_ptr->pointValue(1, curr_Point, _accel_old_name, nullptr);
 
-      auto accel = 1.0 / _beta *
-                   (((_u[_qp] - inert_old) / (_dt * _dt)) - (*_vel_old)[_qp] / _dt -
-                    (*_accel_old)[_qp] * (0.5 - _beta));
-      auto vel =
-          (*_vel_old)[_qp] + (_dt * (1.0 - _gamma)) * (*_accel_old)[_qp] + _gamma * _dt * accel;
+      auto accel =
+          1.0 / _beta *
+          (((_u[_qp] - inert_old) / (_dt * _dt)) - vel_old / _dt - accel_old * (0.5 - _beta));
+      auto vel = vel_old + (_dt * (1.0 - _gamma)) * accel_old + _gamma * _dt * accel;
       return _test[_i][_qp] * _density[_qp] *
-             (accel + vel * _eta[_qp] * (1.0 + _alpha) - _alpha * _eta[_qp] * (*_vel_old)[_qp]);
+             (accel + vel * _eta[_qp] * (1.0 + _alpha) - _alpha * _eta[_qp] * vel_old);
     }
     else
     {
