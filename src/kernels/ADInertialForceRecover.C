@@ -34,7 +34,6 @@ ADInertialForceRecover::validParams()
                         "by HHT time integration scheme");
   params.addParam<MaterialPropertyName>(
       "density", "density", "Name of Material Property that provides the density");
-  params.addRequiredCoupledVar("inert_store", "Store inertial residual");
   params.addRequiredParam<VariableName>("inert_name",
                                         "name of inertial variable to get from solution object");
   return params;
