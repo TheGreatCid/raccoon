@@ -23,7 +23,7 @@ public:
 
   void computeProperties() override;
 
-  void computeQpProperties() override;
+  // void computeQpProperties() override;
 
   void initStatefulProperties(unsigned int n_points) override;
 
