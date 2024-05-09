@@ -53,6 +53,8 @@ private:
   VariableName _inert_name;
   VariableName _vel_old_name;
   VariableName _accel_old_name;
+  Assembly & _assembly_undisplaced;
+  const MooseArray<Point> & _q_point_undisplaced;
 
   // Use the variables from ADTimeKernel
   using ADTimeKernel::_dt;

@@ -1,7 +1,9 @@
 #include "ADInertialForceRecover.h"
+#include "ADReal.h"
 #include "SubProblem.h"
 #include "TimeIntegrator.h"
 #include "NonlinearSystemBase.h"
+#include "metaphysicl/raw_type.h"
 
 registerMooseObject("raccoonApp", ADInertialForceRecover);
 
@@ -61,7 +63,9 @@ ADInertialForceRecover::ADInertialForceRecover(const InputParameters & parameter
     _solution_object_ptr(NULL),
     _inert_name(getParam<VariableName>("inert_name")),
     _vel_old_name(getParam<VariableName>("vel_old_name")),
-    _accel_old_name(getParam<VariableName>("accel_old_name"))
+    _accel_old_name(getParam<VariableName>("accel_old_name")),
+    _assembly_undisplaced(_fe_problem.assembly(_tid, this->_sys.number())),
+    _q_point_undisplaced(_assembly_undisplaced.qPoints())
 
 {
   _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
@@ -118,21 +122,39 @@ ADInertialForceRecover::computeQpResidual()
 
   if (_dt == 0)
   {
-    Point curr_Point = _q_point[_qp];
+    Point curr_Point = _q_point_undisplaced[_qp];
     return _solution_object_ptr->pointValue(1, curr_Point, _inert_name, nullptr);
   }
   else if (_has_beta)
   {
     if (_t_step == 1)
     {
-      Point curr_Point = _q_point[_qp];
+
+      // Losing inertial residual on first time step????
+      // It's almost inverting. Positive regions are negative and negative regions are positive
+      // after recover
+      //  What is going on here.
+      // or maybe I am just catching the wave reflection??
+      // not sure...
+      Point curr_Point = _q_point_undisplaced[_qp];
       ADReal inert_old = _solution_object_ptr->pointValue(1, curr_Point, _inert_name, nullptr);
       ADReal vel_old = _solution_object_ptr->pointValue(1, curr_Point, _vel_old_name, nullptr);
       ADReal accel_old = _solution_object_ptr->pointValue(1, curr_Point, _accel_old_name, nullptr);
+      // std::cout << _inert_name << " " << MetaPhysicL::raw_value(inert_old) << std::endl;
+      // std::cout << _vel_old_name << " " << MetaPhysicL::raw_value(vel_old) << std::endl;
+      // std::cout << _accel_old_name << " " << MetaPhysicL::raw_value(accel_old) << std::endl;
+
       auto accel =
           1.0 / _beta *
           (((_u[_qp] - inert_old) / (_dt * _dt)) - vel_old / _dt - accel_old * (0.5 - _beta));
       auto vel = vel_old + (_dt * (1.0 - _gamma)) * accel_old + _gamma * _dt * accel;
+      // std::cout << MetaPhysicL::raw_value(
+      //                  _test[_i][_qp] * _density[_qp] *
+      //                  (accel + vel * _eta[_qp] * (1.0 + _alpha) - _alpha * _eta[_qp] * vel_old))
+      //           << std::endl;
+      // std::cout << "vel - " << MetaPhysicL::raw_value(vel) << std::endl;
+      // std::cout << "accel - " << MetaPhysicL::raw_value(accel) << std::endl;
+
       return _test[_i][_qp] * _density[_qp] *
              (accel + vel * _eta[_qp] * (1.0 + _alpha) - _alpha * _eta[_qp] * vel_old);
     }

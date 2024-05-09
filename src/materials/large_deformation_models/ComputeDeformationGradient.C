@@ -192,8 +192,6 @@ ComputeDeformationGradient::computeProperties()
     // Multiply in old deformation
     if (_recover == true)
     {
-      // Volume average the stored F
-
       _F[_qp] *= _F_store_Fbar[_qp];
     }
     if (_volumetric_locking_correction)

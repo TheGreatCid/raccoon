@@ -3,6 +3,7 @@
 //* http://dolbow.pratt.duke.edu
 
 #include "ADRankTwoTensorForward.h"
+#include "ADReal.h"
 #include "LargeDeformationJ2Plasticity.h"
 #include "MooseError.h"
 #include "RaccoonUtils.h"
@@ -95,12 +96,14 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
     _ep[_qp] = _ep_old_store[_qp];
     _Fp[_qp] = curr_Fp;
   }
-  _phi[_qp] = computeResidual(stress_dev_norm, delta_ep);
-  if (_phi[_qp] > 0)
-    returnMappingSolve(stress_dev_norm, delta_ep, _console);
-
+  else
+  {
+    _phi[_qp] = computeResidual(stress_dev_norm, delta_ep);
+    if (_phi[_qp] > 0)
+      returnMappingSolve(stress_dev_norm, delta_ep, _console);
+  }
   // Use stored old value if using a recover algorithm
-  if (_t_step == 1 && _recover == true)
+  if (_t_step < 2 && _recover == true)
     _ep[_qp] = _ep_old_store[_qp] + delta_ep;
   else
     _ep[_qp] = _ep_old[_qp] + delta_ep;
@@ -113,7 +116,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
     _ep[_qp] = 1e-20;
   }
   ADRankTwoTensor delta_Fp = RaccoonUtils::exp(delta_ep * _Np[_qp]);
-  if (_t_step == 1 && _recover == true)
+  if (_t_step < 2 && _recover == true)
     _Fp[_qp] = delta_Fp * curr_Fp;
   else
     _Fp[_qp] = delta_Fp * _Fp_old[_qp];
@@ -137,6 +140,8 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   }
   _flowstress[_qp] = _hardening_model->plasticEnergy(_ep[_qp], 1);
   _visflowstress[_qp] = _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 1);
+  // if (_t_step == 1)
+  //   std::cout << MetaPhysicL::raw_value(delta_ep) << std::endl;
 }
 
 Real
