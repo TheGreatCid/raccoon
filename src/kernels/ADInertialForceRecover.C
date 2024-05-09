@@ -146,15 +146,20 @@ ADInertialForceRecover::computeQpResidual()
 
       auto accel =
           1.0 / _beta *
-          (((_u[_qp] - inert_old) / (_dt * _dt)) - vel_old / _dt - accel_old * (0.5 - _beta));
+          (((_u[_qp] - (*_u_old)[_qp]) / (_dt * _dt)) - vel_old / _dt - accel_old * (0.5 - _beta));
       auto vel = vel_old + (_dt * (1.0 - _gamma)) * accel_old + _gamma * _dt * accel;
       // std::cout << MetaPhysicL::raw_value(
       //                  _test[_i][_qp] * _density[_qp] *
       //                  (accel + vel * _eta[_qp] * (1.0 + _alpha) - _alpha * _eta[_qp] * vel_old))
       //           << std::endl;
       // std::cout << "vel - " << MetaPhysicL::raw_value(vel) << std::endl;
-      // std::cout << "accel - " << MetaPhysicL::raw_value(accel) << std::endl;
-
+      // std::cout << "accel - " << MetaPhysicL::raw_value(accel) << " "
+      //           << MetaPhysicL::raw_value(_u[_qp]) << " "
+      //           << MetaPhysicL::raw_value(_u[_qp] - inert_old) << " "
+      //           << MetaPhysicL::raw_value(inert_old) << " "
+      //           << MetaPhysicL::raw_value((_u[_qp] - inert_old) / (_dt * _dt)) << " "
+      //           << MetaPhysicL::raw_value(vel_old / _dt - accel_old * (0.5 - _beta)) <<
+      //           std::endl;
       return _test[_i][_qp] * _density[_qp] *
              (accel + vel * _eta[_qp] * (1.0 + _alpha) - _alpha * _eta[_qp] * vel_old);
     }
@@ -165,6 +170,7 @@ ADInertialForceRecover::computeQpResidual()
                     (*_accel_old)[_qp] * (0.5 - _beta));
       auto vel =
           (*_vel_old)[_qp] + (_dt * (1.0 - _gamma)) * (*_accel_old)[_qp] + _gamma * _dt * accel;
+
       return _test[_i][_qp] * _density[_qp] *
              (accel + vel * _eta[_qp] * (1.0 + _alpha) - _alpha * _eta[_qp] * (*_vel_old)[_qp]);
     }

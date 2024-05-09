@@ -160,11 +160,11 @@ ComputeDeformationGradient::initQpStatefulProperties()
   _Fm[_qp].setToIdentity();
 }
 
-void
-ComputeDeformationGradient::computeQpProperties()
-{
-  _F_store_Fbar[_qp] = _F_store_Fbar_old[_qp];
-}
+// void
+// ComputeDeformationGradient::computeQpProperties()
+// {
+//   _F_store_Fbar[_qp] = _F_store_Fbar_old[_qp];
+// }
 
 ADReal
 ComputeDeformationGradient::computeQpOutOfPlaneGradDisp()
@@ -183,6 +183,10 @@ ComputeDeformationGradient::computeProperties()
 
   for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
   {
+    if (_t_step == 0)
+    {
+      std::cout << _F_store_Fbar[_qp](1, 1) << std::endl;
+    }
     ADRankTwoTensor A = ADRankTwoTensor::initializeFromRows(
         (*_grad_disp[0])[_qp], (*_grad_disp[1])[_qp], (*_grad_disp[2])[_qp]);
     if (_coord_sys == Moose::COORD_RZ)

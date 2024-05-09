@@ -43,6 +43,8 @@ void
 LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTensor & Fe)
 {
 
+  if (_t_step == 0)
+    std::cout << MetaPhysicL::raw_value(Fe(1, 1)) << std::endl;
   ADRankTwoTensor curr_Fp;
   // Populate F_temp;
   if (_t_step < 2 && _recover == true)
