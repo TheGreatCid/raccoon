@@ -183,21 +183,17 @@ ComputeDeformationGradient::computeProperties()
 
   for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
   {
-    if (_t_step == 0)
-    {
-      std::cout << _F_store_Fbar[_qp](1, 1) << std::endl;
-    }
+    // if (_t_step == 0)
+    // {
+    //   std::cout << _F_store_Fbar[_qp](1, 1) << std::endl;
+    // }
     ADRankTwoTensor A = ADRankTwoTensor::initializeFromRows(
         (*_grad_disp[0])[_qp], (*_grad_disp[1])[_qp], (*_grad_disp[2])[_qp]);
     if (_coord_sys == Moose::COORD_RZ)
       A(2, 2) = computeQpOutOfPlaneGradDisp();
     _F[_qp] = A;
     _F[_qp].addIa(1.0);
-    // Multiply in old deformation
-    if (_recover == true)
-    {
-      _F[_qp] *= _F_store_Fbar[_qp];
-    }
+
     if (_volumetric_locking_correction)
       ave_F_det += _F[_qp].det() * _JxW[_qp] * _coord[_qp];
   }
@@ -211,7 +207,11 @@ ComputeDeformationGradient::computeProperties()
     _F_NoFbar[_qp] = _F[_qp];
     if (_volumetric_locking_correction)
       _F[_qp] *= std::cbrt(ave_F_det / _F[_qp].det());
-
+    // Multiply in old deformation
+    if (_recover == true)
+    {
+      _F[_qp] *= _F_store_Fbar[_qp];
+    }
     // Remove the eigen deformation gradient
     ADRankTwoTensor Fg(ADRankTwoTensor::initIdentity);
     for (auto Fgi : _Fgs)
