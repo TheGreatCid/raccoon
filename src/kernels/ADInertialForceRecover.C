@@ -141,9 +141,11 @@ ADInertialForceRecover::computeQpResidual()
       ADReal vel_old = _solution_object_ptr->pointValue(1, curr_Point, _vel_old_name, nullptr);
       ADReal accel_old = _solution_object_ptr->pointValue(1, curr_Point, _accel_old_name, nullptr);
       // std::cout << _inert_name << " " << MetaPhysicL::raw_value(inert_old) << std::endl;
-      std::cout << _vel_old_name << " " << MetaPhysicL::raw_value(vel_old) << std::endl;
-      std::cout << _accel_old_name << " " << MetaPhysicL::raw_value(accel_old) << std::endl;
-
+      // std::cout << _vel_old_name << " " << MetaPhysicL::raw_value(vel_old) << std::endl;
+      // std::cout << _accel_old_name << " " << MetaPhysicL::raw_value(accel_old) << std::endl;
+      // std::cout << MetaPhysicL::raw_value(_u[_qp]) << " " <<
+      // MetaPhysicL::raw_value((*_u_old)[_qp])
+      //           << std::endl;
       auto accel =
           1.0 / _beta *
           (((_u[_qp] - (*_u_old)[_qp]) / (_dt * _dt)) - vel_old / _dt - accel_old * (0.5 - _beta));

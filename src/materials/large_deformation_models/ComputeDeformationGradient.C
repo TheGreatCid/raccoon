@@ -3,9 +3,11 @@
 //* http://dolbow.pratt.duke.edu
 
 #include "ADRankTwoTensorForward.h"
+#include "ADReal.h"
 #include "ComputeDeformationGradient.h"
 #include "Material.h"
 #include "MooseTypes.h"
+#include "RankTwoTensorForward.h"
 #include "SolutionUserObject.h"
 
 registerADMooseObject("raccoonApp", ComputeDeformationGradient);

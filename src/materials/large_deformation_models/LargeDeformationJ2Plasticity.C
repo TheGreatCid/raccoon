@@ -66,15 +66,13 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   }
   // First assume no plastic increment
   ADReal delta_ep = 0;
-  if (_recover == true && _t_step == 1)
+  if (_recover == true && _t_step < 2)
   {
-
-    // std::cout << "here" << std::endl;
     Fe = Fe * curr_Fp.inverse();
-    // std::cout << "here2" << std::endl;
   }
   else
   {
+
     Fe = Fe * _Fp_old[_qp].inverse();
   }
   stress = _elasticity_model->computeMandelStress(Fe);
@@ -90,10 +88,6 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   _Np[_qp] = 1.5 * stress_dev / stress_dev_norm;
   // Return mapping
 
-  // if (_recover == true && _t_step == 1)
-  // {
-  //   std::cout << "stress" << MetaPhysicL::raw_value(stress_dev_norm) << std::endl;
-  // }
   if (_recover == true && _t_step == 0)
   {
     _ep[_qp] = _ep_old_store[_qp];
@@ -104,13 +98,8 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
     _phi[_qp] = computeResidual(stress_dev_norm, delta_ep);
     if (_phi[_qp] > 0)
       returnMappingSolve(stress_dev_norm, delta_ep, _console);
-  }
-  // Use stored old value if using a recover algorithm
-  if (_t_step < 2 && _recover == true)
-    _ep[_qp] = _ep_old_store[_qp] + delta_ep;
-  else
     _ep[_qp] = _ep_old[_qp] + delta_ep;
-
+  }
   // if (_t_step == 1)
   // std::cout << MetaPhysicL::raw_value(_ep_old[_qp]) << std::endl;
 
@@ -119,9 +108,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
     _ep[_qp] = 1e-20;
   }
   ADRankTwoTensor delta_Fp = RaccoonUtils::exp(delta_ep * _Np[_qp]);
-  if (_t_step < 2 && _recover == true)
-    _Fp[_qp] = delta_Fp * curr_Fp;
-  else
+  if (_t_step > 0 && _recover == true)
     _Fp[_qp] = delta_Fp * _Fp_old[_qp];
 
   // Update stress and energy

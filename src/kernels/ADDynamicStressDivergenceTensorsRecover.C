@@ -9,6 +9,7 @@
 
 #include "ADDynamicStressDivergenceTensorsRecover.h"
 #include "ADRankTwoTensorForward.h"
+#include "ADReal.h"
 #include "ElasticityTensorTools.h"
 #include "Assembly.h"
 
@@ -91,6 +92,7 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
     ADRankTwoTensor stress_older_curr;
     // Populate tensor from solution object
     for (int i_ind = 0; i_ind < 3; i_ind++)
+    {
       for (int j_ind = 0; j_ind < 3; j_ind++)
       {
         stress_old_curr(i_ind, j_ind) = _solution_object_ptr->pointValue(
@@ -100,7 +102,10 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
             curr_Point,
             "stress_old_store_" + std::to_string(i_ind) + std::to_string(j_ind),
             nullptr);
+        //      std::cout << " " << MetaPhysicL::raw_value(stress_old_curr(i_ind, j_ind));
       }
+      //   std::cout << std::endl;
+    }
 
     residual =
         _stress[_qp].row(_component) * _grad_test[_i][_qp] *
@@ -114,6 +119,9 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
                    (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * stress_old_curr.trace() +
                    (_alpha * _zeta[_qp] / _dt) * stress_older_curr.trace()) /
                   3.0 * (_avg_grad_test[_i] - _grad_test[_i][_qp](_component));
+    // if (_t_step == 1 && _qp == 0)
+    // std::cout << "GRAD RESID - " << MetaPhysicL::raw_value(_grad_test[1][_qp](_component))
+    //           << std::endl;
   }
   else if (_dt > 0 && _t_step == 2)
   {
