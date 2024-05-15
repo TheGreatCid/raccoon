@@ -98,13 +98,13 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
     _phi[_qp] = computeResidual(stress_dev_norm, delta_ep);
     if (_phi[_qp] > 0)
       returnMappingSolve(stress_dev_norm, delta_ep, _console);
-    if (_t_step == 1 && _recover == true)
-    {
-      _ep[_qp] = _ep_old_store[_qp] + delta_ep;
-    }
-    else
-      _ep[_qp] = _ep_old[_qp] + delta_ep;
   }
+  if (_t_step == 1 && _recover == true)
+  {
+    _ep[_qp] = _ep_old_store[_qp] + delta_ep;
+  }
+  else
+    _ep[_qp] = _ep_old[_qp] + delta_ep;
   // if (_t_step == 1)
   // std::cout << MetaPhysicL::raw_value(_ep_old[_qp]) << std::endl;
 
@@ -113,9 +113,10 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
     _ep[_qp] = 1e-20;
   }
   ADRankTwoTensor delta_Fp = RaccoonUtils::exp(delta_ep * _Np[_qp]);
-  if (_t_step > 0 && _recover == true)
+  if (_t_step < 2 && _recover == true)
+    _Fp[_qp] = delta_Fp * curr_Fp;
+  else
     _Fp[_qp] = delta_Fp * _Fp_old[_qp];
-
   // Update stress and energy
   Fe = Fe * delta_Fp.inverse();
   stress = _elasticity_model->computeCauchyStress(Fe);
