@@ -54,6 +54,7 @@ NewmarkAccelAuxRecover::computeValue()
   }
   else
   {
+    // std::cout << _u_old[_qp] << std::endl;
     accel_old = _u_old[_qp];
   }
   if (_t_step == 0)

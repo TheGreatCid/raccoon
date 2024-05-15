@@ -18,9 +18,10 @@ NewmarkVelAuxRecover::validParams()
   params.addClassDescription("Calculates the current velocity using Newmark method.");
   params.addRequiredCoupledVar("acceleration", "acceleration variable");
   params.addRequiredParam<Real>("gamma", "gamma parameter for Newmark method");
-  params.addRequiredCoupledVar("u_old_store", "u_old_store");
-  params.addRequiredCoupledVar("accel_old_store", "accel_old_store");
-
+  params.addRequiredParam<UserObjectName>("solution",
+                                          "The SolutionUserObject to extract data from.");
+  params.addRequiredParam<VariableName>("vel_name",
+                                        "name of vel variable to get from solution object");
   return params;
 }
 
@@ -30,9 +31,10 @@ NewmarkVelAuxRecover::NewmarkVelAuxRecover(const InputParameters & parameters)
     _accel(coupledValue("acceleration")),
     _u_old(uOld()),
     _gamma(getParam<Real>("gamma")),
-    _u_old_store(coupledValue("u_old_store")),
-    _accel_old_store(coupledValue("accel_old_store"))
+    _solution_object_ptr(NULL),
+    _vel_name(getParam<VariableName>("vel_name"))
 {
+  _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
 }
 
 Real
@@ -41,7 +43,8 @@ NewmarkVelAuxRecover::computeValue()
   Real vel_old;
   if (_t_step == 0)
   {
-    vel_old = _u_old_store[_qp];
+    Point curr_Point = _q_point[_qp];
+    vel_old = _solution_object_ptr->pointValue(1, curr_Point, _vel_name, nullptr);
   }
   else
   {

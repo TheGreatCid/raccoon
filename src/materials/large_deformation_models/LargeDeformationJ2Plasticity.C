@@ -98,7 +98,12 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
     _phi[_qp] = computeResidual(stress_dev_norm, delta_ep);
     if (_phi[_qp] > 0)
       returnMappingSolve(stress_dev_norm, delta_ep, _console);
-    _ep[_qp] = _ep_old[_qp] + delta_ep;
+    if (_t_step == 1 && _recover == true)
+    {
+      _ep[_qp] = _ep_old_store[_qp] + delta_ep;
+    }
+    else
+      _ep[_qp] = _ep_old[_qp] + delta_ep;
   }
   // if (_t_step == 1)
   // std::cout << MetaPhysicL::raw_value(_ep_old[_qp]) << std::endl;

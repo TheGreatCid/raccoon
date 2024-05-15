@@ -2,6 +2,7 @@
 #pragma once
 
 #include "AuxKernel.h"
+#include "SolutionUserObject.h"
 
 class NewmarkVelAuxRecover : public AuxKernel
 {
@@ -22,6 +23,6 @@ protected:
   const VariableValue & _accel;
   const VariableValue & _u_old;
   Real _gamma;
-  const VariableValue & _u_old_store;
-  const VariableValue & _accel_old_store;
+  const SolutionUserObject * _solution_object_ptr;
+  VariableName _vel_name;
 };
