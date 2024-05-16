@@ -43,10 +43,10 @@ void
 LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTensor & Fe)
 {
 
-  // if (_t_step == 0)
-  //   std::cout << MetaPhysicL::raw_value(Fe(1, 1)) << std::endl;
   ADRankTwoTensor curr_Fp;
-  // Populate F_temp;
+
+  // populate curr_FP and _ep_old_store
+  //_ep_old store is a material property so that it can be used in the residual calculation
   if (_t_step < 2 && _recover == true)
   {
     Point curr_Point = _q_point[_qp];
@@ -76,7 +76,6 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
     Fe = Fe * _Fp_old[_qp].inverse();
   }
   stress = _elasticity_model->computeMandelStress(Fe);
-  // std::cout << MetaPhysicL::raw_value(_Fp_old[_qp]) << std::endl;
 
   // Compute the flow direction following the Prandtl-Reuss flow rule.
   // We guard against zero denominator.
@@ -99,24 +98,25 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
     if (_phi[_qp] > 0)
       returnMappingSolve(stress_dev_norm, delta_ep, _console);
   }
+
+  // Using stored ep on first time step if recovering
   if (_t_step == 1 && _recover == true)
-  {
     _ep[_qp] = _ep_old_store[_qp] + delta_ep;
-  }
   else
     _ep[_qp] = _ep_old[_qp] + delta_ep;
-  // if (_t_step == 1)
-  // std::cout << MetaPhysicL::raw_value(_ep_old[_qp]) << std::endl;
 
   if (_ep[_qp] == 0)
   {
     _ep[_qp] = 1e-20;
   }
   ADRankTwoTensor delta_Fp = RaccoonUtils::exp(delta_ep * _Np[_qp]);
+
+  // Using stored Fp on first time step if recovering
   if (_t_step < 2 && _recover == true)
     _Fp[_qp] = delta_Fp * curr_Fp;
   else
     _Fp[_qp] = delta_Fp * _Fp_old[_qp];
+
   // Update stress and energy
   Fe = Fe * delta_Fp.inverse();
   stress = _elasticity_model->computeCauchyStress(Fe);
@@ -136,8 +136,6 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   }
   _flowstress[_qp] = _hardening_model->plasticEnergy(_ep[_qp], 1);
   _visflowstress[_qp] = _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 1);
-  // if (_t_step == 1)
-  //   std::cout << MetaPhysicL::raw_value(delta_ep) << std::endl;
 }
 
 Real
@@ -155,6 +153,8 @@ LargeDeformationJ2Plasticity::computeResidual(const ADReal & effective_trial_str
                                               const ADReal & delta_ep)
 {
   ADReal ep;
+
+  // Using stored Fp on first time step if recovering
   if (_t_step == 1 && _recover == true)
     ep = _ep_old_store[_qp] + delta_ep;
   else
@@ -177,6 +177,8 @@ LargeDeformationJ2Plasticity::computeDerivative(const ADReal & /*effective_trial
                                                 const ADReal & delta_ep)
 {
   ADReal ep;
+
+  // Using stored Fp on first time step if recovering
   if (_t_step == 1 && _recover == true)
     ep = _ep_old_store[_qp] + delta_ep;
   else

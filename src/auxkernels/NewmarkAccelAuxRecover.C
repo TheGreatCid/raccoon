@@ -47,6 +47,7 @@ NewmarkAccelAuxRecover::computeValue()
   if (!isNodal())
     mooseError("must run on a nodal variable");
   Real accel_old;
+  // Getting old acceleration from solution file
   if (_t_step == 0)
   {
     Point curr_Point = _q_point[_qp];
@@ -54,25 +55,13 @@ NewmarkAccelAuxRecover::computeValue()
   }
   else
   {
-    // std::cout << _u_old[_qp] << std::endl;
     accel_old = _u_old[_qp];
   }
   if (_t_step == 0)
     return accel_old;
 
   // Calculates acceeleration using Newmark time integration method
-  // if (_t_step == 1)
-  // {
-  //   return 1.0 / _beta *
-  //          ((_disp[_qp] - _disp_old_store[_qp]) / (_dt * _dt) - _u_old_store[_qp] / _dt -
-  //           accel_old * (0.5 - _beta));
-  //   std::cout << "here" << std::endl;
-  // }
-  // else
-  // {
-  // std::cout << _disp_old[_qp] << std::endl;
   return 1.0 / _beta *
          ((_disp[_qp] - _disp_old[_qp]) / (_dt * _dt) - _vel_old[_qp] / _dt -
           accel_old * (0.5 - _beta));
-  // }
 }

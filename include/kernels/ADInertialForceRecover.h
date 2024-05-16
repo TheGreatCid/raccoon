@@ -50,7 +50,6 @@ private:
   TimeIntegrator & _time_integrator;
 
   const SolutionUserObject * _solution_object_ptr;
-  VariableName _inert_name;
   VariableName _vel_old_name;
   VariableName _accel_old_name;
   Assembly & _assembly_undisplaced;

@@ -119,11 +119,8 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
                    (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * stress_old_curr.trace() +
                    (_alpha * _zeta[_qp] / _dt) * stress_older_curr.trace()) /
                   3.0 * (_avg_grad_test[_i] - _grad_test[_i][_qp](_component));
-    // if (_t_step == 1 && _qp == 0)
-    // std::cout << "GRAD RESID - " << MetaPhysicL::raw_value(_grad_test[1][_qp](_component))
-    //           << std::endl;
   }
-  else if (_dt > 0 && _t_step == 2)
+  else if (_dt > 0 && _t_step == 2) // Need to user stored stress as older stress
   {
 
     // Get recovered stresses

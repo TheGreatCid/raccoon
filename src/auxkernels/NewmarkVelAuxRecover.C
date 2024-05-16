@@ -41,6 +41,8 @@ Real
 NewmarkVelAuxRecover::computeValue()
 {
   Real vel_old;
+
+  // Getting stored velocity from solution file
   if (_t_step == 0)
   {
     Point curr_Point = _q_point[_qp];
