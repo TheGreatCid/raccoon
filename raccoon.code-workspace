@@ -1,0 +1,35 @@
+{
+    "folders": [
+        {
+            "path": "."
+        },
+        {
+            "path": "./moose"
+        }
+    ],
+    "settings": {
+        "clangd.arguments": [
+            "--compile-commands-dir=/home/detorre/projects/raccoon/",
+            "--background-index",
+            "--query-driver=/home/detorre/miniforge/envs/moose/bin/mpicxx"
+        ],
+        "[moose]": {
+            "outline.showProperties": false,
+            "outline.showStrings": false,
+            "gitlens.codeLens.scopes": [
+                "document"
+            ]
+        },
+        "makefile.configureOnOpen": false,
+        "workbench.colorTheme": "Atom One Dark",
+        "gitlens.hovers.currentLine.over": "line",
+        "files.associations": {
+            "*.C": "cpp",
+            "*.h": "cpp"
+        },
+        "files.trimTrailingWhitespace": true,
+        "editor.tabSize": 2,
+        "editor.formatOnSave": true,
+        "files.insertFinalNewline": true
+    }
+}

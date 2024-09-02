@@ -20,17 +20,13 @@ RationalDegradationFunction::validParams()
 
   params.set<std::string>("expression") =
       "(1-d)^p/((1-d)^p+(Gc/psic*xi/c0/l)*d*(1+a2*d+a2*a3*d^2))*(1-eta)+eta";
-<<<<<<< HEAD
 
   const std::vector<std::string> default_params = {"p", "a2", "a3", "eta"};
   params.set<std::vector<std::string>>("parameter_names") = default_params;
 
   const std::vector<std::string> default_mat_props = {"Gc", "xi", "c0", "l"};
   params.set<std::vector<std::string>>("material_property_names") = default_mat_props;
-=======
-  params.set<std::vector<std::string>>("parameter_names") = {"p", "a2", "a3", "eta"};
-  params.set<std::vector<std::string>>("material_property_names") = {"Gc", "psic", "xi", "c0", "l"};
->>>>>>> master
+
   return params;
 }
 
