@@ -5,10 +5,13 @@
 #include "ADRankTwoTensorForward.h"
 #include "ADReal.h"
 #include "ComputeDeformationGradient.h"
+#include "EigenADReal.h"
 #include "Material.h"
+#include "MooseError.h"
 #include "MooseTypes.h"
 #include "RankTwoTensorForward.h"
 #include "SolutionUserObject.h"
+#include "metaphysicl/raw_type.h"
 
 registerADMooseObject("raccoonApp", ComputeDeformationGradient);
 
@@ -53,12 +56,14 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _F_store_Fbar_old(
         getMaterialPropertyOld<RankTwoTensor>(prependBaseName("deformation_gradient_Fbar"))),
     _Fm(declareADProperty<RankTwoTensor>(prependBaseName("mechanical_deformation_gradient"))),
+    _F_store_noFbar(
+        declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient_NoFbar"))),
     _Fg_names(prependBaseName(
         getParam<std::vector<MaterialPropertyName>>("eigen_deformation_gradient_names"))),
     _Fgs(_Fg_names.size()),
+    _weights(declareADProperty<Real>("weights")),
     _recover(getParam<bool>("recover")),
     _solution_object_ptr(NULL)
-
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &Material::getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
@@ -85,7 +90,7 @@ ComputeDeformationGradient::initialSetup()
     _grad_disp.push_back(&_ad_grad_zero);
   }
 
-  // Apply volume averaging to inputed deformation gradient
+  // Apply volume averaging to inputted deformation gradient
 }
 
 void
@@ -122,32 +127,43 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
     // Get average
     for (_qp = 0; _qp < n_points; ++_qp)
     {
-
-      Point curr_Point = _q_point[_qp];
-
       // Populate tensor from solution object
       for (int i_ind = 0; i_ind < 3; i_ind++)
         for (int j_ind = 0; j_ind < 3; j_ind++)
         {
-          curr_F(i_ind, j_ind) = _solution_object_ptr->pointValue(
-              1, curr_Point, "dg_noFbar_" + std::to_string(i_ind) + std::to_string(j_ind), nullptr);
+          curr_F(i_ind, j_ind) = _solution_object_ptr->directValue(
+              _current_elem,
+              "F_" + std::to_string(i_ind) + std::to_string(j_ind) + "_" + std::to_string(_qp));
         }
-
+      _F_store_noFbar[_qp] = curr_F;
       _F_store_Fbar[_qp] = curr_F;
-      ave_F_det_init += curr_F.det() * _JxW[_qp] * _coord[_qp];
-    }
-    // Get averaged initial deformation tensor
-    ave_F_det_init /= _current_elem_volume;
 
+      // Real JxWPrev = _solution_object_ptr->pointValue(1, curr_Point, "weights", nullptr);
+      ave_F_det_init += curr_F.det() * _JxW[_qp] * _coord[_qp]; // 0.0625 _JxW[_qp]
+      // ave_F_det_init += curr_F.det() * 0.0625 * _coord[_qp]; // 0.0625
+      std::cout << "COORD = " << _coord[_qp] << std::endl;
+      std::cout << "WEIGHTED JACOBIAN = " << _JxW[_qp] << std::endl;
+    }
+
+    // Get averaged initial deformation tensor
+    ave_F_det_init /= _current_elem_volume; // 0.25;
+    // ave_F_det_init /= 0.25;
+    std::cout << "SUM = " << sumjw;
+    std::cout << _current_elem->id() << std::endl;
     for (_qp = 0; _qp < n_points; ++_qp)
     {
-      // Populate current degrad tensor
+
+      // Populate current defgrad tensor
       Point curr_Point = _q_point[_qp];
       for (int i_ind = 0; i_ind < 3; i_ind++)
         for (int j_ind = 0; j_ind < 3; j_ind++)
         {
-          curr_F(i_ind, j_ind) = _solution_object_ptr->pointValue(
-              1, curr_Point, "dg_noFbar_" + std::to_string(i_ind) + std::to_string(j_ind), nullptr);
+          // curr_F(i_ind, j_ind) = _solution_object_ptr->pointValue(
+          //     1, curr_Point, "dg_noFbar_" + std::to_string(i_ind) + std::to_string(j_ind),
+          //     nullptr);
+          curr_F(i_ind, j_ind) = _solution_object_ptr->directValue(
+              _current_elem,
+              "F_" + std::to_string(i_ind) + std::to_string(j_ind) + "_" + std::to_string(_qp));
         }
       // Store value
       _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / curr_F.det());
@@ -161,12 +177,6 @@ ComputeDeformationGradient::initQpStatefulProperties()
   _F[_qp].setToIdentity();
   _Fm[_qp].setToIdentity();
 }
-
-// void
-// ComputeDeformationGradient::computeQpProperties()
-// {
-//   _F_store_Fbar[_qp] = _F_store_Fbar_old[_qp];
-// }
 
 ADReal
 ComputeDeformationGradient::computeQpOutOfPlaneGradDisp()
@@ -185,10 +195,6 @@ ComputeDeformationGradient::computeProperties()
 
   for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
   {
-    // if (_t_step == 0)
-    // {
-    //   std::cout << _F_store_Fbar[_qp](1, 1) << std::endl;
-    // }
     ADRankTwoTensor A = ADRankTwoTensor::initializeFromRows(
         (*_grad_disp[0])[_qp], (*_grad_disp[1])[_qp], (*_grad_disp[2])[_qp]);
     if (_coord_sys == Moose::COORD_RZ)
@@ -205,8 +211,22 @@ ComputeDeformationGradient::computeProperties()
 
   for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
   {
-    // Store _F[_qp] before volume averaging
-    _F_NoFbar[_qp] = _F[_qp];
+
+    if (_recover == true)
+      _F_NoFbar[_qp] = _F[_qp] * _F_store_noFbar[_qp];
+    else
+    {
+      _F_NoFbar[_qp] = _F[_qp];
+    }
+    if ((_t_step == 0 || _t_step == 50) && _current_elem->id() == 1)
+    {
+      std::cout << "ELEMENT =" << _current_elem->id() << " QP = " << _qp << std::endl;
+      std::cout << "F = " << MetaPhysicL::raw_value(_F[_qp](0, 0)) << std::endl;
+      std::cout << "det(F) = " << MetaPhysicL::raw_value(_F[_qp].det()) << std::endl;
+      std::cout << "AVG F = " << MetaPhysicL::raw_value(ave_F_det) << std::endl;
+      std::cout << "CUBE ROOT = " << MetaPhysicL::raw_value(std::cbrt(ave_F_det / _F[_qp].det()))
+                << std::endl;
+    }
     if (_volumetric_locking_correction)
       _F[_qp] *= std::cbrt(ave_F_det / _F[_qp].det());
     // Multiply in old deformation
@@ -214,6 +234,7 @@ ComputeDeformationGradient::computeProperties()
     {
       _F[_qp] *= _F_store_Fbar[_qp];
     }
+
     // Remove the eigen deformation gradient
     ADRankTwoTensor Fg(ADRankTwoTensor::initIdentity);
     for (auto Fgi : _Fgs)

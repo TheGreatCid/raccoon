@@ -2,8 +2,10 @@
 //* being developed at Dolbow lab at Duke University
 //* http://dolbow.pratt.duke.edu
 
+#include "EigenADReal.h"
 #include "LargeDeformationElasticityModel.h"
 #include "LargeDeformationPlasticityModel.h"
+#include "metaphysicl/raw_type.h"
 
 InputParameters
 LargeDeformationElasticityModel::validParams()

@@ -4,6 +4,7 @@
 
 #include "HenckyIsotropicElasticity.h"
 #include "RaccoonUtils.h"
+#include "metaphysicl/raw_type.h"
 
 registerMooseObject("raccoonApp", HenckyIsotropicElasticity);
 
@@ -81,6 +82,11 @@ HenckyIsotropicElasticity::computeMandelStressNoDecomposition(const ADRankTwoTen
   if (!plasticity_update)
     strain = 0.5 * RaccoonUtils::log(Fe.transpose() * Fe);
 
+  // if (plasticity_update == false && _current_elem->id() == 1 && (_t_step == 0 || _t_step == 50))
+  // {
+  //   std::cout << "STRAIN = " << std::endl;
+  //   MetaPhysicL::raw_value(strain).print();
+  // }
   const ADRankTwoTensor I2(ADRankTwoTensor::initIdentity);
   // Here, we keep the volumetric part no matter what. But ideally, in the case of J2 plasticity,
   // the volumetric part of the flow should be zero, and we could save some operations.

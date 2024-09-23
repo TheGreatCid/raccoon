@@ -4,9 +4,11 @@
 
 #include "ADRankTwoTensorForward.h"
 #include "ADReal.h"
+#include "EigenADReal.h"
 #include "LargeDeformationJ2Plasticity.h"
 #include "MooseError.h"
 #include "RaccoonUtils.h"
+#include <string>
 
 registerMooseObject("raccoonApp", LargeDeformationJ2Plasticity);
 
@@ -49,19 +51,15 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   //_ep_old store is a material property so that it can be used in the residual calculation
   if (_t_step < 2 && _recover == true)
   {
-    Point curr_Point = _q_point[_qp];
-
     _ep_old_store[_qp] =
-        _solution_object_ptr->pointValue(1, curr_Point, "effective_plastic_strain", nullptr);
+        _solution_object_ptr->directValue(_current_elem, "ep_" + std::to_string(_qp));
     for (int i_ind = 0; i_ind < 3; i_ind++)
       for (int j_ind = 0; j_ind < 3; j_ind++)
       {
         //  std::cout << i_ind << " " << j_ind << std::endl;
-        curr_Fp(i_ind, j_ind) = _solution_object_ptr->pointValue(
-            1,
-            curr_Point,
-            "plastic_deformation_gradient_" + std::to_string(i_ind) + std::to_string(j_ind),
-            nullptr);
+        curr_Fp(i_ind, j_ind) = _solution_object_ptr->directValue(
+            _current_elem,
+            "Fp_" + std::to_string(i_ind) + std::to_string(j_ind) + "_" + std::to_string(_qp));
       }
   }
   // First assume no plastic increment
@@ -72,9 +70,9 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   }
   else
   {
-
     Fe = Fe * _Fp_old[_qp].inverse();
   }
+
   stress = _elasticity_model->computeMandelStress(Fe);
 
   // Compute the flow direction following the Prandtl-Reuss flow rule.
@@ -85,8 +83,8 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
     stress_dev_norm.value() = libMesh::TOLERANCE * libMesh::TOLERANCE;
   stress_dev_norm = std::sqrt(1.5 * stress_dev_norm);
   _Np[_qp] = 1.5 * stress_dev / stress_dev_norm;
-  // Return mapping
 
+  // Return mapping
   if (_recover == true && _t_step == 0)
   {
     _ep[_qp] = _ep_old_store[_qp];
@@ -113,11 +111,16 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
 
   // Using stored Fp on first time step if recovering
   if (_t_step < 2 && _recover == true)
-    _Fp[_qp] = delta_Fp * curr_Fp;
+  {
+    if (_t_step == 0)
+      _Fp[_qp] = curr_Fp;
+
+    if (_t_step == 1)
+      _Fp[_qp] = delta_Fp * curr_Fp;
+  }
   else
     _Fp[_qp] = delta_Fp * _Fp_old[_qp];
 
-  // Update stress and energy
   Fe = Fe * delta_Fp.inverse();
   stress = _elasticity_model->computeCauchyStress(Fe);
 

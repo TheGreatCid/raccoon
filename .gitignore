@@ -1,6 +1,7 @@
 genprojects
 exodusfiles
 .vscode
+launch.json
 *.zsh
 .libs
 *.la

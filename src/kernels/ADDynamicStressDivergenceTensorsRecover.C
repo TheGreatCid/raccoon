@@ -96,12 +96,16 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
       for (int j_ind = 0; j_ind < 3; j_ind++)
       {
         stress_old_curr(i_ind, j_ind) = _solution_object_ptr->pointValue(
-            1, curr_Point, "stress_" + std::to_string(i_ind) + std::to_string(j_ind), nullptr);
-        stress_older_curr(i_ind, j_ind) = _solution_object_ptr->pointValue(
             1,
             curr_Point,
-            "stress_old_store_" + std::to_string(i_ind) + std::to_string(j_ind),
+            "stress_" + std::to_string(i_ind) + std::to_string(j_ind) + "_" + std::to_string(_qp),
             nullptr);
+        stress_older_curr(i_ind, j_ind) =
+            _solution_object_ptr->pointValue(1,
+                                             curr_Point,
+                                             "stress_old_store_" + std::to_string(i_ind) +
+                                                 std::to_string(j_ind) + "_" + std::to_string(_qp),
+                                             nullptr);
         //      std::cout << " " << MetaPhysicL::raw_value(stress_old_curr(i_ind, j_ind));
       }
       //   std::cout << std::endl;

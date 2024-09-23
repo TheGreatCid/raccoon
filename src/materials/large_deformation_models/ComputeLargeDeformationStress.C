@@ -3,9 +3,11 @@
 //* http://dolbow.pratt.duke.edu
 
 #include "ComputeLargeDeformationStress.h"
+#include "EigenADReal.h"
 #include "LargeDeformationElasticityModel.h"
 #include "LargeDeformationPlasticityModel.h"
 #include "LargeDeformationViscoelasticityModel.h"
+#include "MooseError.h"
 
 registerMooseObject("raccoonApp", ComputeLargeDeformationStress);
 
@@ -74,6 +76,7 @@ ComputeLargeDeformationStress::initQpStatefulProperties()
 void
 ComputeLargeDeformationStress::computeQpProperties()
 {
+
   _elasticity_model->setQp(_qp);
   _elasticity_model->updateState(_Fm[_qp], _stress[_qp]);
   _stress_old_store[_qp] = _stress_old[_qp];

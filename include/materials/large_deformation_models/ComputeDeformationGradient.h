@@ -7,6 +7,8 @@
 #include "Material.h"
 #include "BaseNameInterface.h"
 #include "ADRankTwoTensorForward.h"
+#include "MaterialProperty.h"
+#include "MooseArray.h"
 #include "SolutionUserObject.h"
 
 /**
@@ -61,10 +63,13 @@ protected:
   // deformation gradient)
   ADMaterialProperty<RankTwoTensor> & _Fm;
 
+  ADMaterialProperty<RankTwoTensor> & _F_store_noFbar;
   // @{ Eigen deformation gradients
   std::vector<MaterialPropertyName> _Fg_names;
   std::vector<const ADMaterialProperty<RankTwoTensor> *> _Fgs;
   // @}
+
+  ADMaterialProperty<Real> & _weights;
 
   // is this recovering?
   const bool _recover;
