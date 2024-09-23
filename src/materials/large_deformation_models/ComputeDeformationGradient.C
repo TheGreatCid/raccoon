@@ -141,15 +141,11 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
       // Real JxWPrev = _solution_object_ptr->pointValue(1, curr_Point, "weights", nullptr);
       ave_F_det_init += curr_F.det() * _JxW[_qp] * _coord[_qp]; // 0.0625 _JxW[_qp]
       // ave_F_det_init += curr_F.det() * 0.0625 * _coord[_qp]; // 0.0625
-      std::cout << "COORD = " << _coord[_qp] << std::endl;
-      std::cout << "WEIGHTED JACOBIAN = " << _JxW[_qp] << std::endl;
     }
 
     // Get averaged initial deformation tensor
     ave_F_det_init /= _current_elem_volume; // 0.25;
     // ave_F_det_init /= 0.25;
-    std::cout << "SUM = " << sumjw;
-    std::cout << _current_elem->id() << std::endl;
     for (_qp = 0; _qp < n_points; ++_qp)
     {
 
@@ -158,9 +154,7 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
       for (int i_ind = 0; i_ind < 3; i_ind++)
         for (int j_ind = 0; j_ind < 3; j_ind++)
         {
-          // curr_F(i_ind, j_ind) = _solution_object_ptr->pointValue(
-          //     1, curr_Point, "dg_noFbar_" + std::to_string(i_ind) + std::to_string(j_ind),
-          //     nullptr);
+
           curr_F(i_ind, j_ind) = _solution_object_ptr->directValue(
               _current_elem,
               "F_" + std::to_string(i_ind) + std::to_string(j_ind) + "_" + std::to_string(_qp));
@@ -217,15 +211,6 @@ ComputeDeformationGradient::computeProperties()
     else
     {
       _F_NoFbar[_qp] = _F[_qp];
-    }
-    if ((_t_step == 0 || _t_step == 50) && _current_elem->id() == 1)
-    {
-      std::cout << "ELEMENT =" << _current_elem->id() << " QP = " << _qp << std::endl;
-      std::cout << "F = " << MetaPhysicL::raw_value(_F[_qp](0, 0)) << std::endl;
-      std::cout << "det(F) = " << MetaPhysicL::raw_value(_F[_qp].det()) << std::endl;
-      std::cout << "AVG F = " << MetaPhysicL::raw_value(ave_F_det) << std::endl;
-      std::cout << "CUBE ROOT = " << MetaPhysicL::raw_value(std::cbrt(ave_F_det / _F[_qp].det()))
-                << std::endl;
     }
     if (_volumetric_locking_correction)
       _F[_qp] *= std::cbrt(ave_F_det / _F[_qp].det());
