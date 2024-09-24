@@ -125,6 +125,7 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
     // Temp holder for current element def grad
     ADRankTwoTensor curr_F;
     // Get average
+    std::vector<std::string> indices = {"x", "y", "z"};
     for (_qp = 0; _qp < n_points; ++_qp)
     {
       // Populate tensor from solution object
@@ -133,7 +134,7 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
         {
           curr_F(i_ind, j_ind) = _solution_object_ptr->directValue(
               _current_elem,
-              "F_" + std::to_string(i_ind) + std::to_string(j_ind) + "_" + std::to_string(_qp));
+              "F_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
         }
       _F_store_noFbar[_qp] = curr_F;
       _F_store_Fbar[_qp] = curr_F;
@@ -157,7 +158,7 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
 
           curr_F(i_ind, j_ind) = _solution_object_ptr->directValue(
               _current_elem,
-              "F_" + std::to_string(i_ind) + std::to_string(j_ind) + "_" + std::to_string(_qp));
+              "F_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
         }
       // Store value
       _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / curr_F.det());

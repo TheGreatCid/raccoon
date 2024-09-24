@@ -86,7 +86,7 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
   else if (_dt > 0 && _t_step == 1)
   {
     Point curr_Point = _q_point_undisplaced[_qp];
-
+    std::vector<std::string> indices = {"x", "y", "z"};
     // Get recovered stresses
     ADRankTwoTensor stress_old_curr;
     ADRankTwoTensor stress_older_curr;
@@ -95,17 +95,12 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
     {
       for (int j_ind = 0; j_ind < 3; j_ind++)
       {
-        stress_old_curr(i_ind, j_ind) = _solution_object_ptr->pointValue(
-            1,
-            curr_Point,
-            "stress_" + std::to_string(i_ind) + std::to_string(j_ind) + "_" + std::to_string(_qp),
-            nullptr);
-        stress_older_curr(i_ind, j_ind) =
-            _solution_object_ptr->pointValue(1,
-                                             curr_Point,
-                                             "stress_old_store_" + std::to_string(i_ind) +
-                                                 std::to_string(j_ind) + "_" + std::to_string(_qp),
-                                             nullptr);
+        stress_old_curr(i_ind, j_ind) = _solution_object_ptr->directValue(
+            _current_elem,
+            "stress_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
+        stress_older_curr(i_ind, j_ind) = _solution_object_ptr->directValue(
+            _current_elem,
+            "stress_old_store_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
         //      std::cout << " " << MetaPhysicL::raw_value(stress_old_curr(i_ind, j_ind));
       }
       //   std::cout << std::endl;
@@ -129,13 +124,14 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
 
     // Get recovered stresses
     ADRankTwoTensor stress_old_curr;
-    Point curr_Point = _q_point_undisplaced[_qp];
+    std::vector<std::string> indices = {"x", "y", "z"};
 
     for (int i_ind = 0; i_ind < 3; i_ind++)
       for (int j_ind = 0; j_ind < 3; j_ind++)
       {
-        stress_old_curr(i_ind, j_ind) = _solution_object_ptr->pointValue(
-            1, curr_Point, "stress_" + std::to_string(i_ind) + std::to_string(j_ind), nullptr);
+        stress_old_curr(i_ind, j_ind) = _solution_object_ptr->directValue(
+            _current_elem,
+            "stress_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
       }
     residual = _stress[_qp].row(_component) * _grad_test[_i][_qp] *
                    (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -

@@ -51,15 +51,16 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   //_ep_old store is a material property so that it can be used in the residual calculation
   if (_t_step < 2 && _recover == true)
   {
+    std::vector<std::string> indices = {"x", "y", "z"};
+
     _ep_old_store[_qp] =
-        _solution_object_ptr->directValue(_current_elem, "ep_" + std::to_string(_qp));
+        _solution_object_ptr->directValue(_current_elem, "ep_" + std::to_string(_qp + 1));
     for (int i_ind = 0; i_ind < 3; i_ind++)
       for (int j_ind = 0; j_ind < 3; j_ind++)
       {
         //  std::cout << i_ind << " " << j_ind << std::endl;
         curr_Fp(i_ind, j_ind) = _solution_object_ptr->directValue(
-            _current_elem,
-            "Fp_" + std::to_string(i_ind) + std::to_string(j_ind) + "_" + std::to_string(_qp));
+            _current_elem, "Fp_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
       }
   }
   // First assume no plastic increment

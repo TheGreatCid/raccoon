@@ -38,8 +38,8 @@ ADInertialForceRecover::validParams()
       "density", "density", "Name of Material Property that provides the density");
   params.addRequiredParam<UserObjectName>("solution",
                                           "The SolutionUserObject to extract data from.");
-  params.addRequiredParam<VariableName>("inert_name",
-                                        "name of inertial variable to get from solution object");
+  // params.addRequiredParam<VariableName>("inert_name",
+  //                                       "name of inertial variable to get from solution object");
   params.addRequiredParam<VariableName>("vel_old_name",
                                         "name of vel variable to get from solution object");
   params.addRequiredParam<VariableName>("accel_old_name",
