@@ -128,13 +128,20 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
     std::vector<std::string> indices = {"x", "y", "z"};
     for (_qp = 0; _qp < n_points; ++_qp)
     {
+      Point curr_Point = _q_point[_qp];
+
       // Populate tensor from solution object
       for (int i_ind = 0; i_ind < 3; i_ind++)
         for (int j_ind = 0; j_ind < 3; j_ind++)
         {
-          curr_F(i_ind, j_ind) = _solution_object_ptr->directValue(
-              _current_elem,
-              "dg_noFbar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
+          curr_F(i_ind, j_ind) = _solution_object_ptr->pointValue(
+              1,
+              curr_Point,
+              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
+              nullptr);
+          // curr_F(i_ind, j_ind) = _solution_object_ptr->directValue(
+          //     _current_elem,
+          //     "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
         }
       _F_store_noFbar[_qp] = curr_F;
       _F_store_Fbar[_qp] = curr_F;
@@ -161,10 +168,14 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
       for (int i_ind = 0; i_ind < 3; i_ind++)
         for (int j_ind = 0; j_ind < 3; j_ind++)
         {
-
-          curr_F(i_ind, j_ind) = _solution_object_ptr->directValue(
-              _current_elem,
-              "dg_noFbar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
+          curr_F(i_ind, j_ind) = _solution_object_ptr->pointValue(
+              1,
+              curr_Point,
+              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
+              nullptr);
+          // curr_F(i_ind, j_ind) = _solution_object_ptr->directValue(
+          //     _current_elem,
+          //     "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
         }
       // Store value
       _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / curr_F.det());
