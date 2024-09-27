@@ -29,6 +29,7 @@ LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters
     _flowstress(declareADProperty<Real>("flowstress")),
     _visflowstress(declareADProperty<Real>("visflowstress")),
     _ep_old_store(declareADProperty<Real>("ep_old_store")),
+    _kirchoff(declareADProperty<RankTwoTensor>("kirchoff")),
     _recover(getParam<bool>("recover")),
     _solution_object_ptr(NULL)
 {
@@ -75,7 +76,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   }
 
   stress = _elasticity_model->computeMandelStress(Fe);
-
+  _kirchoff[_qp] = stress;
   // Compute the flow direction following the Prandtl-Reuss flow rule.
   // We guard against zero denominator.
   ADRankTwoTensor stress_dev = stress.deviatoric();

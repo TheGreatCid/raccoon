@@ -134,18 +134,24 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
         {
           curr_F(i_ind, j_ind) = _solution_object_ptr->directValue(
               _current_elem,
-              "F_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
+              "dg_noFbar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
         }
       _F_store_noFbar[_qp] = curr_F;
       _F_store_Fbar[_qp] = curr_F;
 
       // Real JxWPrev = _solution_object_ptr->pointValue(1, curr_Point, "weights", nullptr);
-      ave_F_det_init += curr_F.det() * _JxW[_qp] * _coord[_qp]; // 0.0625 _JxW[_qp]
+      //   ave_F_det_init += curr_F.det() * _JxW[_qp] * _coord[_qp]; // 0.000125
+
+      ave_F_det_init += 1 / curr_F.det() * _JxW[_qp] * _coord[_qp]; // 0.000125
+
       // ave_F_det_init += curr_F.det() * 0.0625 * _coord[_qp]; // 0.0625
     }
 
     // Get averaged initial deformation tensor
-    ave_F_det_init /= _current_elem_volume; // 0.25;
+    // ave_F_det_init /= _current_elem_volume; //; //  0.001;
+
+    ave_F_det_init = _current_elem_volume / ave_F_det_init; //; //  0.001;
+
     // ave_F_det_init /= 0.25;
     for (_qp = 0; _qp < n_points; ++_qp)
     {
@@ -158,7 +164,7 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
 
           curr_F(i_ind, j_ind) = _solution_object_ptr->directValue(
               _current_elem,
-              "F_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
+              "dg_noFbar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
         }
       // Store value
       _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / curr_F.det());
