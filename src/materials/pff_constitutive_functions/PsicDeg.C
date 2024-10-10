@@ -61,7 +61,7 @@ PsicDeg::elasticEnergy(const ADReal & ep, const unsigned int derivative)
 
   ADReal dg1 = 1;
   ADReal dg2 = 2;
-  ADReal dg = _psic_orig * ((_A * atan(_B * ep - _C) + _D));
+  ADReal dg = _psic_orig * ((_A * std::atan(_B * ep - _C) + _D));
   if (derivative == 1 || derivative == 2)
   {
     dg1 = _psic_orig * (_A * _B) / (std::pow(_C - _B * ep, 2) + 1);

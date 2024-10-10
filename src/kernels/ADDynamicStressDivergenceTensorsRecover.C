@@ -85,7 +85,6 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
   }
   else if (_dt > 0 && _t_step == 1)
   {
-    Point curr_Point = _q_point_undisplaced[_qp];
     std::vector<std::string> indices = {"x", "y", "z"};
     // Get recovered stresses
     ADRankTwoTensor stress_old_curr;
