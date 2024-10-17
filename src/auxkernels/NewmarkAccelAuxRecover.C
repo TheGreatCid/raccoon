@@ -47,6 +47,7 @@ NewmarkAccelAuxRecover::computeValue()
   if (!isNodal())
     mooseError("must run on a nodal variable");
   Real accel_old;
+
   // Getting old acceleration from solution file
   if (_t_step == 0)
   {
@@ -54,9 +55,8 @@ NewmarkAccelAuxRecover::computeValue()
     accel_old = _solution_object_ptr->pointValue(1, curr_Point, _accel_name, nullptr);
   }
   else
-  {
     accel_old = _u_old[_qp];
-  }
+
   if (_t_step == 0)
     return accel_old;
 

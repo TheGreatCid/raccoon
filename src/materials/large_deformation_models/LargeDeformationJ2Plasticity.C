@@ -59,7 +59,6 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
     for (int i_ind = 0; i_ind < 3; i_ind++)
       for (int j_ind = 0; j_ind < 3; j_ind++)
       {
-        //  std::cout << i_ind << " " << j_ind << std::endl;
         curr_Fp(i_ind, j_ind) = _solution_object_ptr->directValue(
             _current_elem, "Fp_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
       }
@@ -67,13 +66,9 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   // First assume no plastic increment
   ADReal delta_ep = 0;
   if (_recover == true && _t_step < 2)
-  {
     Fe = Fe * curr_Fp.inverse();
-  }
   else
-  {
     Fe = Fe * _Fp_old[_qp].inverse();
-  }
 
   stress = _elasticity_model->computeMandelStress(Fe);
   _kirchoff[_qp] = stress;
@@ -106,9 +101,8 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
     _ep[_qp] = _ep_old[_qp] + delta_ep;
 
   if (_ep[_qp] == 0)
-  {
     _ep[_qp] = 1e-20;
-  }
+
   ADRankTwoTensor delta_Fp = RaccoonUtils::exp(delta_ep * _Np[_qp]);
 
   // Using stored Fp on first time step if recovering
@@ -136,9 +130,8 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
     _heat[_qp] += _hardening_model->thermalConjugate(_ep[_qp]) * delta_ep / _dt;
   }
   else
-  {
     _heat[_qp] = 0;
-  }
+
   _flowstress[_qp] = _hardening_model->plasticEnergy(_ep[_qp], 1);
   _visflowstress[_qp] = _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 1);
 }

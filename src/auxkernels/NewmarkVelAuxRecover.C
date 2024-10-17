@@ -49,18 +49,14 @@ NewmarkVelAuxRecover::computeValue()
     vel_old = _solution_object_ptr->pointValue(1, curr_Point, _vel_name, nullptr);
   }
   else
-  {
     vel_old = _u_old[_qp];
-  }
+
   if (!isNodal())
     mooseError("must run on a nodal variable");
   // Calculates Velocity using Newmark time integration scheme
   if (_t_step == 0)
-  {
     return vel_old;
-  }
+
   else
-  {
     return vel_old + (_dt * (1 - _gamma)) * _accel_old[_qp] + _gamma * _dt * _accel[_qp];
-  }
 }

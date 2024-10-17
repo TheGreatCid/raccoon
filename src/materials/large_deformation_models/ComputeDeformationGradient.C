@@ -139,27 +139,15 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
               curr_Point,
               "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
               nullptr);
-          // curr_F(i_ind, j_ind) = _solution_object_ptr->directValue(
-          //     _current_elem,
-          //     "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
         }
       _F_store_noFbar[_qp] = curr_F;
       _F_store_Fbar[_qp] = curr_F;
 
-      // Real JxWPrev = _solution_object_ptr->pointValue(1, curr_Point, "weights", nullptr);
-      //   ave_F_det_init += curr_F.det() * _JxW[_qp] * _coord[_qp]; // 0.000125
-
-      ave_F_det_init += 1 / curr_F.det() * _JxW[_qp] * _coord[_qp]; // 0.000125
-
-      // ave_F_det_init += curr_F.det() * 0.0625 * _coord[_qp]; // 0.0625
+      ave_F_det_init += 1 / curr_F.det() * _JxW[_qp] * _coord[_qp];
     }
 
-    // Get averaged initial deformation tensor
-    // ave_F_det_init /= _current_elem_volume; //; //  0.001;
+    ave_F_det_init = _current_elem_volume / ave_F_det_init;
 
-    ave_F_det_init = _current_elem_volume / ave_F_det_init; //; //  0.001;
-
-    // ave_F_det_init /= 0.25;
     for (_qp = 0; _qp < n_points; ++_qp)
     {
 
@@ -173,9 +161,6 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
               curr_Point,
               "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
               nullptr);
-          // curr_F(i_ind, j_ind) = _solution_object_ptr->directValue(
-          //     _current_elem,
-          //     "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
         }
       // Store value
       _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / curr_F.det());
@@ -227,9 +212,8 @@ ComputeDeformationGradient::computeProperties()
     if (_recover == true)
       _F_NoFbar[_qp] = _F[_qp] * _F_store_noFbar[_qp];
     else
-    {
       _F_NoFbar[_qp] = _F[_qp];
-    }
+
     if (_volumetric_locking_correction)
       _F[_qp] *= std::cbrt(ave_F_det / _F[_qp].det());
     // Multiply in old deformation
