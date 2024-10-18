@@ -54,13 +54,15 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   {
     std::vector<std::string> indices = {"x", "y", "z"};
 
-    _ep_old_store[_qp] =
-        _solution_object_ptr->directValue(_current_elem, "ep_" + std::to_string(_qp + 1));
+    _ep_old_store[_qp] = _solution_object_ptr->directValue(
+        _current_elem, "effective_plastic_strain_" + std::to_string(_qp + 1));
     for (int i_ind = 0; i_ind < 3; i_ind++)
       for (int j_ind = 0; j_ind < 3; j_ind++)
       {
-        curr_Fp(i_ind, j_ind) = _solution_object_ptr->directValue(
-            _current_elem, "Fp_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
+        curr_Fp(i_ind, j_ind) =
+            _solution_object_ptr->directValue(_current_elem,
+                                              "plastic_deformation_gradie_" + indices[i_ind] +
+                                                  indices[j_ind] + "_" + std::to_string(_qp + 1));
       }
   }
   // First assume no plastic increment

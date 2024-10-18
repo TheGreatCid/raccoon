@@ -51,7 +51,7 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
                                    !this->isBoundaryMaterial()),
     _current_elem_volume(_assembly.elemVolume()),
     _F(declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient"))),
-    _F_NoFbar(declareADProperty<RankTwoTensor>(prependBaseName("dg_noFbar"))),
+    _Fnobar(declareADProperty<RankTwoTensor>(prependBaseName("Fnobar"))),
     _F_store_Fbar(declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient_Fbar"))),
     _F_store_Fbar_old(
         getMaterialPropertyOld<RankTwoTensor>(prependBaseName("deformation_gradient_Fbar"))),
@@ -210,9 +210,9 @@ ComputeDeformationGradient::computeProperties()
   {
 
     if (_recover == true)
-      _F_NoFbar[_qp] = _F[_qp] * _F_store_noFbar[_qp];
+      _Fnobar[_qp] = _F[_qp] * _F_store_noFbar[_qp];
     else
-      _F_NoFbar[_qp] = _F[_qp];
+      _Fnobar[_qp] = _F[_qp];
 
     if (_volumetric_locking_correction)
       _F[_qp] *= std::cbrt(ave_F_det / _F[_qp].det());

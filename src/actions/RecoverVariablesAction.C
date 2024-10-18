@@ -55,12 +55,12 @@ RecoverVariablesAction::act()
         for (int j = 0; j < 3; j++)
           for (int k = 0; k < 3; k++)
           {
+            std::string matname = _tensor_materials[i];
+            if (_tensor_materials[i].size() > 26)
+              matname.erase(26, _tensor_materials[i].size() - 1);
             _problem->addAuxVariable("MooseVariable",
-                                     _tensor_materials[i] + "_" + conv[j] + conv[k] + "_" +
-                                         std::to_string(qp),
+                                     matname + "_" + conv[j] + conv[k] + "_" + std::to_string(qp),
                                      var_params);
-            std::cout << _tensor_materials[i] + "_" + conv[j] + conv[k] + "_" + std::to_string(qp)
-                      << std::endl;
           }
     }
   }
@@ -82,6 +82,10 @@ RecoverVariablesAction::act()
 
     // tensor
     for (unsigned int i = 0; i < _tensor_materials.size(); i++)
+    {
+      std::string matname = _tensor_materials[i];
+      if (_tensor_materials[i].size() > 26)
+        matname.erase(26, _tensor_materials[i].size() - 1);
       // assuming 8 QPs
       for (int qp = 1; qp <= 8; qp++)
         for (int j = 0; j < 3; j++)
@@ -89,7 +93,7 @@ RecoverVariablesAction::act()
           {
             InputParameters params = _factory.getValidParams("ADRankTwoAux");
             params.set<AuxVariableName>("variable") =
-                _tensor_materials[i] + "_" + conv[j] + conv[k] + "_" + std::to_string(qp);
+                matname + "_" + conv[j] + conv[k] + "_" + std::to_string(qp);
             params.set<MaterialPropertyName>("rank_two_tensor") = _tensor_materials[i];
             params.set<unsigned int>("selected_qp") = qp - 1;
             params.set<unsigned int>("index_i") = j;
@@ -99,5 +103,6 @@ RecoverVariablesAction::act()
                                        std::to_string(qp),
                                    params);
           }
+    }
   }
 }
