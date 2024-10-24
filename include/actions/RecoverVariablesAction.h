@@ -6,18 +6,23 @@
 class RecoverVariablesAction : public Action
 
 {
-  public:
-
+public:
   static InputParameters validParams();
 
   RecoverVariablesAction(const InputParameters & params);
 
   virtual void act() override;
 
-  protected:
-    std::vector<MaterialName> _tensor_materials;
+protected:
+  void addAuxVariable(std::string name, InputParameters var_params, bool tensor);
 
-    std::vector<MaterialName> _materials;
+  void addAuxKernel(std::string var_name, std::string mat_name, bool tensor);
 
+  std::vector<MaterialName> _tensor_materials;
 
+  std::vector<MaterialName> _materials;
+
+  MaterialName _def_grad_name;
+
+  unsigned int _recover_num;
 };

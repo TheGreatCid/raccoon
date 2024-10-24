@@ -9,6 +9,7 @@
 #include "ADRankTwoTensorForward.h"
 #include "MaterialProperty.h"
 #include "MooseArray.h"
+#include "RankTwoTensorForward.h"
 #include "SolutionUserObject.h"
 
 /**
@@ -73,6 +74,10 @@ protected:
 
   // is this recovering?
   const bool _recover;
+
+  const unsigned int _recover_num;
+
+  std::vector<ADMaterialProperty<RankTwoTensor> *> _Fnobar_vec;
 
   const SolutionUserObject * _solution_object_ptr;
 };

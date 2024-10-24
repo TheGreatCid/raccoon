@@ -11,4 +11,6 @@ public:
 protected:
   std::vector<MaterialName> _tensor_materials;
   std::vector<MaterialName> _materials;
+  MaterialName _def_grad_name;
+  int _recover_num;
 };

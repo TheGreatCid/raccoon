@@ -12,6 +12,8 @@
 #include "RankTwoTensorForward.h"
 #include "SolutionUserObject.h"
 #include "metaphysicl/raw_type.h"
+#include <string>
+#include <vector>
 
 registerADMooseObject("raccoonApp", ComputeDeformationGradient);
 
@@ -37,6 +39,7 @@ ComputeDeformationGradient::validParams()
   params.addParam<bool>("recover", false, "Are you trying to recover");
   params.suppressParameter<bool>("use_displaced_mesh");
   params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
+  params.addParam<unsigned int>("recover_num", 0, "number of recovery");
   return params;
 }
 
@@ -63,8 +66,16 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _Fgs(_Fg_names.size()),
     _weights(declareADProperty<Real>("weights")),
     _recover(getParam<bool>("recover")),
+    _recover_num(getParam<unsigned int>("recover_num")),
+    // _Fnobar_vec(_recover_num),
     _solution_object_ptr(NULL)
 {
+  _Fnobar_vec.resize(_recover_num + 1);
+
+  for (unsigned int i = 0; i <= _recover_num; i++)
+  {
+    _Fnobar_vec[i] = &Material::declareADProperty<RankTwoTensor>("Fnobar_" + std::to_string(i));
+  }
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &Material::getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
 
@@ -89,8 +100,6 @@ ComputeDeformationGradient::initialSetup()
     _disp.push_back(&_ad_zero);
     _grad_disp.push_back(&_ad_grad_zero);
   }
-
-  // Apply volume averaging to inputted deformation gradient
 }
 
 void
@@ -120,51 +129,55 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
 {
   if (_recover == true)
   {
-    ADReal ave_F_det_init = 0;
-
+    std::vector<ADReal> ave_F_det_init;
+    ave_F_det_init.reserve(_recover_num + 1);
     // Temp holder for current element def grad
     ADRankTwoTensor curr_F;
     // Get average
     std::vector<std::string> indices = {"x", "y", "z"};
-    for (_qp = 0; _qp < n_points; ++_qp)
-    {
-      Point curr_Point = _q_point[_qp];
+    for (unsigned int k = 0; k < _recover_num; k++)
+      for (_qp = 0; _qp < n_points; ++_qp)
+      {
+        Point curr_Point = _q_point[_qp];
 
-      // Populate tensor from solution object
-      for (int i_ind = 0; i_ind < 3; i_ind++)
-        for (int j_ind = 0; j_ind < 3; j_ind++)
-        {
-          curr_F(i_ind, j_ind) = _solution_object_ptr->pointValue(
-              1,
-              curr_Point,
-              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
-              nullptr);
-        }
-      _F_store_noFbar[_qp] = curr_F;
-      _F_store_Fbar[_qp] = curr_F;
+        // Populate tensor from solution object
+        for (int i_ind = 0; i_ind < 3; i_ind++)
+          for (int j_ind = 0; j_ind < 3; j_ind++)
+          {
+            curr_F(i_ind, j_ind) = _solution_object_ptr->pointValue(
+                1,
+                curr_Point,
+                "Fnobar_" + std::to_string(k) + "_" + indices[i_ind] + indices[j_ind] + "_" +
+                    std::to_string(_qp + 1),
+                nullptr);
+          }
+        _F_store_noFbar[_qp] = curr_F;
+        _F_store_Fbar[_qp] = curr_F;
 
-      ave_F_det_init += 1 / curr_F.det() * _JxW[_qp] * _coord[_qp];
-    }
+        ave_F_det_init[k] += 1 / curr_F.det() * _JxW[_qp] * _coord[_qp];
+      }
 
-    ave_F_det_init = _current_elem_volume / ave_F_det_init;
+    for (unsigned int k = 0; k < _recover_num; k++)
+      ave_F_det_init[k] = _current_elem_volume / ave_F_det_init[k];
 
-    for (_qp = 0; _qp < n_points; ++_qp)
-    {
-
-      // Populate current defgrad tensor
-      Point curr_Point = _q_point[_qp];
-      for (int i_ind = 0; i_ind < 3; i_ind++)
-        for (int j_ind = 0; j_ind < 3; j_ind++)
-        {
-          curr_F(i_ind, j_ind) = _solution_object_ptr->pointValue(
-              1,
-              curr_Point,
-              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
-              nullptr);
-        }
-      // Store value
-      _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / curr_F.det());
-    }
+    for (unsigned int k = 0; k < _recover_num; k++)
+      for (_qp = 0; _qp < n_points; ++_qp)
+      {
+        // Populate current defgrad tensor
+        Point curr_Point = _q_point[_qp];
+        for (int i_ind = 0; i_ind < 3; i_ind++)
+          for (int j_ind = 0; j_ind < 3; j_ind++)
+          {
+            curr_F(i_ind, j_ind) = _solution_object_ptr->pointValue(
+                1,
+                curr_Point,
+                "Fnobar_" + std::to_string(k) + "_" + indices[i_ind] + indices[j_ind] + "_" +
+                    std::to_string(_qp + 1),
+                nullptr);
+          }
+        // Store value
+        _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init[k] / curr_F.det());
+      }
   }
 }
 
@@ -208,11 +221,8 @@ ComputeDeformationGradient::computeProperties()
 
   for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
   {
-
-    if (_recover == true)
-      _Fnobar[_qp] = _F[_qp] * _F_store_noFbar[_qp];
-    else
-      _Fnobar[_qp] = _F[_qp];
+    // Storing unaveraged F
+    (*_Fnobar_vec[_recover_num])[_qp] = _F[_qp];
 
     if (_volumetric_locking_correction)
       _F[_qp] *= std::cbrt(ave_F_det / _F[_qp].det());

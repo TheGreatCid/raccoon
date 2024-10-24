@@ -1,4 +1,5 @@
 #include "SolutionUserObjectQP.h"
+#include <string>
 
 registerMooseObject("raccoonApp", SolutionUserObjectQP);
 
@@ -8,20 +9,26 @@ SolutionUserObjectQP::validParams()
   InputParameters params = SolutionUserObject::validParams();
   params.addParam<std::vector<MaterialName>>("tensor_materials", "materials to output qps on");
   params.addParam<std::vector<MaterialName>>("materials", "materials to output qps on");
+  params.addParam<MaterialName>("def_grad_name", "name of deformation gradient");
+  params.addParam<int>("recover_num", 0, "number of recovery");
   return params;
 }
 
 SolutionUserObjectQP::SolutionUserObjectQP(const InputParameters & parameters)
   : SolutionUserObject(parameters),
     _tensor_materials(getParam<std::vector<MaterialName>>("tensor_materials")),
-    _materials(getParam<std::vector<MaterialName>>("materials"))
+    _materials(getParam<std::vector<MaterialName>>("materials")),
+    _def_grad_name(getParam<MaterialName>("def_grad_name")),
+    _recover_num(getParam<int>("recover_num"))
 {
+  std::vector<std::string> conv = {"x", "y", "z"};
+
   if (!_tensor_materials.empty())
   {
-    std::vector<std::string> conv = {"x", "y", "z"};
     for (unsigned int i = 0; i < _tensor_materials.size(); i++)
     {
       std::string matname = _tensor_materials[i];
+
       if (_tensor_materials[i].size() > 26)
         matname.erase(26, _tensor_materials[i].size() - 1);
       for (unsigned int qp = 1; qp <= 8; qp++)
@@ -33,6 +40,7 @@ SolutionUserObjectQP::SolutionUserObjectQP(const InputParameters & parameters)
           }
     }
   }
+
   if (!_materials.empty())
   {
     for (unsigned int i = 0; i < _materials.size(); i++)
@@ -43,4 +51,11 @@ SolutionUserObjectQP::SolutionUserObjectQP(const InputParameters & parameters)
         _system_variables.push_back(_materials[i] + "_" + std::to_string(qp));
     }
   }
+
+  for (int i = 0; i < _recover_num; i++)
+    for (unsigned int qp = 1; qp <= 8; qp++)
+      for (int j = 0; j < 3; j++)
+        for (int k = 0; k < 3; k++)
+          _system_variables.push_back(_def_grad_name + "_" + std::to_string(i) + "_" + conv[j] +
+                                      conv[k] + "_" + std::to_string(qp));
 }
