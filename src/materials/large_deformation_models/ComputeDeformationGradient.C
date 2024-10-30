@@ -136,11 +136,6 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
           _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->directValue(
               _current_elem,
               "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
-          // _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
-          //     1,
-          //     curr_Point,
-          //     "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
-          //     nullptr);
         }
       _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
 
@@ -188,11 +183,10 @@ ComputeDeformationGradient::computeProperties()
     _F[_qp].addIa(1.0);
 
     _Fnobar[_qp].setToIdentity();
-    if (_recover == true)
-    {
 
+    // Add in recovered F
+    if (_recover == true)
       _Fnobar[_qp] = _F[_qp] * _F_store_noFbar[_qp];
-    }
     else
       _Fnobar[_qp] = _F[_qp];
 
@@ -209,10 +203,10 @@ ComputeDeformationGradient::computeProperties()
     if (_volumetric_locking_correction)
       _F[_qp] *= std::cbrt(ave_F_det / _F[_qp].det());
 
-    // _Fnobar[_qp] = _F[_qp];
     // Multiply in old deformation
     if (_recover == true)
       _F[_qp] = _F[_qp] * _F_store_Fbar[_qp];
+
     // Remove the eigen deformation gradient
     ADRankTwoTensor Fg(ADRankTwoTensor::initIdentity);
     for (auto Fgi : _Fgs)
