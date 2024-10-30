@@ -64,6 +64,8 @@ protected:
   ADMaterialProperty<RankTwoTensor> & _Fm;
 
   ADMaterialProperty<RankTwoTensor> & _F_store_noFbar;
+  const MaterialProperty<RankTwoTensor> & _F_store_noFbar_old;
+
   // @{ Eigen deformation gradients
   std::vector<MaterialPropertyName> _Fg_names;
   std::vector<const ADMaterialProperty<RankTwoTensor> *> _Fgs;
