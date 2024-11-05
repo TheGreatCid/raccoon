@@ -15,14 +15,15 @@ RecoverVariablesAction::validParams()
   InputParameters params = Action::validParams();
   params.addParam<std::vector<MaterialName>>("tensor_materials", "materials to output qps on");
   params.addParam<std::vector<MaterialName>>("materials", "materials to output qps on");
-
+  params.addParam<std::string>("output_name", "exodusqp", "name of output for variables");
   return params;
 }
 
 RecoverVariablesAction::RecoverVariablesAction(const InputParameters & params)
   : Action(params),
     _tensor_materials(getParam<std::vector<MaterialName>>("tensor_materials")),
-    _materials(getParam<std::vector<MaterialName>>("materials"))
+    _materials(getParam<std::vector<MaterialName>>("materials")),
+    _output_name(getParam<std::string>("output_name"))
 {
 }
 
@@ -36,6 +37,7 @@ RecoverVariablesAction::act()
     auto var_params = _factory.getValidParams("MooseVariable");
     var_params.set<MooseEnum>("order") = "CONSTANT";
     var_params.set<MooseEnum>("family") = "MONOMIAL";
+    var_params.set<std::vector<OutputName>>("outputs") = {_output_name};
     // Non tensor mats
     for (unsigned int i = 0; i < _materials.size(); i++)
     {

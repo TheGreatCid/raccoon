@@ -39,8 +39,6 @@ protected:
   ADMaterialProperty<Real> & _visflowstress;
   ADMaterialProperty<Real> & _ep_old_store;
 
-  ADMaterialProperty<RankTwoTensor> & _kirchoff;
-
   // const bool & _recover;
   const bool & _recover;
   const SolutionUserObject * _solution_object_ptr;

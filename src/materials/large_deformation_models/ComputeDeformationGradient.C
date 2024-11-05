@@ -92,8 +92,6 @@ ComputeDeformationGradient::initialSetup()
     _disp.push_back(&_ad_zero);
     _grad_disp.push_back(&_ad_grad_zero);
   }
-
-  // Apply volume averaging to inputted deformation gradient
 }
 
 void

@@ -6,18 +6,17 @@
 class RecoverVariablesAction : public Action
 
 {
-  public:
-
+public:
   static InputParameters validParams();
 
   RecoverVariablesAction(const InputParameters & params);
 
   virtual void act() override;
 
-  protected:
-    std::vector<MaterialName> _tensor_materials;
+protected:
+  std::vector<MaterialName> _tensor_materials;
 
-    std::vector<MaterialName> _materials;
+  std::vector<MaterialName> _materials;
 
-
+  std::string _output_name;
 };
