@@ -17,7 +17,7 @@
 \body:         "\\Omega"
 \bodyboundary: "{\\partial\\body}"
 \ep:           "{\\varepsilon^p}"
-\ep0:          "{\\varepsilon_0^p}"
+\ep0:          "{\\varepsilon^p_0}"
 \epdot:        "{\\dot{\\varepsilon}}^p"
 \epdot0:       "{\\dot{\\varepsilon}}_0^p"
 \bfa:          "\\boldsymbol{a}"
