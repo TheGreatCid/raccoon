@@ -6,6 +6,7 @@
 
 #include "ADKernel.h"
 #include "BaseNameInterface.h"
+#include "libmesh/numeric_vector.h"
 
 class ADPFFDiffusion : public ADKernel, public BaseNameInterface
 {
@@ -25,4 +26,25 @@ protected:
 
   /// The regularization length
   const ADMaterialProperty<Real> & _l;
+
+  // is this recovering?
+  const bool _recover;
+
+  const VariableGradient & _d_old_grad;
+
+  const VariableValue & _d_old_grad_ref;
+
+  // MooseWritableVariable * _d_diff;
+  // MooseVariable & _d_diff;
+
+  // NumericVector<Real> & _d_diff;
+
+  const VariableValue & _grad_dx;
+  const VariableValue & _grad_dy;
+  const VariableValue & _grad_dz;
+
+  const VariableValue & _Fnobar_xx_1;
+  const VariableValue & _Fnobar_xx_2;
+
+  const VariableValue & _F_current;
 };

@@ -89,10 +89,12 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
     // Get recovered stresses
     ADRankTwoTensor stress_old_curr;
     ADRankTwoTensor stress_older_curr;
+
+    int dim = _mesh.dimension();
     // Populate tensor from solution object
-    for (int i_ind = 0; i_ind < 3; i_ind++)
+    for (int i_ind = 0; i_ind < dim; i_ind++)
     {
-      for (int j_ind = 0; j_ind < 3; j_ind++)
+      for (int j_ind = 0; j_ind < dim; j_ind++)
       {
         stress_old_curr(i_ind, j_ind) = _solution_object_ptr->directValue(
             _current_elem,
@@ -124,9 +126,10 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
     // Get recovered stresses
     ADRankTwoTensor stress_old_curr;
     std::vector<std::string> indices = {"x", "y", "z"};
+    int dim = _mesh.dimension();
 
-    for (int i_ind = 0; i_ind < 3; i_ind++)
-      for (int j_ind = 0; j_ind < 3; j_ind++)
+    for (int i_ind = 0; i_ind < dim; i_ind++)
+      for (int j_ind = 0; j_ind < dim; j_ind++)
       {
         stress_old_curr(i_ind, j_ind) = _solution_object_ptr->directValue(
             _current_elem,

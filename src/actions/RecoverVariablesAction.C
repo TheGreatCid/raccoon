@@ -30,6 +30,9 @@ RecoverVariablesAction::RecoverVariablesAction(const InputParameters & params)
 void
 RecoverVariablesAction::act()
 {
+  auto dim = _mesh->dimension();
+  unsigned int qp_max = 2;
+
   std::vector<std::string> conv = {"x", "y", "z"};
 
   if (_current_task == "add_aux_variable")
@@ -43,7 +46,7 @@ RecoverVariablesAction::act()
     {
       // Assuming 8 QPs
       // Starting at 1 because qps start at one in Sierra
-      for (int qp = 1; qp <= 8; qp++)
+      for (unsigned int qp = 1; qp <= qp_max; qp++)
         _problem->addAuxVariable(
             "MooseVariable", _materials[i] + "_" + std::to_string(qp), var_params);
     }
@@ -53,9 +56,9 @@ RecoverVariablesAction::act()
     {
       // Assuming 8 QPs
       // Starting at 1 because qps start at one in Sierra
-      for (unsigned int qp = 1; qp <= 8; qp++)
-        for (int j = 0; j < 3; j++)
-          for (int k = 0; k < 3; k++)
+      for (unsigned int qp = 1; qp <= qp_max; qp++)
+        for (unsigned int j = 0; j < dim; j++)
+          for (unsigned int k = 0; k < dim; k++)
           {
             std::string matname = _tensor_materials[i];
             if (_tensor_materials[i].size() > 26)
@@ -72,7 +75,7 @@ RecoverVariablesAction::act()
     // Non tensor
     for (unsigned int i = 0; i < _materials.size(); i++)
       // assuming 8 QPs
-      for (int qp = 1; qp <= 8; qp++)
+      for (unsigned int qp = 1; qp <= qp_max; qp++)
       {
         InputParameters params = _factory.getValidParams("ADMaterialRealAux");
         params.set<AuxVariableName>("variable") = _materials[i] + "_" + std::to_string(qp);
@@ -89,9 +92,9 @@ RecoverVariablesAction::act()
       if (_tensor_materials[i].size() > 26)
         matname.erase(26, _tensor_materials[i].size() - 1);
       // assuming 8 QPs
-      for (int qp = 1; qp <= 8; qp++)
-        for (int j = 0; j < 3; j++)
-          for (int k = 0; k < 3; k++)
+      for (unsigned int qp = 1; qp <= qp_max; qp++)
+        for (unsigned int j = 0; j < dim; j++)
+          for (unsigned int k = 0; k < dim; k++)
           {
             InputParameters params = _factory.getValidParams("ADRankTwoAux");
             params.set<AuxVariableName>("variable") =

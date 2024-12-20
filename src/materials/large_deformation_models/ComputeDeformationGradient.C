@@ -119,7 +119,7 @@ ComputeDeformationGradient::displacementIntegrityCheck()
 void
 ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
 {
-  if (_recover == true)
+  if (_recover == true && _volumetric_locking_correction == true)
   {
     ADReal ave_F_det_init = 0;
 
@@ -146,8 +146,27 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
       // Store value
       _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / _F_store_noFbar[_qp].det());
   }
-}
 
+  // Recovering without fbar method
+  if (_recover == true && _volumetric_locking_correction == false)
+  {
+    std::vector<std::string> indices = {"x", "y", "z"};
+    int dim = _mesh.dimension();
+    for (_qp = 0; _qp < n_points; ++_qp)
+    {
+      _F_store_noFbar[_qp].setToIdentity();
+      // Populate tensor from solution object
+      for (int i_ind = 0; i_ind < dim; i_ind++)
+        for (int j_ind = 0; j_ind < dim; j_ind++)
+        {
+          _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->directValue(
+              _current_elem,
+              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
+        }
+      _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
+    }
+  }
+}
 void
 ComputeDeformationGradient::initQpStatefulProperties()
 {
@@ -167,7 +186,6 @@ ComputeDeformationGradient::computeQpOutOfPlaneGradDisp()
 void
 ComputeDeformationGradient::computeProperties()
 {
-
   ADReal ave_F_det = 0;
 
   for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
