@@ -8,6 +8,7 @@
 #include "Assembly.h"
 #include "EigenADReal.h"
 #include "MooseTypes.h"
+#include "MooseVariableFE.h"
 #include "MooseVariableField.h"
 #include "SolutionUserObject.h"
 #include "AuxiliarySystem.h"
@@ -30,16 +31,17 @@ ADPFFDiffusion::validParams()
   params.addParam<MaterialPropertyName>(
       "regularization_length", "l", "The phase-field regularization length");
   params.addParam<bool>("recover", false, "Are you trying to recover");
-  params.addCoupledVar("d_old", "d from recover");
-  params.addCoupledVar("d_old_grad_ref", "d from recover");
-  params.addCoupledVar("grad_dx", "d from recover");
-  params.addCoupledVar("grad_dy", "d from recover");
-  params.addCoupledVar("grad_dz", "d from recover");
-  params.addCoupledVar("Fnobar_xx_1", "F_init from recover");
-  params.addCoupledVar("Fnobar_xx_2", "F_init from recover");
-
-  params.addCoupledVar("F_current", "Current F from recover");
-
+  params.addParam<Real>("qp", 8, "Number of qps");
+  params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
+  // params.addCoupledVar("grad_xx", "xx gradient");
+  // params.addCoupledVar("grad_xy", "xy gradient");
+  // params.addCoupledVar("grad_xz", "xz gradient");
+  // params.addCoupledVar("grad_yx", "xx gradient");
+  // params.addCoupledVar("grad_yy", "xy gradient");
+  // params.addCoupledVar("grad_yz", "xz gradient");
+  // params.addCoupledVar("grad_zx", "xx gradient");
+  // params.addCoupledVar("grad_zy", "xy gradient");
+  // params.addCoupledVar("grad_zz", "xz gradient");
   return params;
 }
 
@@ -50,58 +52,90 @@ ADPFFDiffusion::ADPFFDiffusion(const InputParameters & parameters)
     _c0(getADMaterialProperty<Real>(prependBaseName("normalization_constant", true))),
     _l(getADMaterialProperty<Real>(prependBaseName("regularization_length", true))),
     _recover(getParam<bool>("recover")),
-    _d_old_grad(coupledGradient("d_old")),
-    _d_old_grad_ref(coupledValue("d_old_grad_ref")),
-    _grad_dx(coupledValue("grad_dx")),
-    _grad_dy(coupledValue("grad_dy")),
-    _grad_dz(coupledValue("grad_dz")),
-    _Fnobar_xx_1(coupledValue("Fnobar_xx_1")),
-    _Fnobar_xx_2(coupledValue("Fnobar_xx_2")),
-    _F_current(coupledValue("F_current"))
+    // _grad_disp(adCoupledGradients("displacements")),
+    // _grad_xx(coupledValue("grad_xx")),
+    // _grad_xy(coupledValue("grad_xy")),
+    // _grad_xz(coupledValue("grad_xz")),
+    // _grad_yx(coupledValue("grad_yx")),
+    // _grad_yy(coupledValue("grad_yy")),
+    // _grad_yz(coupledValue("grad_yz")),
+    // _grad_zx(coupledValue("grad_zx")),
+    // _grad_zy(coupledValue("grad_zy")),
+    // _grad_zz(coupledValue("grad_zz")),
+    _solution_object_ptr(NULL)
 
 // _d_diff(dynamic_cast<MooseVariable &>(_subproblem.getVariable(0, "diff")))
 // _d_diff(_sys.addVector("d_diff", true, GHOSTED))
 {
 }
 
+void
+ADPFFDiffusion::initialSetup()
+{
+  if (_recover == true)
+    _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
+
+  // auto dim = _mesh.dimension();
+  // for (unsigned i = dim; i < 3; ++i)
+  // {
+  //   _grad_disp.push_back(&_ad_grad_zero);
+  // }
+}
+
 ADReal
 ADPFFDiffusion::computeQpResidual()
 {
-  // if (_sys.subproblem().nLinearIterations(_sys.number()) == 1)
-  //   std::cout << _sys.subproblem().nLinearIterations(_sys.number()) << std::endl;
+  // If we are not recovering
   if (!_recover)
   {
     ADReal value = _grad_test[_i][_qp] * _grad_u[_qp];
-    // auto dofs = _var.dofIndices();
-
-    // auto currentdof = dofs[_i];
-    // _d_diff.set(currentdof, MetaPhysicL::raw_value(value));
-    // auto currnode = _current_elem->node_ptr(_qp);
-
-    // auto dofnum = currnode->dof_number(_sys.number(), 0, 0);
-    // _d_diff.setNodalValue(MetaPhysicL::raw_value(value));
-    // vec->set(dofnum, MetaPhysicL::raw_value(value));
-    // std::cout << " =====" << std::endl;
 
     return 2 * _Gc[_qp] * _l[_qp] / _c0[_qp] * value;
   }
+  // If we are recovering
   else
   {
-    ADVariableGradient gra(3);
+    //======================================================
+    // Calculating the current def grad
+    // ADRankTwoTensor A;
+    // A(0, 0) = _grad_xx[_qp];
+    // A(0, 1) = _grad_xy[_qp];
+    // A(0, 2) = _grad_xz[_qp];
 
-    gra.setAllValues({_grad_dx[_qp], 0, 0});
+    // A(1, 0) = _grad_yx[_qp];
+    // A(1, 1) = _grad_yy[_qp];
+    // A(1, 2) = _grad_yz[_qp];
 
-    auto dot = _grad_test[_i][_qp](0) * _grad_dx[_qp]; // + _grad_test[_i][_qp](1) * _grad_dy[_qp] +
-                                                       //  _grad_test[_i][_qp](2) * _grad_dz[_qp];
+    // A(2, 0) = _grad_zx[_qp];
+    // A(2, 1) = _grad_zy[_qp];
+    // A(2, 2) = _grad_zz[_qp];
+    // auto F = A;
+    // F.addIa(1.0);
+
+    ADRankTwoTensor F_prev;
+    F_prev.setToIdentity();
+    // Getting past def grad
+    std::vector<std::string> indices = {"x", "y", "z"};
+    auto dim = _mesh.dimension();
+    // Populate tensor from solution object
+    for (unsigned int i_ind = 0; i_ind < dim; i_ind++)
+      for (unsigned int j_ind = 0; j_ind < dim; j_ind++)
+      {
+        F_prev(i_ind, j_ind) = _solution_object_ptr->directValue(
+            _current_elem,
+            "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
+      }
+    // multipying in old def grad
+    // F = F * F_prev;
+
+    //======================================================
+
+    // THE TEST GRADIENT AND _grad_disp NEED TO BE ON DIFFERENT CONFIGURATIONS
 
     ADReal value = 0;
 
-    if (_qp == 0)
-      value = _F_current[_qp] * _Fnobar_xx_1[_qp];
-    if (_qp == 1)
-      value = _F_current[_qp] * _Fnobar_xx_2[_qp];
-
-    value *= _grad_test[_i][_qp] * _grad_u[_qp];
+    auto mult = (_grad_u[_qp] * F_prev);
+    value = _grad_test[_i][_qp] * F_prev * mult;
     // ADReal value = dot + _grad_test[_i][_qp] * (_grad_u[_qp] - _d_old_grad[_qp]);
     return 2 * _Gc[_qp] * _l[_qp] / _c0[_qp] * value;
 

@@ -16,12 +16,12 @@ SolutionUserObjectQP::SolutionUserObjectQP(const InputParameters & parameters)
     _tensor_materials(getParam<std::vector<MaterialName>>("tensor_materials")),
     _materials(getParam<std::vector<MaterialName>>("materials"))
 {
-  unsigned int qp_max = 2;
+  unsigned int qp_max = 8;
+  int dim = 3;
 
   if (!_tensor_materials.empty())
   {
     std::vector<std::string> conv = {"x", "y", "z"};
-    int dim = 1;
     for (unsigned int i = 0; i < _tensor_materials.size(); i++)
     {
       std::string matname = _tensor_materials[i];

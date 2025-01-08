@@ -31,7 +31,7 @@ void
 RecoverVariablesAction::act()
 {
   auto dim = _mesh->dimension();
-  unsigned int qp_max = 2;
+  unsigned int qp_max = 8;
 
   std::vector<std::string> conv = {"x", "y", "z"};
 

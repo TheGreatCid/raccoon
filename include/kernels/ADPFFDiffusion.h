@@ -5,8 +5,12 @@
 #pragma once
 
 #include "ADKernel.h"
+#include "Adaptivity.h"
 #include "BaseNameInterface.h"
+#include "MooseTypes.h"
+#include "RankTwoTensorForward.h"
 #include "libmesh/numeric_vector.h"
+#include "SolutionUserObject.h"
 
 class ADPFFDiffusion : public ADKernel, public BaseNameInterface
 {
@@ -14,6 +18,8 @@ public:
   static InputParameters validParams();
 
   ADPFFDiffusion(const InputParameters & parameters);
+
+  void initialSetup() override;
 
 protected:
   virtual ADReal computeQpResidual() override;
@@ -30,21 +36,17 @@ protected:
   // is this recovering?
   const bool _recover;
 
-  const VariableGradient & _d_old_grad;
+  // std::vector<const ADVariableGradient *> _grad_disp;
 
-  const VariableValue & _d_old_grad_ref;
+  // const VariableValue & _grad_xx;
+  // const VariableValue & _grad_xy;
+  // const VariableValue & _grad_xz;
+  // const VariableValue & _grad_yx;
+  // const VariableValue & _grad_yy;
+  // const VariableValue & _grad_yz;
+  // const VariableValue & _grad_zx;
+  // const VariableValue & _grad_zy;
+  // const VariableValue & _grad_zz;
 
-  // MooseWritableVariable * _d_diff;
-  // MooseVariable & _d_diff;
-
-  // NumericVector<Real> & _d_diff;
-
-  const VariableValue & _grad_dx;
-  const VariableValue & _grad_dy;
-  const VariableValue & _grad_dz;
-
-  const VariableValue & _Fnobar_xx_1;
-  const VariableValue & _Fnobar_xx_2;
-
-  const VariableValue & _F_current;
+  const SolutionUserObject * _solution_object_ptr;
 };
