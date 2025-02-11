@@ -27,10 +27,8 @@ LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters
   : LargeDeformationPlasticityModel(parameters),
     _phi(declareADProperty<Real>("phi")),
     _flowstress(declareADProperty<Real>("flowstress")),
-    _visflowstress(declareADProperty<Real>("visflowstress")),
-    _ep_old_store(declareADProperty<Real>("ep_old_store")),
-    _recover(getParam<bool>("recover")),
-    _solution_object_ptr(NULL)
+    _visflowstress(declareADProperty<Real>("visflowstress"))
+
 {
   _check_range = true;
 
@@ -49,30 +47,10 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
 
   // populate curr_FP and _ep_old_store
   //_ep_old store is a material property so that it can be used in the residual calculation
-  if (_t_step < 2 && _recover == true)
-  {
-    std::vector<std::string> indices = {"x", "y", "z"};
 
-					_ep_old_store[_qp] = _solution_object_ptr->pointValue(_t,_current_elem->true_centroid(),"effective_plastic_strain_" + std::to_string(_qp+1),nullptr);
-   // _ep_old_store[_qp] = _solution_object_ptr->directValue(
-   //     _current_elem, "effective_plastic_strain_" + std::to_string(_qp + 1));
-    for (int i_ind = 0; i_ind < 3; i_ind++)
-      for (int j_ind = 0; j_ind < 3; j_ind++)
-      {
-    //    curr_Fp(i_ind, j_ind) =
-    //        _solution_object_ptr->directValue(_current_elem,
-    //                                          "plastic_deformation_gradie_" + indices[i_ind] +
-    //                                              indices[j_ind] + "_" + std::to_string(_qp + 1));
-				
-					curr_Fp(i_ind,j_ind) = _solution_object_ptr->pointValue(_t,_current_elem->true_centroid(),"plastic_deformation_gradie_"+indices[i_ind]+indices[j_ind]+"_"+std::to_string(_qp+1),nullptr);
-      }
-  }
   // First assume no plastic increment
   ADReal delta_ep = 0;
-  if (_recover == true && _t_step < 2)
-    Fe = Fe * curr_Fp.inverse();
-  else
-    Fe = Fe * _Fp_old[_qp].inverse();
+  Fe = Fe * _Fp_old[_qp].inverse();
 
   stress = _elasticity_model->computeMandelStress(Fe);
   // Compute the flow direction following the Prandtl-Reuss flow rule.
@@ -84,50 +62,27 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   stress_dev_norm = std::sqrt(1.5 * stress_dev_norm);
   _Np[_qp] = 1.5 * stress_dev / stress_dev_norm;
 
-  // Return mapping
-  if (_recover == true && _t_step == 0)
-  {
-    _ep[_qp] = _ep_old_store[_qp];
-    _Fp[_qp] = curr_Fp;
-  }
-  else
-  {
-    _phi[_qp] = computeResidual(stress_dev_norm, delta_ep);
-    if (_phi[_qp] > 0)
-      returnMappingSolve(stress_dev_norm, delta_ep, _console);
-  }
+  _phi[_qp] = computeResidual(stress_dev_norm, delta_ep);
+  if (_phi[_qp] > 0)
+    returnMappingSolve(stress_dev_norm, delta_ep, _console);
 
-  // Using stored ep on first time step if recovering
-  if (_t_step == 1 && _recover == true)
-    {_ep[_qp] = _ep_old_store[_qp] + delta_ep;
-}
-  else
-    _ep[_qp] = _ep_old[_qp] + delta_ep;
+  _ep[_qp] = _ep_old[_qp] + delta_ep;
 
   if (_ep[_qp] == 0)
     _ep[_qp] = 1e-20;
 
   ADRankTwoTensor delta_Fp = RaccoonUtils::exp(delta_ep * _Np[_qp]);
 
-  // Using stored Fp on first time step if recovering
-  if (_t_step < 2 && _recover == true)
-  {
-    if (_t_step == 0)
-      _Fp[_qp] = curr_Fp;
-
-    if (_t_step == 1)
-      _Fp[_qp] = delta_Fp * curr_Fp;
-  }
-  else
-    _Fp[_qp] = delta_Fp * _Fp_old[_qp];
+  if (_t_step == 1)
+    _Fp[_qp] = delta_Fp * curr_Fp;
 
   Fe = Fe * delta_Fp.inverse();
   stress = _elasticity_model->computeCauchyStress(Fe);
 
   _hardening_model->plasticEnergy(_ep[_qp]);
   _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 0);
-//  if(_t_step==1 && _ep[_qp]>0.001)
-//  	std::cout << _ep[_qp] << std::endl;
+  //  if(_t_step==1 && _ep[_qp]>0.001)
+  //  	std::cout << _ep[_qp] << std::endl;
 
   if (_t_step > 0)
   {
@@ -140,8 +95,6 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
 
   _flowstress[_qp] = _hardening_model->plasticEnergy(_ep[_qp], 1);
   _visflowstress[_qp] = _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 1);
-
-
 }
 
 Real
@@ -160,11 +113,7 @@ LargeDeformationJ2Plasticity::computeResidual(const ADReal & effective_trial_str
 {
   ADReal ep;
 
-  // Using stored Fp on first time step if recovering
-  if (_t_step == 1 && _recover == true)
-    ep = _ep_old_store[_qp] + delta_ep;
-  else
-    ep = _ep_old[_qp] + delta_ep;
+  ep = _ep_old[_qp] + delta_ep;
   if (ep == 0)
   {
     ep = 1e-20;
@@ -184,11 +133,7 @@ LargeDeformationJ2Plasticity::computeDerivative(const ADReal & /*effective_trial
 {
   ADReal ep;
 
-  // Using stored Fp on first time step if recovering
-  if (_t_step == 1 && _recover == true)
-    ep = _ep_old_store[_qp] + delta_ep;
-  else
-    ep = _ep_old[_qp] + delta_ep;
+  ep = _ep_old[_qp] + delta_ep;
   if (ep == 0)
   {
     ep = 1e-20;

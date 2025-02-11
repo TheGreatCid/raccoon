@@ -6,7 +6,6 @@
 
 #include "LargeDeformationPlasticityModel.h"
 #include "RankTwoTensorForward.h"
-#include "SolutionUserObject.h"
 
 class LargeDeformationJ2Plasticity : public LargeDeformationPlasticityModel
 {
@@ -37,9 +36,4 @@ protected:
   ADMaterialProperty<Real> & _phi;
   ADMaterialProperty<Real> & _flowstress;
   ADMaterialProperty<Real> & _visflowstress;
-  ADMaterialProperty<Real> & _ep_old_store;
-
-  // const bool & _recover;
-  const bool & _recover;
-  const SolutionUserObject * _solution_object_ptr;
 };
