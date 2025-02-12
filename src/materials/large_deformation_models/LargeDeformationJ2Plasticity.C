@@ -72,6 +72,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
     _ep[_qp] = 1e-20;
 
   ADRankTwoTensor delta_Fp = RaccoonUtils::exp(delta_ep * _Np[_qp]);
+  _Fp[_qp] = delta_Fp * _Fp_old[_qp];
 
   Fe = Fe * delta_Fp.inverse();
   stress = _elasticity_model->computeCauchyStress(Fe);
