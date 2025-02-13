@@ -11,19 +11,21 @@ class CustomElasticity : public LargeDeformationElasticityModel,
                          public DerivativeMaterialPropertyNameInterface
 {
 public:
-    static InputParameters validParams();
+  static InputParameters validParams();
 
-    CustomElasticity(const InputParameters & parameters);
+  CustomElasticity(const InputParameters & parameters);
 
-    virtual ADRankTwoTensor computeMandelStress(const ADRankTwoTensor & Fe,
-                                                const bool plasticity_update = false) override;
+  virtual ADRankTwoTensor computeMandelStress(const ADRankTwoTensor & Fe,
+                                              const bool plasticity_update = false) override;
+
 protected:
   // @{
   virtual ADRankTwoTensor computeMandelStressNoDecomposition(const ADRankTwoTensor & Fe,
                                                              const bool plasticity_update);
-  virtual ADRankTwoTensor computeFirstPKStressNoDecomposition(const ADRankTwoTensor & Fe);
+  virtual ADRankTwoTensor computeFirstPKStressNoDecomposition(const ADRankTwoTensor & Fe,
+                                                              const bool plasticity_update);
   // @}
-  
+
   /// The bulk modulus
   const ADMaterialProperty<Real> & _K;
 

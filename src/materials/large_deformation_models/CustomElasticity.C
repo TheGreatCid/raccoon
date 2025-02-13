@@ -22,8 +22,7 @@ CustomElasticity::validParams()
       "psie",
       "Name of the strain energy density computed by this material model");
   params.addParam<MaterialPropertyName>("degradation_function", "g", "The degradation function");
-  params.addParam<MooseEnum>(
-      "decomposition", MooseEnum("NONE"), "The decomposition method");
+  params.addParam<MooseEnum>("decomposition", MooseEnum("NONE"), "The decomposition method");
 
   return params;
 }
@@ -52,8 +51,7 @@ CustomElasticity::CustomElasticity(const InputParameters & parameters)
 }
 
 ADRankTwoTensor
-CustomElasticity::computeMandelStress(const ADRankTwoTensor & Fe,
-                                     const bool plasticity_update)
+CustomElasticity::computeMandelStress(const ADRankTwoTensor & Fe, const bool plasticity_update)
 {
   ADRankTwoTensor stress;
 
@@ -67,16 +65,17 @@ CustomElasticity::computeMandelStress(const ADRankTwoTensor & Fe,
 
 ADRankTwoTensor
 CustomElasticity::computeMandelStressNoDecomposition(const ADRankTwoTensor & Fe,
-                                                    const bool plasticity_update)
+                                                     const bool plasticity_update)
 {
+
   // Compute the first Piola-Kirchoff stress
-  ADRankTwoTensor P = computeFirstPKStressNoDecomposition(Fe);
+  ADRankTwoTensor P = computeFirstPKStressNoDecomposition(Fe, plasticity_update);
 
   // Compute the undegraded and degraded Mandel stress (here M = kirchoff stress)
   ADRankTwoTensor stress_intact = Fe.transpose() * P;
   ADRankTwoTensor stress = _g[_qp] * stress_intact;
 
-  if(!plasticity_update)
+  if (!plasticity_update)
   {
     // Compute the strain energy density
     ADRankTwoTensor C = Fe.transpose() * Fe;
@@ -94,12 +93,21 @@ CustomElasticity::computeMandelStressNoDecomposition(const ADRankTwoTensor & Fe,
 }
 
 ADRankTwoTensor
-CustomElasticity::computeFirstPKStressNoDecomposition(const ADRankTwoTensor & Fe)
+CustomElasticity::computeFirstPKStressNoDecomposition(const ADRankTwoTensor & Fe,
+                                                      const bool plasticity_update)
 {
+  // We use the left Cauchy-Green strain
+  ADRankTwoTensor strain;
+  if (plasticity_update)
+  {
+    ADRankTwoTensor expFe = RaccoonUtils::exp(Fe);
+    strain = expFe * expFe.transpose();
+  }
+  else
+    strain = Fe * Fe.transpose();
   // We use the right Cauchy-Green strain
-  ADRankTwoTensor C = Fe.transpose() * Fe;
 
-  ADReal J = std::sqrt(C.det());
+  ADReal J = std::sqrt(strain.det());
 
   // Compute the first Piola-Kirchoff Stress
   ADRankTwoTensor Fe_invT = Fe.inverse().transpose();
