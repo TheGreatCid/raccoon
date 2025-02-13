@@ -22,8 +22,8 @@ protected:
   // @{
   virtual ADRankTwoTensor computeMandelStressNoDecomposition(const ADRankTwoTensor & Fe,
                                                              const bool plasticity_update);
-  virtual ADRankTwoTensor computeFirstPKStressNoDecomposition(const ADRankTwoTensor & Fe,
-                                                              const bool plasticity_update);
+  // virtual ADRankTwoTensor computeFirstPKStressNoDecomposition(const ADRankTwoTensor & Fe,
+  //                                                             const bool plasticity_update);
   // @}
 
   /// The bulk modulus
