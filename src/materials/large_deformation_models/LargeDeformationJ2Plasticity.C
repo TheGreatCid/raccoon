@@ -8,6 +8,7 @@
 #include "LargeDeformationJ2Plasticity.h"
 #include "MooseError.h"
 #include "RaccoonUtils.h"
+#include <cmath>
 #include <string>
 
 registerMooseObject("raccoonApp", LargeDeformationJ2Plasticity);
@@ -62,10 +63,13 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   stress_dev_norm = std::sqrt(1.5 * stress_dev_norm);
   _Np[_qp] = 1.5 * stress_dev / stress_dev_norm;
 
+  if (_t_step == 4)
+    std::cout << MetaPhysicL::raw_value(stress_dev_norm) << " " << delta_ep << std::endl;
   _phi[_qp] = computeResidual(stress_dev_norm, delta_ep);
   if (_phi[_qp] > 0)
     returnMappingSolve(stress_dev_norm, delta_ep, _console);
-
+  if (_t_step == 4)
+    std::cout << "after" << std::endl;
   _ep[_qp] = _ep_old[_qp] + delta_ep;
 
   if (_ep[_qp] == 0)
@@ -116,6 +120,25 @@ LargeDeformationJ2Plasticity::computeResidual(const ADReal & effective_trial_str
   {
     ep = 1e-20;
   }
+  if (_t_step == 4 && _qp == 1)
+  {
+    std::cout << "==========" << std::endl;
+    std::cout << "delta_ep " << MetaPhysicL::raw_value(delta_ep) << std::endl;
+    MetaPhysicL::raw_value(_Np[_qp]).print();
+
+    // auto stress = _elasticity_model->computeMandelStress(delta_ep * _Np[_qp],
+    //                                                      /*plasticity_update = */ true);
+
+    // auto test = stress.doubleContraction(_Np[_qp]);
+    // MetaPhysicL::raw_value(_Np[_qp]).print();
+    // std::cout << "+++++++++++++++++++" << std::endl;
+    // MetaPhysicL::raw_value(stress).print();
+    // std::cout << "contraction " << MetaPhysicL::raw_value(test) << std::endl;
+
+    std::cout << "==========" << std::endl;
+  }
+  // if (std::isnan(delta_ep))
+  //   mooseError("ACHK");
   return effective_trial_stress -
          _elasticity_model
              ->computeMandelStress(delta_ep * _Np[_qp],
