@@ -97,12 +97,12 @@ CNHIsotropicElasticity::computeMandelStressNoDecomposition(const ADRankTwoTensor
   // the volumetric part of the flow should be zero, and we could save some operations.
   ADRankTwoTensor stress_intact = 0.5 * _K[_qp] * (J * J - 1) * I2 + _G[_qp] * strain.deviatoric();
   ADRankTwoTensor stress = _g[_qp] * stress_intact;
-  if (_t_step == 4 && _qp == 1 && plasticity_update)
-  {
-    std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@" << std::endl;
-    MetaPhysicL::raw_value(stress).print();
-    std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@" << std::endl;
-  }
+  // if (_t_step == 4 && _qp == 1 && plasticity_update)
+  // {
+  //   std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@" << std::endl;
+  //   MetaPhysicL::raw_value(stress).print();
+  //   std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@" << std::endl;
+  // }
   // If plasticity_update == false, then we are not in the middle of a plasticity update, hence we
   // compute the strain energy density
   if (!plasticity_update)
