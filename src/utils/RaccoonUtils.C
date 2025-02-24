@@ -74,56 +74,56 @@ ADRankTwoTensor
 exp(const ADRankTwoTensor & r2t)
 {
 
-  // FactorizedRankTwoTensor A = MetaPhysicL::raw_value(r2t);
-  // A = MathUtils::exp(A);
-  // ADRankTwoTensor B;
-  // B = A.get();
-  // return B;
-  // int accuracy = 10;
-  // // scaling
-  // int N = 4;
-  // ADRankTwoTensor result;
-  // result.setToIdentity();
-  // // M_small = M/(2^N);
-  // ADRankTwoTensor A_small = r2t / std::pow(2, N);
+  FactorizedRankTwoTensor A = MetaPhysicL::raw_value(r2t);
+  A = MathUtils::exp(A);
+  ADRankTwoTensor B;
+  B = A.get();
+  return B;
+  int accuracy = 10;
+  // scaling
+  int N = 4;
+  ADRankTwoTensor result;
+  result.setToIdentity();
+  // M_small = M/(2^N);
+  ADRankTwoTensor A_small = r2t / std::pow(2, N);
 
-  // ADRankTwoTensor expA;
-  // ADRankTwoTensor term;
-  // expA.setToIdentity();
-  // term.setToIdentity();
+  ADRankTwoTensor expA;
+  ADRankTwoTensor term;
+  expA.setToIdentity();
+  term.setToIdentity();
 
-  // ADRankTwoTensor A_power = A_small;
+  ADRankTwoTensor A_power = A_small;
 
-  // double factorial = 1;
+  double factorial = 1;
 
-  // for (int i = 1; i < accuracy; i++)
-  // {
-  //   factorial = factorial * i;
+  for (int i = 1; i < accuracy; i++)
+  {
+    factorial = factorial * i;
 
-  //   // term = A_small^i / i!
-  //   term = MetaPhysicL::raw_value(A_power) / factorial;
-  //   expA += MetaPhysicL::raw_value(term);
+    // term = A_small^i / i!
+    term = MetaPhysicL::raw_value(A_power) / factorial;
+    expA += MetaPhysicL::raw_value(term);
 
-  //   // Check for convergence using the tensor norm (if available)
-  //   if (MetaPhysicL::raw_value(term).norm() < 1e-12)
-  //     break;
+    // Check for convergence using the tensor norm (if available)
+    if (MetaPhysicL::raw_value(term).norm() < 1e-12)
+      break;
 
-  //   A_power = A_power * A_small;
-  // }
+    A_power = A_power * A_small;
+  }
 
-  // for (int i = 0; i < N; i++)
-  // {
-  //   expA = expA * expA;
-  // }
+  for (int i = 0; i < N; i++)
+  {
+    expA = expA * expA;
+  }
 
-  // return expA;
-  std::vector<ADReal> d;
-  ADRankTwoTensor V, D;
-  r2t.symmetricEigenvaluesEigenvectors(d, V);
-  for (auto & di : d)
-    di = std::exp(di);
-  D.fillFromInputVector(d);
-  return V * D * V.transpose();
+  return expA;
+  // std::vector<ADReal> d;
+  // ADRankTwoTensor V, D;
+  // r2t.symmetricEigenvaluesEigenvectors(d, V);
+  // for (auto & di : d)
+  //   di = std::exp(di);
+  // D.fillFromInputVector(d);
+  // return V * D * V.transpose();
 }
 
 } // end namespace MooseUtils
