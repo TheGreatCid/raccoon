@@ -98,16 +98,20 @@ exp(const ADRankTwoTensor & r2t)
 
   const int max_iterations = 100;
   double tol = 1e-12;
+  auto termnorm = MetaPhysicL::raw_value(term).norm();
+  auto expnorm = MetaPhysicL::raw_value(expA).norm();
+
   for (int i = 1; i < max_iterations; i++)
   {
     factorial = factorial * i;
 
     // term = A_small^i / i!
-    term = MetaPhysicL::raw_value(A_power) / factorial;
-    expA += MetaPhysicL::raw_value(term);
+    term = (A_power) / factorial;
+    expA += term;
+    termnorm = MetaPhysicL::raw_value(term).norm();
+    expnorm = MetaPhysicL::raw_value(expA).norm();
 
-    if (MetaPhysicL::raw_value(term).norm() < tol * MetaPhysicL::raw_value(expA).norm() ||
-        MetaPhysicL::raw_value(term).norm() < tol)
+    if (termnorm < tol * expnorm || termnorm < tol)
       break;
     // Check for convergence using the tensor norm (if available)
     // if (MetaPhysicL::raw_value(term).norm() < 1e-12)
