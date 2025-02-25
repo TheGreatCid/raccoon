@@ -74,16 +74,16 @@ ADRankTwoTensor
 exp(const ADRankTwoTensor & r2t)
 {
 
-  FactorizedRankTwoTensor A = MetaPhysicL::raw_value(r2t);
-  A = MathUtils::exp(A);
-  ADRankTwoTensor B;
-  B = A.get();
-  return B;
-  int accuracy = 10;
+  // FactorizedRankTwoTensor A = MetaPhysicL::raw_value(r2t);
+  // A = MathUtils::exp(A);
+  // ADRankTwoTensor B;
+  // B = A.get();
+  // return B;
+  // int accuracy = 10;
+
   // scaling
   int N = 4;
-  ADRankTwoTensor result;
-  result.setToIdentity();
+
   // M_small = M/(2^N);
   ADRankTwoTensor A_small = r2t / std::pow(2, N);
 
@@ -96,7 +96,9 @@ exp(const ADRankTwoTensor & r2t)
 
   double factorial = 1;
 
-  for (int i = 1; i < accuracy; i++)
+  const int max_iterations = 100;
+  double tol = 1e-12;
+  for (int i = 1; i < max_iterations; i++)
   {
     factorial = factorial * i;
 
@@ -104,9 +106,12 @@ exp(const ADRankTwoTensor & r2t)
     term = MetaPhysicL::raw_value(A_power) / factorial;
     expA += MetaPhysicL::raw_value(term);
 
-    // Check for convergence using the tensor norm (if available)
-    if (MetaPhysicL::raw_value(term).norm() < 1e-12)
+    if (MetaPhysicL::raw_value(term).norm() < tol * MetaPhysicL::raw_value(expA).norm() ||
+        MetaPhysicL::raw_value(term).norm() < tol)
       break;
+    // Check for convergence using the tensor norm (if available)
+    // if (MetaPhysicL::raw_value(term).norm() < 1e-12)
+    //   ;
 
     A_power = A_power * A_small;
   }
