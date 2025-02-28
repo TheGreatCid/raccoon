@@ -46,28 +46,53 @@ spectralDecomposition(const ADRankTwoTensor & r2t)
 ADRankTwoTensor
 log(const ADRankTwoTensor & r2t)
 {
-  // FactorizedRankTwoTensor A_scaled = MetaPhysicL::raw_value(r2t);
-  // FactorizedRankTwoTensor I2;
-  // MathUtils::log(const FactorizedRankTwoTensorTempl<T> &A)
-  // while ((A_scaled - I2).norm() > 0.5)
-  // {
-  //   A_scaled = A_scaled;
+  FactorizedRankTwoTensor A = MetaPhysicL::raw_value(r2t);
+  ADRankTwoTensor I2;
+  I2.setToIdentity();
+  int s = 0;
 
-  //   MathUtils::sqrt(A_scaled);
-  // }
+  const double tol = 0.5;
+  while (MetaPhysicL::raw_value(A.get() - I2).norm() > tol)
+  {
+    A = MathUtils::sqrt(A);
+    s++;
+  }
 
+  ADRankTwoTensor X = A.get() - I2;
+
+  ADRankTwoTensor logA = X;
+  ADRankTwoTensor term = X;
+  const double series_tol = 1e-8;
+  int k = 2;
+
+  while (MetaPhysicL::raw_value(term).norm() > series_tol && k < 100)
+  {
+    term = term * X;
+
+    double coeff = ((k % 2 == 0) ? -1 : 1) / double(k);
+
+    logA += coeff * term;
+
+    k++;
+  }
+
+  ADRankTwoTensor logF = logA * std::pow(2, s);
+
+  return logF;
   // FactorizedRankTwoTensor A = MetaPhysicL::raw_value(r2t);
   // A = MathUtils::log(A);
+  // A = MathUtils::sqrt(const FactorizedRankTwoTensorTempl<T> &A)
   // ADRankTwoTensor B;
   // B = A.get();
   // return B;
-  std::vector<ADReal> d;
-  ADRankTwoTensor V, D;
-  r2t.symmetricEigenvaluesEigenvectors(d, V);
-  for (auto & di : d)
-    di = std::log(di);
-  D.fillFromInputVector(d);
-  return V * D * V.transpose();
+
+  // std::vector<ADReal> d;
+  // ADRankTwoTensor V, D;
+  // r2t.symmetricEigenvaluesEigenvectors(d, V);
+  // for (auto & di : d)
+  //   di = std::log(di);
+  // D.fillFromInputVector(d);
+  // return V * D * V.transpose();
 }
 
 ADRankTwoTensor
@@ -82,57 +107,57 @@ exp(const ADRankTwoTensor & r2t)
   // int accuracy = 10;
 
   // scaling
-  int N = 4;
+  // int N = 4;
 
-  // M_small = M/(2^N);
-  ADRankTwoTensor A_small = r2t / std::pow(2, N);
+  // // M_small = M/(2^N);
+  // ADRankTwoTensor A_small = r2t / std::pow(2, N);
 
-  ADRankTwoTensor expA;
-  ADRankTwoTensor term;
-  expA.setToIdentity();
-  term.setToIdentity();
+  // ADRankTwoTensor expA;
+  // ADRankTwoTensor term;
+  // expA.setToIdentity();
+  // term.setToIdentity();
 
-  ADRankTwoTensor A_power = A_small;
+  // ADRankTwoTensor A_power = A_small;
 
-  double factorial = 1;
+  // double factorial = 1;
 
-  const int max_iterations = 100;
-  double tol = 1e-12;
-  auto termnorm = MetaPhysicL::raw_value(term).norm();
-  auto expnorm = MetaPhysicL::raw_value(expA).norm();
+  // const int max_iterations = 100;
+  // double tol = 1e-12;
+  // auto termnorm = MetaPhysicL::raw_value(term).norm();
+  // auto expnorm = MetaPhysicL::raw_value(expA).norm();
 
-  for (int i = 1; i < max_iterations; i++)
-  {
-    factorial = factorial * i;
+  // for (int i = 1; i < max_iterations; i++)
+  // {
+  //   factorial = factorial * i;
 
-    // term = A_small^i / i!
-    term = (A_power) / factorial;
-    expA += term;
-    termnorm = MetaPhysicL::raw_value(term).norm();
-    expnorm = MetaPhysicL::raw_value(expA).norm();
+  //   // term = A_small^i / i!
+  //   term = (A_power) / factorial;
+  //   expA += term;
+  //   termnorm = MetaPhysicL::raw_value(term).norm();
+  //   expnorm = MetaPhysicL::raw_value(expA).norm();
 
-    if (termnorm < tol * expnorm || termnorm < tol)
-      break;
-    // Check for convergence using the tensor norm (if available)
-    // if (MetaPhysicL::raw_value(term).norm() < 1e-12)
-    //   ;
+  //   if (termnorm < tol * expnorm || termnorm < tol)
+  //     break;
+  //   // Check for convergence using the tensor norm (if available)
+  //   // if (MetaPhysicL::raw_value(term).norm() < 1e-12)
+  //   //   ;
 
-    A_power = A_power * A_small;
-  }
+  //   A_power = A_power * A_small;
+  // }
 
-  for (int i = 0; i < N; i++)
-  {
-    expA = expA * expA;
-  }
+  // for (int i = 0; i < N; i++)
+  // {
+  //   expA = expA * expA;
+  // }
 
-  return expA;
-  // std::vector<ADReal> d;
-  // ADRankTwoTensor V, D;
-  // r2t.symmetricEigenvaluesEigenvectors(d, V);
-  // for (auto & di : d)
-  //   di = std::exp(di);
-  // D.fillFromInputVector(d);
-  // return V * D * V.transpose();
+  // return expA;
+  std::vector<ADReal> d;
+  ADRankTwoTensor V, D;
+  r2t.symmetricEigenvaluesEigenvectors(d, V);
+  for (auto & di : d)
+    di = std::exp(di);
+  D.fillFromInputVector(d);
+  return V * D * V.transpose();
 }
 
 } // end namespace MooseUtils
