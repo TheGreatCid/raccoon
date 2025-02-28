@@ -2,6 +2,7 @@
 //* being developed at Dolbow lab at Duke University
 //* http://dolbow.pratt.duke.edu
 
+#include "ADRankTwoTensorForward.h"
 #include "EigenADReal.h"
 #include "OscarIsotropic.h"
 #include "RaccoonUtils.h"
@@ -86,12 +87,16 @@ OscarIsotropic::computeMandelStressNoDecomposition(const ADRankTwoTensor & Fe,
     strain = Fe * Fe.transpose();
 
   ADReal J = std::sqrt(strain.det());
-  auto s2 = strain * strain;
   const ADRankTwoTensor I2(ADRankTwoTensor::initIdentity);
-  auto lambda = (_K[_qp] - 2 / 3 * _G[_qp]);
+
   ADRankTwoTensor stress_intact =
-      std::pow(3, 1 - _alpha) * _G[_qp] * std::pow(strain.trace(), _alpha - 1) * strain +
-      ((_K[_qp] - 0.66666666 * _alpha * _G[_qp]) * J * (J - 1) - _G[_qp]) * I2;
+      -std::pow(3, 1 - _alpha) * _G[_qp] * std::pow((strain.inverse()).trace(), _alpha - 1) *
+          strain.inverse() +
+      ((_K[_qp] - 2 / 3 * _alpha * _G[_qp]) * J * (J - 1) + _G[_qp]) * I2;
+
+  // ADRankTwoTensor stress_intact =
+  //     std::pow(3, 1 - _alpha) * _G[_qp] * std::pow(strain.trace(), _alpha - 1) * strain +
+  //     ((_K[_qp] - 2 / 3 * _alpha * _G[_qp]) * J * (J - 1) - _G[_qp]) * I2;
   ADRankTwoTensor stress = _g[_qp] * stress_intact;
 
   // If plasticity_update == false, then we are not in the middle of a plasticity update, hence we
@@ -99,7 +104,7 @@ OscarIsotropic::computeMandelStressNoDecomposition(const ADRankTwoTensor & Fe,
   if (!plasticity_update)
   {
 
-    ADReal U = 0.5 * lambda * strain.trace() * strain.trace() + _G[_qp] * (s2).trace();
+    ADReal U = 1;
     _psie_active[_qp] = U;
     _psie[_qp] = _g[_qp] * _psie_active[_qp];
     _dpsie_dd[_qp] = _dg_dd[_qp] * _psie_active[_qp];
