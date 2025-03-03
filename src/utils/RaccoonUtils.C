@@ -44,21 +44,33 @@ spectralDecomposition(const ADRankTwoTensor & r2t)
 }
 
 ADRankTwoTensor
+tensorsqrt(const ADRankTwoTensor & r2t)
+{
+  std::vector<ADReal> d;
+  ADRankTwoTensor V, D;
+  r2t.symmetricEigenvaluesEigenvectors(d, V);
+  for (auto & di : d)
+    di = std::sqrt(di);
+  D.fillFromInputVector(d);
+  return V * D * V.transpose();
+}
+
+ADRankTwoTensor
 log(const ADRankTwoTensor & r2t)
 {
-  FactorizedRankTwoTensor A = MetaPhysicL::raw_value(r2t);
+  ADRankTwoTensor A = MetaPhysicL::raw_value(r2t);
   ADRankTwoTensor I2;
   I2.setToIdentity();
   int s = 0;
 
   const double tol = 0.5;
-  while (MetaPhysicL::raw_value(A.get() - I2).norm() > tol)
+  while (MetaPhysicL::raw_value(A - I2).norm() > tol)
   {
-    A = MathUtils::sqrt(A);
+    A = tensorsqrt(A);
     s++;
   }
 
-  ADRankTwoTensor X = A.get() - I2;
+  ADRankTwoTensor X = A - I2;
 
   ADRankTwoTensor logA = X;
   ADRankTwoTensor term = X;

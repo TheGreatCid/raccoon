@@ -14,6 +14,8 @@ std::vector<ADReal> Macaulay(const std::vector<ADReal> & v, const bool deriv = f
 
 ADRankTwoTensor spectralDecomposition(const ADRankTwoTensor & r2t);
 
+ADRankTwoTensor tensorsqrt(const ADRankTwoTensor & r2t);
+
 ADRankTwoTensor log(const ADRankTwoTensor & r2t);
 
 ADRankTwoTensor exp(const ADRankTwoTensor & r2t);
