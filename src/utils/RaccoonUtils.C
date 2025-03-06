@@ -58,39 +58,39 @@ tensorsqrt(const ADRankTwoTensor & r2t)
 ADRankTwoTensor
 log(const ADRankTwoTensor & r2t)
 {
-  ADRankTwoTensor A = MetaPhysicL::raw_value(r2t);
-  ADRankTwoTensor I2;
-  I2.setToIdentity();
-  int s = 0;
+  // ADRankTwoTensor A = MetaPhysicL::raw_value(r2t);
+  // ADRankTwoTensor I2;
+  // I2.setToIdentity();
+  // int s = 0;
 
-  const double tol = 0.5;
-  while (MetaPhysicL::raw_value(A - I2).norm() > tol)
-  {
-    A = tensorsqrt(A);
-    s++;
-  }
+  // const double tol = 0.5;
+  // while (MetaPhysicL::raw_value(A - I2).norm() > tol)
+  // {
+  //   A = tensorsqrt(A);
+  //   s++;
+  // }
 
-  ADRankTwoTensor X = A - I2;
+  // ADRankTwoTensor X = A - I2;
 
-  ADRankTwoTensor logA = X;
-  ADRankTwoTensor term = X;
-  const double series_tol = 1e-8;
-  int k = 2;
+  // ADRankTwoTensor logA = X;
+  // ADRankTwoTensor term = X;
+  // const double series_tol = 1e-8;
+  // int k = 2;
 
-  while (MetaPhysicL::raw_value(term).norm() > series_tol && k < 100)
-  {
-    term = term * X;
+  // while (MetaPhysicL::raw_value(term).norm() > series_tol && k < 100)
+  // {
+  //   term = term * X;
 
-    double coeff = ((k % 2 == 0) ? -1 : 1) / double(k);
+  //   double coeff = ((k % 2 == 0) ? -1 : 1) / double(k);
 
-    logA += coeff * term;
+  //   logA += coeff * term;
 
-    k++;
-  }
+  //   k++;
+  // }
 
-  ADRankTwoTensor logF = logA * std::pow(2, s);
+  // ADRankTwoTensor logF = logA * std::pow(2, s);
 
-  return logF;
+  // return logF;
   // FactorizedRankTwoTensor A = MetaPhysicL::raw_value(r2t);
   // A = MathUtils::log(A);
   // A = MathUtils::sqrt(const FactorizedRankTwoTensorTempl<T> &A)
@@ -98,13 +98,13 @@ log(const ADRankTwoTensor & r2t)
   // B = A.get();
   // return B;
 
-  // std::vector<ADReal> d;
-  // ADRankTwoTensor V, D;
-  // r2t.symmetricEigenvaluesEigenvectors(d, V);
-  // for (auto & di : d)
-  //   di = std::log(di);
-  // D.fillFromInputVector(d);
-  // return V * D * V.transpose();
+  std::vector<ADReal> d;
+  ADRankTwoTensor V, D;
+  r2t.symmetricEigenvaluesEigenvectors(d, V);
+  for (auto & di : d)
+    di = std::log(di);
+  D.fillFromInputVector(d);
+  return V * D * V.transpose();
 }
 
 ADRankTwoTensor
