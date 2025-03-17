@@ -10,6 +10,7 @@
 #include "MooseTypes.h"
 #include "RaccoonUtils.h"
 #include "RankTwoTensorForward.h"
+#include <cmath>
 
 registerMooseObject("raccoonApp", LargeDeformationJ2PlasticityCorrection);
 
@@ -49,7 +50,8 @@ LargeDeformationJ2PlasticityCorrection::initQpStatefulProperties()
 };
 
 void
-LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress, ADRankTwoTensor & Fe)
+LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
+                                                    ADRankTwoTensor & /*Fe*/)
 {
   ADRankTwoTensor I2;
   I2.setToIdentity();
@@ -63,7 +65,7 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress, AD
   //   std::cout << "------" << std::endl;
 
   // Compute fbar
-  ADRankTwoTensor fbar = std::pow(f.det(), -1.0 / 3.0) * f;
+  ADRankTwoTensor fbar = f / std::cbrt(f.det());
 
   // Compute bebar_trial
   _bebar[_qp] = fbar * _bebar_old[_qp] * fbar.transpose();
@@ -76,46 +78,34 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress, AD
     s_trial_norm.value() = libMesh::TOLERANCE * libMesh::TOLERANCE;
 
   // Norm of trial stress
-  s_trial_norm = std::sqrt(1.5 * s_trial_norm);
+  s_trial_norm = std::sqrt(s_trial_norm);
 
   // Check for plastic loading
-  _Np[_qp] = 1.5 * s_trial / s_trial_norm;
+  _Np[_qp] = std::sqrt(1.5) * s_trial / s_trial_norm;
+
   // Return mapping
   ADReal phi = computeResidual(s_trial_norm, delta_ep);
   if (phi > 0)
     returnMappingSolve(s_trial_norm, delta_ep, _console);
 
-  ADRankTwoTensor delta_Fp = RaccoonUtils::exp(delta_ep * _Np[_qp]);
-  _Fp[_qp] = delta_Fp * _Fp_old[_qp];
-  _ep[_qp] = _ep_old[_qp] + delta_ep;
-
-  // Update stress and energy
-  Fe = Fe * delta_Fp.inverse();
-
   // Update stress
-  ADReal Iebar = 1.0 / 3.0 * _bebar[_qp].trace();
-  ADReal mubar = _G[_qp] * Iebar;
-  ADRankTwoTensor s = s_trial - 2.0 * mubar * delta_ep * _Np[_qp];
-
-  ADReal J = _F[_qp].det();
+  ADRankTwoTensor s = s_trial - _G[_qp] * delta_ep * _bebar[_qp].trace() * _Np[_qp];
+  _ep[_qp] = _ep_old[_qp] + delta_ep * 2;
 
   // Updating Kirchoff stress
-  //   ADReal p = _K[_qp] / 2 * (J - 1 / J);
+  ADReal J = _F[_qp].det();
   ADReal p = 0.5 * _K[_qp] * (J * J - 1);
   stress = J * p * I2 + s;
-  ADRankTwoTensor devbebar = stress.deviatoric() / _G[_qp];
+  ADRankTwoTensor devbebar = s / _G[_qp];
   computeCorrectionTerm(devbebar);
-  //   std::cout << MetaPhysicL::raw_value(_bebar[_qp].det()) << std::endl;
-  //   _bebar[_qp] = devbebar + Iebar * I2;
 }
 
 Real
 LargeDeformationJ2PlasticityCorrection::computeReferenceResidual(
     const ADReal & effective_trial_stress, const ADReal & delta_ep)
 {
-  ADReal Iebar = 1.0 / 3.0 * _bebar[_qp].trace();
-  ADReal mubar = _G[_qp] * Iebar;
-  return MetaPhysicL::raw_value(effective_trial_stress - 2 * mubar * delta_ep);
+  return MetaPhysicL::raw_value(effective_trial_stress -
+                                std::sqrt(3.0 / 2.0) * _G[_qp] * delta_ep * _bebar[_qp].trace());
 }
 
 ADReal
@@ -123,69 +113,44 @@ LargeDeformationJ2PlasticityCorrection::computeResidual(const ADReal & effective
                                                         const ADReal & delta_ep)
 {
   ADReal ep = _ep_old[_qp] + delta_ep;
-
-  ADReal Iebar = 1.0 / 3.0 * _bebar[_qp].trace();
-  ADReal mubar = _G[_qp] * Iebar;
   return effective_trial_stress - std::sqrt(2.0 / 3.0) * _hardening_model->plasticEnergy(ep, 1) -
-         2 * mubar * delta_ep;
+         std::sqrt(3.0 / 2.0) * _G[_qp] * delta_ep * _bebar[_qp].trace();
 }
 
 ADReal
-LargeDeformationJ2PlasticityCorrection::computeDerivative(const ADReal & /*effective_trial_stress*/,
+LargeDeformationJ2PlasticityCorrection::computeDerivative(const ADReal & /*effective_trial_stress*/
+                                                          ,
                                                           const ADReal & delta_ep)
 {
   ADReal ep = _ep_old[_qp] + delta_ep;
-  ADReal Iebar = 1.0 / 3.0 * _bebar[_qp].trace();
-  ADReal mubar = _G[_qp] * Iebar;
-  return -std::sqrt(2.0 / 3.0) * _hardening_model->plasticEnergy(ep, 2) - 2 * mubar;
+  return -std::sqrt(2.0 / 3.0) * _hardening_model->plasticEnergy(ep, 2) -
+         std::sqrt(3.0 / 2.0) * _G[_qp] * _bebar[_qp].trace();
 }
 
 void
 LargeDeformationJ2PlasticityCorrection::computeCorrectionTerm(const ADRankTwoTensor & devbebar)
 {
 
-  std::vector<ADReal> d;
-  ADRankTwoTensor V;
-  devbebar.symmetricEigenvaluesEigenvectors(d, V);
+  // Identity tensor
+  ADRankTwoTensor I2(RankTwoTensorTempl<ADReal>::initIdentity);
 
-  // NR its: solving for det(bebar + alpha) = 1
-  ADReal alpha = 1;
-  ADReal i = 0;
-  ADReal res = 1;
-  ADReal dres;
-  while (std::abs(res) > 1e-10 && i <= 50)
-  {
-    res = computeCorrectionResidual(d, alpha);
-    dres = computeCorrectionDerivative(d, alpha);
+  Real a = MetaPhysicL::raw_value(devbebar(0, 0));
+  Real b = MetaPhysicL::raw_value(devbebar(1, 1));
+  Real c = MetaPhysicL::raw_value(devbebar(2, 2));
+  Real d = MetaPhysicL::raw_value(devbebar(1, 2));
+  Real e = MetaPhysicL::raw_value(devbebar(0, 2));
+  Real h = MetaPhysicL::raw_value(devbebar(0, 1));
 
-    alpha = alpha - res / dres;
+  Real A = a + b + c;
+  Real B = a * b + a * c + b * c - d * d - e * e - h * h;
+  Real C = a * b * c + 2.0 * d * e * h - a * d * d - b * e * e - c * h * h - 1.0;
 
-    res = computeCorrectionResidual(d, alpha);
-    i += 1;
-    if (i == 50)
-      std::cout << ("HIT MAX ITS") << std::endl;
-  }
+  Real D = std::cbrt(-2 * A * A * A +
+                     3 * std::sqrt(3) *
+                         std::sqrt(4 * A * A * A * C - A * A * B * B - 18 * A * B * C +
+                                   4 * B * B * B + 27 * C * C) +
+                     9 * A * B - 27 * C);
 
-  // Reconstructing bebar
-  ADRankTwoTensor d_diag;
-  d_diag.setToIdentity();
-  d_diag(0, 0) = d[0] + alpha;
-  d_diag(1, 1) = d[1] + alpha;
-  d_diag(2, 2) = d[2] + alpha;
-  _bebar[_qp] = V * d_diag * V.transpose();
-}
-
-ADReal
-LargeDeformationJ2PlasticityCorrection::computeCorrectionResidual(const std::vector<ADReal> d,
-                                                                  const ADReal & alpha)
-{
-  return (d[0] + alpha) * (d[1] + alpha) * (d[2] + alpha) - 1;
-}
-
-ADReal
-LargeDeformationJ2PlasticityCorrection::computeCorrectionDerivative(const std::vector<ADReal> d,
-                                                                    const ADReal & alpha)
-{
-  return (d[1] + alpha) * (d[2] + alpha) + (d[0] + alpha) * (d[2] + alpha) +
-         (d[0] + alpha) * (d[1] + alpha);
+  ADReal Ie_bar = D / 3 / std::cbrt(2) - std::cbrt(2) * (3 * B - A * A) / 3 / D - A / 3;
+  _bebar[_qp] = devbebar + Ie_bar * I2;
 }

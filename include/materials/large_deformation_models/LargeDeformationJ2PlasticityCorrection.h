@@ -36,9 +36,6 @@ protected:
 
   void computeCorrectionTerm(const ADRankTwoTensor & devbebar);
 
-  ADReal computeCorrectionResidual(const std::vector<ADReal> d, const ADReal & alpha);
-  ADReal computeCorrectionDerivative(const std::vector<ADReal> d, const ADReal & alpha);
-
   // Bebar state variable
   ADMaterialProperty<RankTwoTensor> & _bebar;
   const MaterialProperty<RankTwoTensor> & _bebar_old;
