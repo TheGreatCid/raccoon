@@ -6,6 +6,7 @@
 #include "EigenADReal.h"
 #include "LargeDeformationJ2PlasticityCorrection.h"
 #include "LargeDeformationPlasticityModel.h"
+#include "MooseError.h"
 #include "MooseTypes.h"
 #include "RaccoonUtils.h"
 #include "RankTwoTensorForward.h"
@@ -57,6 +58,9 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress, AD
 
   // Obtain incremental f
   ADRankTwoTensor f = _F[_qp] * _F_old[_qp].inverse();
+  //   std::cout << "------" << std::endl;
+  //   MetaPhysicL::raw_value(f).print();
+  //   std::cout << "------" << std::endl;
 
   // Compute fbar
   ADRankTwoTensor fbar = std::pow(f.det(), -1.0 / 3.0) * f;
@@ -91,9 +95,9 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress, AD
   // Update stress
   ADReal Iebar = 1.0 / 3.0 * _bebar[_qp].trace();
   ADReal mubar = _G[_qp] * Iebar;
-  ADRankTwoTensor s = s_trial - 2 * mubar * delta_ep * _Np[_qp];
+  ADRankTwoTensor s = s_trial - 2.0 * mubar * delta_ep * _Np[_qp];
 
-  ADReal J = Fe.det();
+  ADReal J = _F[_qp].det();
 
   // Updating Kirchoff stress
   //   ADReal p = _K[_qp] / 2 * (J - 1 / J);
@@ -101,6 +105,8 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress, AD
   stress = J * p * I2 + s;
   ADRankTwoTensor devbebar = stress.deviatoric() / _G[_qp];
   computeCorrectionTerm(devbebar);
+  //   std::cout << MetaPhysicL::raw_value(_bebar[_qp].det()) << std::endl;
+  //   _bebar[_qp] = devbebar + Iebar * I2;
 }
 
 Real
@@ -129,7 +135,7 @@ LargeDeformationJ2PlasticityCorrection::computeDerivative(const ADReal & /*effec
                                                           const ADReal & delta_ep)
 {
   ADReal ep = _ep_old[_qp] + delta_ep;
-  ADReal Iebar = 1 / 3 * _bebar[_qp].trace();
+  ADReal Iebar = 1.0 / 3.0 * _bebar[_qp].trace();
   ADReal mubar = _G[_qp] * Iebar;
   return -std::sqrt(2.0 / 3.0) * _hardening_model->plasticEnergy(ep, 2) - 2 * mubar;
 }
@@ -156,6 +162,8 @@ LargeDeformationJ2PlasticityCorrection::computeCorrectionTerm(const ADRankTwoTen
 
     res = computeCorrectionResidual(d, alpha);
     i += 1;
+    if (i == 50)
+      std::cout << ("HIT MAX ITS") << std::endl;
   }
 
   // Reconstructing bebar
