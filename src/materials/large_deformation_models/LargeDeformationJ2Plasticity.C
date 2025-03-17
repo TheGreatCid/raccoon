@@ -72,8 +72,8 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
     std::cout << "after" << std::endl;
   _ep[_qp] = _ep_old[_qp] + delta_ep;
 
-  if (_ep[_qp] == 0)
-    _ep[_qp] = 1e-20;
+  // Avoiding /0 issues for rate dependent models
+  _ep[_qp] = (_ep[_qp] == 0) ? 1e-20 : _ep[_qp];
 
   ADRankTwoTensor delta_Fp = RaccoonUtils::exp(delta_ep * _Np[_qp]);
   _Fp[_qp] = delta_Fp * _Fp_old[_qp];
@@ -83,9 +83,8 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
 
   _hardening_model->plasticEnergy(_ep[_qp]);
   _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 0);
-  //  if(_t_step==1 && _ep[_qp]>0.001)
-  //  	std::cout << _ep[_qp] << std::endl;
 
+  // Avoiding NaN issues for rate depedent models
   if (_t_step > 0)
   {
     _heat[_qp] = _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 1) * delta_ep / _dt;
@@ -94,9 +93,6 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   }
   else
     _heat[_qp] = 0;
-
-  _flowstress[_qp] = _hardening_model->plasticEnergy(_ep[_qp], 1);
-  _visflowstress[_qp] = _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 1);
 }
 
 Real
@@ -113,32 +109,11 @@ ADReal
 LargeDeformationJ2Plasticity::computeResidual(const ADReal & effective_trial_stress,
                                               const ADReal & delta_ep)
 {
-  ADReal ep;
+  ADReal ep = _ep_old[_qp] + delta_ep;
 
-  ep = _ep_old[_qp] + delta_ep;
-  if (ep == 0)
-  {
-    ep = 1e-20;
-  }
-  if (_t_step == 4 && _qp == 1)
-  {
-    std::cout << "==========" << std::endl;
-    std::cout << "delta_ep " << MetaPhysicL::raw_value(delta_ep) << std::endl;
-    MetaPhysicL::raw_value(_Np[_qp]).print();
+  // Avoiding /0 errors for rate depedent models
+  ep = (ep == 0) ? 1e-20 : ep;
 
-    // auto stress = _elasticity_model->computeMandelStress(delta_ep * _Np[_qp],
-    //                                                      /*plasticity_update = */ true);
-
-    // auto test = stress.doubleContraction(_Np[_qp]);
-    // MetaPhysicL::raw_value(_Np[_qp]).print();
-    // std::cout << "+++++++++++++++++++" << std::endl;
-    // MetaPhysicL::raw_value(stress).print();
-    // std::cout << "contraction " << MetaPhysicL::raw_value(test) << std::endl;
-
-    std::cout << "==========" << std::endl;
-  }
-  // if (std::isnan(delta_ep))
-  //   mooseError("ACHK");
   return effective_trial_stress -
          _elasticity_model
              ->computeMandelStress(delta_ep * _Np[_qp],
@@ -152,9 +127,7 @@ ADReal
 LargeDeformationJ2Plasticity::computeDerivative(const ADReal & /*effective_trial_stress*/,
                                                 const ADReal & delta_ep)
 {
-  ADReal ep;
-
-  ep = _ep_old[_qp] + delta_ep;
+  ADReal ep = _ep_old[_qp] + delta_ep;
   if (ep == 0)
   {
     ep = 1e-20;

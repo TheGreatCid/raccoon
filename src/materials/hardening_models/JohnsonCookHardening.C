@@ -119,6 +119,9 @@ JohnsonCookHardening::plasticDissipation(const ADReal & delta_ep,
                                          const ADReal & ep,
                                          const unsigned int derivative)
 {
+  // For all cases, we are splitting between rate dependent and non rate dependent portions to avoid
+  // /0 errors
+
   ADReal result = 0;
 
   if (derivative == 0)
