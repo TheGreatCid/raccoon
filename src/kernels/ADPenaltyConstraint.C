@@ -4,6 +4,7 @@
 
 #include "ADPenaltyConstraint.h"
 #include "MooseUtils.h"
+#include "RaccoonUtils.h"
 registerMooseObject("raccoonApp", ADPenaltyConstraint);
 
 InputParameters
@@ -26,9 +27,9 @@ ADPenaltyConstraint::ADPenaltyConstraint(const InputParameters & parameters)
 ADReal
 ADPenaltyConstraint::computeQpResidual()
 {
-  ADReal d = 0;
-  if (-_u[_qp] >= 0)
-    d = -(_u[_qp] * _u[_qp]);
 
-  return _penalty * _test[_i][_qp] * d;
+  ADReal d = 0;
+  ADReal delta_d = _u[_qp] - valueOld()[_qp];
+
+  return _penalty * _test[_i][_qp] * std::pow(RaccoonUtils::Macaulay(-delta_d), 2);
 }
