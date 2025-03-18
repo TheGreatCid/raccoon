@@ -5,8 +5,10 @@
 #pragma once
 
 #include "LargeDeformationPlasticityModel.h"
+#include "DerivativeMaterialPropertyNameInterface.h"
 
-class LargeDeformationJ2PlasticityCorrection : public LargeDeformationPlasticityModel
+class LargeDeformationJ2PlasticityCorrection : public LargeDeformationPlasticityModel,
+                                               public DerivativeMaterialPropertyNameInterface
 {
 public:
   static InputParameters validParams();
@@ -36,6 +38,8 @@ protected:
 
   void computeCorrectionTerm(const ADRankTwoTensor & devbebar);
 
+  void computeStrainEnergyDensity();
+
   // Bebar state variable
   ADMaterialProperty<RankTwoTensor> & _bebar;
   const MaterialProperty<RankTwoTensor> & _bebar_old;
@@ -44,4 +48,19 @@ protected:
   const ADMaterialProperty<Real> & _K;
   const MaterialProperty<RankTwoTensor> & _F_old;
   const ADMaterialProperty<RankTwoTensor> & _F;
+
+  /// Name of the phase-field variable
+  const VariableName _d_name;
+
+  // @{ The degradation function and its derivative w/r/t damage
+  const MaterialPropertyName _ge_name;
+  const ADMaterialProperty<Real> & _ge;
+  const ADMaterialProperty<Real> & _dge_dd;
+
+  // @{ Strain energy density and its derivative w/r/t damage
+  const MaterialPropertyName _psie_name;
+  ADMaterialProperty<Real> & _psie_corr;
+  ADMaterialProperty<Real> & _psie_active_corr;
+  ADMaterialProperty<Real> & _dpsie_dd_corr;
+  // @}
 };

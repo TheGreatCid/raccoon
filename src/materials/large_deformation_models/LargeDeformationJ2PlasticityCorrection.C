@@ -23,6 +23,13 @@ LargeDeformationJ2PlasticityCorrection::validParams()
                              "update is used to update the plastic deformation.");
   params.addRequiredParam<MaterialPropertyName>("K", "K");
   params.addRequiredParam<MaterialPropertyName>("G", "G");
+  params.addRequiredCoupledVar("phase_field", "Name of the phase-field (damage) variable");
+  params.addParam<MaterialPropertyName>(
+      "elastic_degradation_function", "g", "The elastic degradation function");
+  params.addParam<MaterialPropertyName>(
+      "strain_energy_density_corr",
+      "psie_corr",
+      "Name of the strain energy density computed by this material model");
 
   return params;
 }
@@ -30,13 +37,26 @@ LargeDeformationJ2PlasticityCorrection::validParams()
 LargeDeformationJ2PlasticityCorrection::LargeDeformationJ2PlasticityCorrection(
     const InputParameters & parameters)
   : LargeDeformationPlasticityModel(parameters),
+    DerivativeMaterialPropertyNameInterface(),
     _bebar(declareADProperty<RankTwoTensor>(prependBaseName("be_bar"))),
     _bebar_old(getMaterialPropertyOldByName<RankTwoTensor>(prependBaseName("be_bar"))),
     // _f(declareADProperty<RankTwoTensor>(prependBaseName("incremental_deformation_gradient"))),
     _G(getADMaterialPropertyByName<Real>("G")),
     _K(getADMaterialPropertyByName<Real>("K")),
     _F_old(getMaterialPropertyOldByName<RankTwoTensor>(prependBaseName("deformation_gradient"))),
-    _F(getADMaterialPropertyByName<RankTwoTensor>(prependBaseName("deformation_gradient")))
+    _F(getADMaterialPropertyByName<RankTwoTensor>(prependBaseName("deformation_gradient"))),
+    _d_name(getVar("phase_field", 0)->name()),
+    // The degradation function and its derivatives
+    _ge_name(prependBaseName("elastic_degradation_function", true)),
+    _ge(getADMaterialProperty<Real>(_ge_name)),
+    _dge_dd(getADMaterialProperty<Real>(derivativePropertyName(_ge_name, {_d_name}))),
+
+    // The strain energy density and its derivatives
+    _psie_name(prependBaseName("strain_energy_density_corr", true)),
+    _psie_corr(declareADProperty<Real>(_psie_name)),
+    _psie_active_corr(declareADProperty<Real>(_psie_name + "_active")),
+    _dpsie_dd_corr(declareADProperty<Real>(derivativePropertyName(_psie_name, {_d_name})))
+
 {
   _check_range = true;
 }
@@ -91,7 +111,7 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
 
   // Compute trial stress
   // Will need to do a better implementation of this
-  ADRankTwoTensor s_trial = _G[_qp] * _bebar[_qp].deviatoric();
+  ADRankTwoTensor s_trial = _G[_qp] * _ge[_qp] * _bebar[_qp].deviatoric();
   ADReal s_trial_norm = s_trial.doubleContraction(s_trial);
   if (MooseUtils::absoluteFuzzyEqual(s_trial_norm, 0))
     s_trial_norm.value() = libMesh::TOLERANCE * libMesh::TOLERANCE;
@@ -109,14 +129,15 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
     returnMappingSolve(s_trial_norm, delta_ep, _console);
 
     // Update stress
-    ADRankTwoTensor s = s_trial - _G[_qp] * delta_ep * _bebar[_qp].trace() * _Np[_qp];
+    ADRankTwoTensor s = s_trial - _ge[_qp] * _G[_qp] * delta_ep * _bebar[_qp].trace() * _Np[_qp];
     _ep[_qp] = _ep_old[_qp] + delta_ep;
 
     // Updating Kirchoff stress
     ADReal J = _F[_qp].det();
     ADReal p = 0.5 * _K[_qp] * (J * J - 1);
-    stress = J * p * I2 + s;
-    ADRankTwoTensor devbebar = s / _G[_qp];
+    stress = J >= 1.0 ? _ge[_qp] * p * I2 + s : p * I2 + s;
+
+    ADRankTwoTensor devbebar = s / _ge[_qp] / _G[_qp];
     computeCorrectionTerm(devbebar);
   }
   else
@@ -127,6 +148,9 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
     stress = J * p * I2 + s_trial;
     _ep[_qp] = _ep_old[_qp];
   }
+  computeStrainEnergyDensity();
+  _hardening_model->plasticEnergy(_ep[_qp]);
+  _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 0);
   // if (_current_elem->id() == 1)
   // {
   //   std::cout << "=================" << std::endl;
@@ -152,7 +176,7 @@ LargeDeformationJ2PlasticityCorrection::computeResidual(const ADReal & effective
 {
   ADReal ep = _ep_old[_qp] + delta_ep;
   return effective_trial_stress - std::sqrt(2.0 / 3.0) * _hardening_model->plasticEnergy(ep, 1) -
-         std::sqrt(3.0 / 2.0) * _G[_qp] * delta_ep * _bebar[_qp].trace();
+         std::sqrt(3.0 / 2.0) * _ge[_qp] * _G[_qp] * delta_ep * _bebar[_qp].trace();
 }
 
 ADReal
@@ -162,7 +186,7 @@ LargeDeformationJ2PlasticityCorrection::computeDerivative(const ADReal & /*effec
 {
   ADReal ep = _ep_old[_qp] + delta_ep;
   return -std::sqrt(2.0 / 3.0) * _hardening_model->plasticEnergy(ep, 2) -
-         std::sqrt(3.0 / 2.0) * _G[_qp] * _bebar[_qp].trace();
+         std::sqrt(3.0 / 2.0) * _ge[_qp] * _G[_qp] * _bebar[_qp].trace();
 }
 
 void
@@ -191,4 +215,20 @@ LargeDeformationJ2PlasticityCorrection::computeCorrectionTerm(const ADRankTwoTen
 
   ADReal Ie_bar = D / 3 / std::cbrt(2) - std::cbrt(2) * (3 * B - A * A) / 3 / D - A / 3;
   _bebar[_qp] = devbebar + Ie_bar * I2;
+}
+
+void
+LargeDeformationJ2PlasticityCorrection::computeStrainEnergyDensity()
+{
+  ADReal J = _F[_qp].det();
+  ADReal U = 0.5 * _K[_qp] * (0.5 * (J * J - 1) - std::log(J));
+  ADReal W = 0.5 * _G[_qp] * (_bebar[_qp].trace() - 3.0);
+
+  ADReal E_el_pos = J >= 1.0 ? U + W : W;
+  ADReal E_el_neg = J >= 1.0 ? 0.0 : U;
+
+  _psie_active_corr[_qp] = E_el_pos;
+  _psie_corr[_qp] = _ge[_qp] * E_el_pos + E_el_neg;
+
+  _dpsie_dd_corr[_qp] = _dge_dd[_qp] * _psie_active_corr[_qp];
 }
