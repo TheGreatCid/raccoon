@@ -85,7 +85,7 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   ADRankTwoTensor fbar = f / std::cbrt(f.det());
 
   // Not sure if this actually helps
-  if (_t_step > 0)
+  if (_t_step > 0 || _recover == false)
     // Compute bebar_trial
     _bebar[_qp] = fbar * _bebar_old[_qp] * fbar.transpose();
 
@@ -125,6 +125,7 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
     ADReal J = _F[_qp].det();
     ADReal p = 0.5 * _K[_qp] * (J * J - 1);
     stress = J * p * I2 + s_trial;
+    _ep[_qp] = _ep_old[_qp];
   }
   // if (_current_elem->id() == 1)
   // {
