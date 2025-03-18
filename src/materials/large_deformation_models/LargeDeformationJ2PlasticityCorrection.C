@@ -84,8 +84,10 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   // Compute fbar
   ADRankTwoTensor fbar = f / std::cbrt(f.det());
 
-  // Compute bebar_trial
-  _bebar[_qp] = fbar * _bebar_old[_qp] * fbar.transpose();
+  // Not sure if this actually helps
+  if (_t_step > 0)
+    // Compute bebar_trial
+    _bebar[_qp] = fbar * _bebar_old[_qp] * fbar.transpose();
 
   // Compute trial stress
   // Will need to do a better implementation of this
@@ -103,18 +105,36 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   // Return mapping
   ADReal phi = computeResidual(s_trial_norm, delta_ep);
   if (phi > 0)
+  {
     returnMappingSolve(s_trial_norm, delta_ep, _console);
 
-  // Update stress
-  ADRankTwoTensor s = s_trial - _G[_qp] * delta_ep * _bebar[_qp].trace() * _Np[_qp];
-  _ep[_qp] = _ep_old[_qp] + delta_ep * 2;
+    // Update stress
+    ADRankTwoTensor s = s_trial - _G[_qp] * delta_ep * _bebar[_qp].trace() * _Np[_qp];
+    _ep[_qp] = _ep_old[_qp] + delta_ep;
 
-  // Updating Kirchoff stress
-  ADReal J = _F[_qp].det();
-  ADReal p = 0.5 * _K[_qp] * (J * J - 1);
-  stress = J * p * I2 + s;
-  ADRankTwoTensor devbebar = s / _G[_qp];
-  computeCorrectionTerm(devbebar);
+    // Updating Kirchoff stress
+    ADReal J = _F[_qp].det();
+    ADReal p = 0.5 * _K[_qp] * (J * J - 1);
+    stress = J * p * I2 + s;
+    ADRankTwoTensor devbebar = s / _G[_qp];
+    computeCorrectionTerm(devbebar);
+  }
+  else
+  {
+    // Updating Kirchoff stress
+    ADReal J = _F[_qp].det();
+    ADReal p = 0.5 * _K[_qp] * (J * J - 1);
+    stress = J * p * I2 + s_trial;
+  }
+  // if (_current_elem->id() == 1)
+  // {
+  //   std::cout << "=================" << std::endl;
+  //   MetaPhysicL::raw_value(_bebar_old[_qp]).print();
+
+  //   MetaPhysicL::raw_value(_bebar[_qp]).print();
+  //   std::cout << MetaPhysicL::raw_value(delta_ep) << std::endl;
+  //   std::cout << "=================" << std::endl;
+  // }
 }
 
 Real

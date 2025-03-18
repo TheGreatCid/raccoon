@@ -157,8 +157,12 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
     ave_F_det_init = _current_elem_volume / ave_F_det_init;
 
     for (_qp = 0; _qp < n_points; ++_qp)
-      // Store value
+    // Store value
+    {
       _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / _F_store_noFbar[_qp].det());
+      // For getting the old value of F
+      _F[_qp] = _F_store_noFbar[_qp];
+    }
   }
 
   // Recovering without fbar method
@@ -183,7 +187,10 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
           //              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp +
           //              1));
         }
-      _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
+      // _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
+
+      // For getting the old value of F
+      _F[_qp] = _F_store_noFbar[_qp];
     }
   }
 }
