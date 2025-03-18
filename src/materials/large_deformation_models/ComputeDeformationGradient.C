@@ -119,14 +119,13 @@ ComputeDeformationGradient::displacementIntegrityCheck()
 void
 ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
 {
-  if (_recover == false)
+
+  for (_qp = 0; _qp < n_points; ++_qp)
   {
-    for (_qp = 0; _qp < n_points; ++_qp)
-    {
-      _F[_qp].setToIdentity();
-      _Fm[_qp].setToIdentity();
-    }
+    _F[_qp].setToIdentity();
+    _Fm[_qp].setToIdentity();
   }
+
   if (_recover == true && _volumetric_locking_correction == true)
   {
     ADReal ave_F_det_init = 0;
