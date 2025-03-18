@@ -30,7 +30,7 @@ public:
   void initStatefulProperties(unsigned int n_points) override;
 
 protected:
-  virtual void initQpStatefulProperties() override;
+  // virtual void initQpStatefulProperties() override;
 
   virtual void displacementIntegrityCheck();
 

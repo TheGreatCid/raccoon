@@ -119,26 +119,36 @@ ComputeDeformationGradient::displacementIntegrityCheck()
 void
 ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
 {
+  if (_recover == false)
+  {
+    for (_qp = 0; _qp < n_points; ++_qp)
+    {
+      _F[_qp].setToIdentity();
+      _Fm[_qp].setToIdentity();
+    }
+  }
   if (_recover == true && _volumetric_locking_correction == true)
   {
     ADReal ave_F_det_init = 0;
     // Get average
-    
-		std::vector<std::string> indices = {"x", "y", "z"};
-    
 
+    std::vector<std::string> indices = {"x", "y", "z"};
 
-		for (_qp = 0; _qp < n_points; ++_qp)
+    for (_qp = 0; _qp < n_points; ++_qp)
     {
       // Populate tensor from solution object
       for (int i_ind = 0; i_ind < 3; i_ind++)
         for (int j_ind = 0; j_ind < 3; j_ind++)
         {
-					
-					_F_store_noFbar[_qp](i_ind,j_ind) = _solution_object_ptr->pointValue(_t,_current_elem->true_centroid(),"Fnobar_"+indices[i_ind]+indices[j_ind]+"_"+std::to_string(_qp+1),nullptr);
-    //				_F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->directValue(
-     //         _current_elem,
-       //       "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
+
+          _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
+              _t,
+              _current_elem->true_centroid(),
+              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
+              nullptr);
+          //				_F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->directValue(
+          //         _current_elem,
+          //       "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
         }
       _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
 
@@ -164,21 +174,27 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
       for (int i_ind = 0; i_ind < dim; i_ind++)
         for (int j_ind = 0; j_ind < dim; j_ind++)
         {
-					_F_store_Fbar[_qp](i_ind,j_ind) =_solution_object_ptr->pointValue(_t, _current_elem->centroid(),"Fnobar_"+indices[i_ind]+indices[j_ind] + "_" + std::to_string(_qp+1),nullptr);
-//          _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->directValue(
-//              _current_elem,
-//              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
+          _F_store_Fbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
+              _t,
+              _current_elem->centroid(),
+              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
+              nullptr);
+          //          _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->directValue(
+          //              _current_elem,
+          //              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp +
+          //              1));
         }
       _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
     }
   }
 }
-void
-ComputeDeformationGradient::initQpStatefulProperties()
-{
-  _F[_qp].setToIdentity();
-  _Fm[_qp].setToIdentity();
-}
+
+// void
+// ComputeDeformationGradient::initQpStatefulProperties()
+// {
+//   _F[_qp].setToIdentity();
+//   _Fm[_qp].setToIdentity();
+// }
 
 ADReal
 ComputeDeformationGradient::computeQpOutOfPlaneGradDisp()

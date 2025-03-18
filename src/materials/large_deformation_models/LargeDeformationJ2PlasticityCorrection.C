@@ -55,14 +55,12 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
 {
   ADRankTwoTensor I2;
   I2.setToIdentity();
+
   // Assume no plastic increment
   ADReal delta_ep = 0;
 
   // Obtain incremental f
   ADRankTwoTensor f = _F[_qp] * _F_old[_qp].inverse();
-  //   std::cout << "------" << std::endl;
-  //   MetaPhysicL::raw_value(f).print();
-  //   std::cout << "------" << std::endl;
 
   // Compute fbar
   ADRankTwoTensor fbar = f / std::cbrt(f.det());

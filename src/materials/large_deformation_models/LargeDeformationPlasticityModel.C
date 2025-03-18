@@ -17,7 +17,7 @@ LargeDeformationPlasticityModel::validParams()
   params.set<bool>("compute") = false;
   params.suppressParameter<bool>("compute");
   params.addParam<MaterialName>("psic_model", "Name of the psic model");
-
+  params.addParam<bool>("recover", false, "recovering?");
   return params;
 }
 
