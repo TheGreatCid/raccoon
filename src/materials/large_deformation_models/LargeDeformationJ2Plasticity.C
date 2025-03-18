@@ -20,7 +20,6 @@ LargeDeformationJ2Plasticity::validParams()
   params.addClassDescription("Large deformation $J_2$ plasticity. The exponential constitutive "
                              "update is used to update the plastic deformation.");
   params.addParam<bool>("recover", false, "do you want to recover");
-  params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
   return params;
 }
 
@@ -32,12 +31,6 @@ LargeDeformationJ2Plasticity::LargeDeformationJ2Plasticity(const InputParameters
 
 {
   _check_range = true;
-
-  if (!isParamValid("solution") && _recover == true)
-    MaterialBase::mooseError("Need solution object!");
-
-  if (_recover == true)
-    _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
 }
 
 void
