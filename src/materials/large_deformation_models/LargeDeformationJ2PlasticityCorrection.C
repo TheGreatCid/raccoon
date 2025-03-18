@@ -62,7 +62,7 @@ LargeDeformationJ2PlasticityCorrection::initQpStatefulProperties()
         _bebar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
             _t,
             _current_elem->true_centroid(),
-            "bebar" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
+            "be_bar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
             nullptr);
       }
   }
