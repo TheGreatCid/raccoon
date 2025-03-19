@@ -19,4 +19,6 @@ protected:
 
   /// The fracture toughness
   const Real _penalty;
+
+  const VariableValue & _u_old;
 };
