@@ -19,4 +19,6 @@ protected:
   std::vector<MaterialName> _materials;
 
   std::string _output_name;
+
+  const Real _qpnum;
 };

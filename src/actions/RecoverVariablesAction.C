@@ -16,6 +16,8 @@ RecoverVariablesAction::validParams()
   params.addParam<std::vector<MaterialName>>("tensor_materials", "materials to output qps on");
   params.addParam<std::vector<MaterialName>>("materials", "materials to output qps on");
   params.addParam<std::string>("output_name", "exodusqp", "name of output for variables");
+  params.addParam<Real>("num_qps", 8, "Number of QPs");
+
   return params;
 }
 
@@ -23,7 +25,8 @@ RecoverVariablesAction::RecoverVariablesAction(const InputParameters & params)
   : Action(params),
     _tensor_materials(getParam<std::vector<MaterialName>>("tensor_materials")),
     _materials(getParam<std::vector<MaterialName>>("materials")),
-    _output_name(getParam<std::string>("output_name"))
+    _output_name(getParam<std::string>("output_name")),
+    _qpnum(getParam<Real>("num_qps"))
 {
 }
 
@@ -31,7 +34,7 @@ void
 RecoverVariablesAction::act()
 {
   auto dim = _mesh->dimension();
-  unsigned int qp_max = 8;
+  unsigned int qp_max = _qpnum;
 
   std::vector<std::string> conv = {"x", "y", "z"};
 
