@@ -59,7 +59,7 @@ ADInertialForceRecover::ADInertialForceRecover(const InputParameters & parameter
     _eta(this->getGenericMaterialProperty<Real, true>("eta")),
     _density_scaling(this->getMaterialProperty<Real>("density_scaling")),
     _alpha(this->getParam<Real>("alpha")),
-    _time_integrator(*_sys.getTimeIntegrator()),
+    _time_integrator(_sys.getTimeIntegrator(this->_var.number())),
     _solution_object_ptr(NULL),
     _vel_old_name(getParam<VariableName>("vel_old_name")),
     _accel_old_name(getParam<VariableName>("accel_old_name")),

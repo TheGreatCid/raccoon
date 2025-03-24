@@ -1,5 +1,24 @@
 #include "SolutionUserObjectQP.h"
+// MOOSE includes
+#include "ConsoleUtils.h"
+#include "MooseError.h"
+#include "MooseMesh.h"
+#include "MooseUtils.h"
+#include "MooseVariableFE.h"
+#include "RotationMatrix.h"
+#include "Function.h"
 
+// libMesh includes
+#include "libmesh/equation_systems.h"
+#include "libmesh/mesh_function.h"
+#include "libmesh/numeric_vector.h"
+#include "libmesh/nonlinear_implicit_system.h"
+#include "libmesh/transient_system.h"
+#include "libmesh/parallel_mesh.h"
+#include "libmesh/serial_mesh.h"
+#include "libmesh/exodusII_io.h"
+#include "libmesh/exodusII_io_helper.h"
+#include "libmesh/enum_xdr_mode.h"
 registerMooseObject("raccoonApp", SolutionUserObjectQP);
 
 InputParameters

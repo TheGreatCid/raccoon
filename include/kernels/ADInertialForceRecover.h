@@ -47,7 +47,7 @@ private:
   const VariableValue * _du_dotdot_du;
 
   /// The TimeIntegrator
-  TimeIntegrator & _time_integrator;
+  const TimeIntegrator & _time_integrator;
 
   const SolutionUserObject * _solution_object_ptr;
   VariableName _vel_old_name;
