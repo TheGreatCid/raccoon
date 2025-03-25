@@ -27,15 +27,17 @@ SolutionUserObjectQP::validParams()
   InputParameters params = SolutionUserObject::validParams();
   params.addParam<std::vector<MaterialName>>("tensor_materials", "materials to output qps on");
   params.addParam<std::vector<MaterialName>>("materials", "materials to output qps on");
+  params.addParam<Real>("num_qps", 8, "Number of QPs");
   return params;
 }
 
 SolutionUserObjectQP::SolutionUserObjectQP(const InputParameters & parameters)
   : SolutionUserObject(parameters),
     _tensor_materials(getParam<std::vector<MaterialName>>("tensor_materials")),
-    _materials(getParam<std::vector<MaterialName>>("materials"))
+    _materials(getParam<std::vector<MaterialName>>("materials")),
+    _qpnum(getParam<Real>("num_qps"))
 {
-  unsigned int qp_max = 8;
+  unsigned int qp_max = _qpnum;
   int dim = 3;
 
   if (!_tensor_materials.empty())
