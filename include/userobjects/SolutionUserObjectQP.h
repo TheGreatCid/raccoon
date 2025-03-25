@@ -11,4 +11,5 @@ public:
 protected:
   std::vector<MaterialName> _tensor_materials;
   std::vector<MaterialName> _materials;
+  const Real _qpnum;
 };
