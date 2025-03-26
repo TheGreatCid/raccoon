@@ -63,4 +63,5 @@ protected:
   ADMaterialProperty<Real> & _psie_active_corr;
   ADMaterialProperty<Real> & _dpsie_dd_corr;
   // @}
+  const Real _qpnum;
 };

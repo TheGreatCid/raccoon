@@ -30,6 +30,7 @@ LargeDeformationJ2PlasticityCorrection::validParams()
       "strain_energy_density_corr",
       "psie_corr",
       "Name of the strain energy density computed by this material model");
+  params.addParam<Real>("num_qps", 8, "Number of QPs");
 
   return params;
 }
@@ -55,7 +56,8 @@ LargeDeformationJ2PlasticityCorrection::LargeDeformationJ2PlasticityCorrection(
     _psie_name(prependBaseName("strain_energy_density_corr", true)),
     _psie_corr(declareADProperty<Real>(_psie_name)),
     _psie_active_corr(declareADProperty<Real>(_psie_name + "_active")),
-    _dpsie_dd_corr(declareADProperty<Real>(derivativePropertyName(_psie_name, {_d_name})))
+    _dpsie_dd_corr(declareADProperty<Real>(derivativePropertyName(_psie_name, {_d_name}))),
+    _qpnum(getParam<Real>("num_qps"))
 
 {
   _check_range = true;
@@ -67,14 +69,23 @@ LargeDeformationJ2PlasticityCorrection::initQpStatefulProperties()
   _Fp[_qp].setToIdentity();
   _ep[_qp] = 0;
   _bebar[_qp].setToIdentity();
+  unsigned int qp_max = _qpnum;
+
+  auto formatQP = [qp_max](unsigned int qp)
+  {
+    if (qp_max < 10)
+      return std::to_string(qp); // Single digit
+    else
+      return (qp < 10) ? "0" + std::to_string(qp) : std::to_string(qp); // Two digits
+  };
+
   std::vector<std::string> indices = {"x", "y", "z"};
   if (_recover)
   {
-    _ep[_qp] =
-        _solution_object_ptr->pointValue(_t,
-                                         _current_elem->true_centroid(),
-                                         "effective_plastic_strain_" + std::to_string(_qp + 1),
-                                         nullptr);
+    _ep[_qp] = _solution_object_ptr->pointValue(_t,
+                                                _current_elem->true_centroid(),
+                                                "effective_plastic_strain_" + formatQP(_qp + 1),
+                                                nullptr);
 
     for (int i_ind = 0; i_ind < 3; i_ind++)
       for (int j_ind = 0; j_ind < 3; j_ind++)
@@ -82,7 +93,7 @@ LargeDeformationJ2PlasticityCorrection::initQpStatefulProperties()
         _bebar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
             _t,
             _current_elem->true_centroid(),
-            "be_bar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
+            "be_bar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(_qp + 1),
             nullptr);
       }
   }
