@@ -38,6 +38,8 @@ ComputeDeformationGradient::validParams()
   params.addParam<bool>("recover", false, "Are you trying to recover");
   params.suppressParameter<bool>("use_displaced_mesh");
   params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
+  params.addParam<Real>("num_qps", 8, "Number of QPs");
+
   return params;
 }
 
@@ -66,7 +68,9 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _Fgs(_Fg_names.size()),
     _weights(declareADProperty<Real>("weights")),
     _recover(getParam<bool>("recover")),
-    _solution_object_ptr(NULL)
+    _solution_object_ptr(NULL),
+    _qpnum(getParam<Real>("num_qps"))
+
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &Material::getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
@@ -125,6 +129,15 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
     _F[_qp].setToIdentity();
     _Fm[_qp].setToIdentity();
   }
+  unsigned int qp_max = _qpnum;
+
+  auto formatQP = [qp_max](unsigned int qp)
+  {
+    if (qp_max < 10)
+      return std::to_string(qp); // Single digit
+    else
+      return (qp < 10) ? "0" + std::to_string(qp) : std::to_string(qp); // Two digits
+  };
 
   if (_recover == true && _volumetric_locking_correction == true)
   {
@@ -143,7 +156,7 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
           _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
               _t,
               _current_elem->true_centroid(),
-              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
+              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(_qp + 1),
               nullptr);
           //				_F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->directValue(
           //         _current_elem,
@@ -180,7 +193,7 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
           _F_store_Fbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
               _t,
               _current_elem->centroid(),
-              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
+              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(_qp + 1),
               nullptr);
           //          _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->directValue(
           //              _current_elem,

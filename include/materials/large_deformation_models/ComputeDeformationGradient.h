@@ -77,4 +77,6 @@ protected:
   const bool _recover;
 
   const SolutionUserObject * _solution_object_ptr;
+
+  const Real _qpnum;
 };
