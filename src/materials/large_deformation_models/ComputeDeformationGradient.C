@@ -182,17 +182,16 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
   if (_recover == true && _volumetric_locking_correction == false)
   {
     std::vector<std::string> indices = {"x", "y", "z"};
-    int dim = _mesh.dimension();
     for (_qp = 0; _qp < n_points; ++_qp)
     {
       _F_store_noFbar[_qp].setToIdentity();
       // Populate tensor from solution object
-      for (int i_ind = 0; i_ind < dim; i_ind++)
-        for (int j_ind = 0; j_ind < dim; j_ind++)
+      for (int i_ind = 0; i_ind < 3; i_ind++)
+        for (int j_ind = 0; j_ind < 3; j_ind++)
         {
-          _F_store_Fbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
+          _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
               _t,
-              _current_elem->centroid(),
+              _current_elem->true_centroid(),
               "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(_qp + 1),
               nullptr);
           //          _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->directValue(
@@ -200,7 +199,7 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
           //              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp +
           //              1));
         }
-      // _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
+      _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
 
       // For getting the old value of F
       _F[_qp] = _F_store_noFbar[_qp];
