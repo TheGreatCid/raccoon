@@ -40,6 +40,14 @@ SolutionUserObjectQP::SolutionUserObjectQP(const InputParameters & parameters)
   unsigned int qp_max = _qpnum;
   int dim = 3;
 
+  auto formatQP = [qp_max](unsigned int qp)
+  {
+    if (qp_max < 10)
+      return std::to_string(qp); // Single digit
+    else
+      return (qp < 10) ? "0" + std::to_string(qp) : std::to_string(qp); // Two digits
+  };
+
   if (!_tensor_materials.empty())
   {
     std::vector<std::string> conv = {"x", "y", "z"};
@@ -52,8 +60,7 @@ SolutionUserObjectQP::SolutionUserObjectQP(const InputParameters & parameters)
         for (int j = 0; j < dim; j++)
           for (int k = 0; k < dim; k++)
           {
-            _system_variables.push_back(matname + "_" + conv[j] + conv[k] + "_" +
-                                        std::to_string(qp));
+            _system_variables.push_back(matname + "_" + conv[j] + conv[k] + "_" + formatQP(qp));
           }
     }
   }
@@ -64,7 +71,7 @@ SolutionUserObjectQP::SolutionUserObjectQP(const InputParameters & parameters)
       // Assuming 8 QPs
       // Starting at 1 because qps start at one in Sierra
       for (unsigned int qp = 1; qp <= qp_max; qp++)
-        _system_variables.push_back(_materials[i] + "_" + std::to_string(qp));
+        _system_variables.push_back(_materials[i] + "_" + formatQP(qp));
     }
   }
 }
