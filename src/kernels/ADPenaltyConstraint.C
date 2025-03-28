@@ -36,14 +36,13 @@ ADPenaltyConstraint::ADPenaltyConstraint(const InputParameters & parameters)
 ADReal
 ADPenaltyConstraint::computeQpResidual()
 {
-  ADReal penalty = 0;
-  ADReal delta_d = _u_old[_qp] - _u[_qp];
+  ADReal function = 0;
+  ADReal delta_d = _u_old[_qp] > 0 ? _u_old[_qp] - _u[_qp] : 0 - _u[_qp];
 
   if (_smooth)
-    _penalty * _test[_i][_qp] * 0.5 *
-        (delta_d + std::sqrt(delta_d * delta_d + _epsilon * _epsilon));
+    function = 0.5 * (std::sqrt(delta_d * delta_d + _epsilon * _epsilon) + delta_d);
   else
-    _penalty * _test[_i][_qp] * RaccoonUtils::Macaulay(delta_d);
+    RaccoonUtils::Macaulay(delta_d);
 
-  return penalty;
+  return -_penalty * _test[_i][_qp] * function;
 }
