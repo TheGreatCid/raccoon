@@ -22,4 +22,6 @@ protected:
   const Real _epsilon;
 
   const VariableValue & _u_old;
+
+  const bool _smooth;
 };

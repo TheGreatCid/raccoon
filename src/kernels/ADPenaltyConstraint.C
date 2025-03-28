@@ -18,6 +18,7 @@ ADPenaltyConstraint::validParams()
 
   params.addParam<Real>("penalty_param", 1e6, "The penalty param");
   params.addParam<Real>("epsilon", 1e-6, "The penalty param");
+  params.addParam<bool>("smooth", false, "Whether or not to use a smoothed macaulay bracket");
 
   return params;
 }
@@ -27,14 +28,22 @@ ADPenaltyConstraint::ADPenaltyConstraint(const InputParameters & parameters)
     BaseNameInterface(parameters),
     _penalty(getParam<Real>("penalty_param")),
     _epsilon(getParam<Real>("epsilon")),
-    _u_old(valueOld())
+    _u_old(valueOld()),
+    _smooth(getParam<bool>("smooth"))
 {
 }
 
 ADReal
 ADPenaltyConstraint::computeQpResidual()
 {
+  ADReal penalty = 0;
   ADReal delta_d = _u_old[_qp] - _u[_qp];
-  return _penalty * _test[_i][_qp] * 0.5 *
-         (delta_d + std::sqrt(delta_d * delta_d + _epsilon * _epsilon));
+
+  if (_smooth)
+    _penalty * _test[_i][_qp] * 0.5 *
+        (delta_d + std::sqrt(delta_d * delta_d + _epsilon * _epsilon));
+  else
+    _penalty * _test[_i][_qp] * RaccoonUtils::Macaulay(delta_d);
+
+  return penalty;
 }
