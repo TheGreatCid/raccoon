@@ -27,7 +27,7 @@ ADPenaltyConstraint::ADPenaltyConstraint(const InputParameters & parameters)
     BaseNameInterface(parameters),
     _penalty(getParam<Real>("penalty_param")),
     _epsilon(getParam<Real>("epsilon")),
-    _u_old(_var.dofValuesOld())
+    _u_old(valueOld())
 {
 }
 
