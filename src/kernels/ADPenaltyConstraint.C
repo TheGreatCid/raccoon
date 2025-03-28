@@ -17,6 +17,8 @@ ADPenaltyConstraint::validParams()
                              "form is $(\\grad w, \\dfrac{2\\Gc l}{c_0} \\grad d)$.");
 
   params.addParam<Real>("penalty_param", 1e6, "The penalty param");
+  params.addParam<Real>("epsilon", 1e-6, "The penalty param");
+
   return params;
 }
 
@@ -24,6 +26,7 @@ ADPenaltyConstraint::ADPenaltyConstraint(const InputParameters & parameters)
   : ADKernel(parameters),
     BaseNameInterface(parameters),
     _penalty(getParam<Real>("penalty_param")),
+    _epsilon(getParam<Real>("epsilon")),
     _u_old(_var.dofValuesOld())
 {
 }
@@ -31,8 +34,7 @@ ADPenaltyConstraint::ADPenaltyConstraint(const InputParameters & parameters)
 ADReal
 ADPenaltyConstraint::computeQpResidual()
 {
-  ADReal epsilon = 1e-6;
   ADReal delta_d = _u_old[_qp] - _u[_qp];
   return _penalty * _test[_i][_qp] * 0.5 *
-         (delta_d + std::sqrt(delta_d * delta_d + epsilon * epsilon));
+         (delta_d + std::sqrt(delta_d * delta_d + _epsilon * _epsilon));
 }
