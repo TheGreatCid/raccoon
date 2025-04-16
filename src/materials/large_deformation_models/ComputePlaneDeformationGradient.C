@@ -40,10 +40,21 @@ ComputePlaneDeformationGradient::ComputePlaneDeformationGradient(const InputPara
                                    !this->isBoundaryMaterial()),
     _current_elem_volume(_assembly.elemVolume()),
     _F(declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient"))),
+    _Fnobar(declareADProperty<RankTwoTensor>(prependBaseName("Fnobar"))),
+    _F_store_Fbar(declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient_Fbar"))),
+    _F_store_Fbar_old(
+        getMaterialPropertyOld<RankTwoTensor>(prependBaseName("deformation_gradient_Fbar"))),
     _Fm(declareADProperty<RankTwoTensor>(prependBaseName("mechanical_deformation_gradient"))),
+    _F_store_noFbar(
+        declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient_NoFbar"))),
+    _F_store_noFbar_old(
+        getMaterialPropertyOld<RankTwoTensor>(prependBaseName("deformation_gradient_NoFbar"))),
     _Fg_names(prependBaseName(
         getParam<std::vector<MaterialPropertyName>>("eigen_deformation_gradient_names"))),
-    _Fgs(_Fg_names.size())
+    _Fgs(_Fg_names.size()),
+    _recover(getParam<bool>("recover")),
+    _solution_object_ptr(NULL),
+    _qpnum(getParam<Real>("num_qps"))
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
@@ -62,6 +73,95 @@ ComputePlaneDeformationGradient::initialSetup()
   {
     _disp.push_back(&_ad_zero);
     _grad_disp.push_back(&_ad_grad_zero);
+  }
+  if (_recover == true)
+    _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
+}
+
+void
+ComputePlaneDeformationGradient::initStatefulProperties(unsigned int n_points)
+{
+
+  for (_qp = 0; _qp < n_points; ++_qp)
+  {
+    _F[_qp].setToIdentity();
+    _Fm[_qp].setToIdentity();
+  }
+  unsigned int qp_max = _qpnum;
+
+  auto formatQP = [qp_max](unsigned int qp)
+  {
+    if (qp_max < 10)
+      return std::to_string(qp); // Single digit
+    else
+      return (qp < 10) ? "0" + std::to_string(qp) : std::to_string(qp); // Two digits
+  };
+
+  if (_recover == true && _volumetric_locking_correction == true)
+  {
+    ADReal ave_F_det_init = 0;
+    // Get average
+
+    std::vector<std::string> indices = {"x", "y", "z"};
+
+    for (_qp = 0; _qp < n_points; ++_qp)
+    {
+      // Populate tensor from solution object
+      for (int i_ind = 0; i_ind < 3; i_ind++)
+        for (int j_ind = 0; j_ind < 3; j_ind++)
+        {
+
+          _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
+              _t,
+              _current_elem->true_centroid(),
+              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(_qp + 1),
+              nullptr);
+          //				_F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->directValue(
+          //         _current_elem,
+          //       "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
+        }
+      _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
+
+      ave_F_det_init += 1 / _F_store_noFbar[_qp].det() * _JxW[_qp] * _coord[_qp];
+    }
+
+    ave_F_det_init = _current_elem_volume / ave_F_det_init;
+
+    for (_qp = 0; _qp < n_points; ++_qp)
+    // Store value
+    {
+      _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / _F_store_noFbar[_qp].det());
+      // For getting the old value of F
+      _F[_qp] = _F_store_noFbar[_qp];
+    }
+  }
+
+  // Recovering without fbar method
+  if (_recover == true && _volumetric_locking_correction == false)
+  {
+    std::vector<std::string> indices = {"x", "y", "z"};
+    for (_qp = 0; _qp < n_points; ++_qp)
+    {
+      _F_store_noFbar[_qp].setToIdentity();
+      // Populate tensor from solution object
+      for (int i_ind = 0; i_ind < 3; i_ind++)
+        for (int j_ind = 0; j_ind < 3; j_ind++)
+        {
+          _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
+              _t,
+              _current_elem->true_centroid(),
+              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(_qp + 1),
+              nullptr);
+          //          _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->directValue(
+          //              _current_elem,
+          //              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp +
+          //              1));
+        }
+      _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
+
+      // For getting the old value of F
+      _F[_qp] = _F_store_noFbar[_qp];
+    }
   }
 }
 
@@ -113,7 +213,14 @@ ComputePlaneDeformationGradient::computeProperties()
     A(2, 2) = computeQpOutOfPlaneGradDisp() - 1;
     _F[_qp] = A;
     _F[_qp].addIa(1.0);
-    // std::cout << _F[_qp](0, 0) << std::endl;
+
+    _Fnobar[_qp].setToIdentity();
+    // Add in recovered F
+    if (_recover == true)
+      _Fnobar[_qp] = _F[_qp] * _F_store_noFbar[_qp];
+    else
+      _Fnobar[_qp] = _F[_qp];
+
     if (_volumetric_locking_correction)
       ave_F_det += _F[_qp].det() * _JxW[_qp] * _coord[_qp];
   }
@@ -125,7 +232,9 @@ ComputePlaneDeformationGradient::computeProperties()
   {
     if (_volumetric_locking_correction)
       _F[_qp] *= std::cbrt(ave_F_det / _F[_qp].det());
-
+    // Multiply in old deformation
+    if (_recover == true)
+      _F[_qp] = _F[_qp] * _F_store_Fbar[_qp];
     // Remove the eigen deformation gradient
     ADRankTwoTensor Fg(ADRankTwoTensor::initIdentity);
     for (auto Fgi : _Fgs)
