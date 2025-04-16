@@ -37,6 +37,7 @@ ADReal
 ADPenaltyConstraint::computeQpResidual()
 {
   ADReal function = 0;
+
   ADReal delta_d = _u_old[_qp] > 0 ? _u_old[_qp] - _u[_qp] : 0 - _u[_qp];
 
   if (_smooth)
