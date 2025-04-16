@@ -23,7 +23,9 @@ ComputePlaneDeformationGradient::validParams()
       "volumetric_locking_correction", false, "Flag to correct volumetric locking");
   params.addParam<std::vector<MaterialPropertyName>>(
       "eigen_deformation_gradient_names", {}, "List of eigen deformation gradients to be applied");
-
+  params.addParam<bool>("recover", false, "Are you trying to recover");
+  params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
+  params.addParam<Real>("num_qps", 8, "Number of QPs");
   params.suppressParameter<bool>("use_displaced_mesh");
   return params;
 }
