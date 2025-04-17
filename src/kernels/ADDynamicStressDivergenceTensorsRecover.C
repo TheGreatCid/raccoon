@@ -91,6 +91,7 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
     ADRankTwoTensor stress_older_curr;
 
     int dim = _mesh.dimension();
+
     // Populate tensor from solution object
     for (int i_ind = 0; i_ind < dim; i_ind++)
     {
@@ -98,12 +99,12 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
       {
         stress_old_curr(i_ind, j_ind) = _solution_object_ptr->pointValue(
             _t,
-            _current_elem->true_centroid(),
+            _assembly_undisplaced.elem()->true_centroid(),
             "stress_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
             nullptr);
         stress_older_curr(i_ind, j_ind) = _solution_object_ptr->pointValue(
             _t,
-            _current_elem->true_centroid(),
+            _assembly_undisplaced.elem()->true_centroid(),
             "stress_old_store_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
             nullptr);
         //      std::cout << " " << MetaPhysicL::raw_value(stress_old_curr(i_ind, j_ind));
@@ -137,8 +138,9 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
       {
         stress_old_curr(i_ind, j_ind) = _solution_object_ptr->pointValue(
             _t,
-            _current_elem->true_centroid(),
-            "stress_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
+            _assembly_undisplaced.elem()->true_centroid(),
+            "stress_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
+            nullptr);
       }
     residual = _stress[_qp].row(_component) * _grad_test[_i][_qp] *
                    (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
