@@ -128,9 +128,10 @@ ADInertialForceRecover::computeQpResidual()
     if (_t_step == 1)
     {
       // Getting old vel and accel values from solution files
-      Point curr_Point = _q_point_undisplaced[_qp];
-      ADReal vel_old = _solution_object_ptr->pointValue(1, curr_Point, _vel_old_name, nullptr);
-      ADReal accel_old = _solution_object_ptr->pointValue(1, curr_Point, _accel_old_name, nullptr);
+      ADReal vel_old = _solution_object_ptr->pointValue(
+          1, _current_elem->true_centroid(), _vel_old_name, nullptr);
+      ADReal accel_old = _solution_object_ptr->pointValue(
+          1, _current_elem->true_centroid(), _accel_old_name, nullptr);
 
       auto accel =
           1.0 / _beta *

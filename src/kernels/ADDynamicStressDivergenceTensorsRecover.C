@@ -96,12 +96,16 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
     {
       for (int j_ind = 0; j_ind < dim; j_ind++)
       {
-        stress_old_curr(i_ind, j_ind) = _solution_object_ptr->directValue(
-            _current_elem,
-            "stress_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
-        stress_older_curr(i_ind, j_ind) = _solution_object_ptr->directValue(
-            _current_elem,
-            "stress_old_store_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
+        stress_old_curr(i_ind, j_ind) = _solution_object_ptr->pointValue(
+            _t,
+            _current_elem->true_centroid(),
+            "stress_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
+            nullptr);
+        stress_older_curr(i_ind, j_ind) = _solution_object_ptr->pointValue(
+            _t,
+            _current_elem->true_centroid(),
+            "stress_old_store_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
+            nullptr);
         //      std::cout << " " << MetaPhysicL::raw_value(stress_old_curr(i_ind, j_ind));
       }
       //   std::cout << std::endl;
@@ -131,8 +135,9 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
     for (int i_ind = 0; i_ind < dim; i_ind++)
       for (int j_ind = 0; j_ind < dim; j_ind++)
       {
-        stress_old_curr(i_ind, j_ind) = _solution_object_ptr->directValue(
-            _current_elem,
+        stress_old_curr(i_ind, j_ind) = _solution_object_ptr->pointValue(
+            _t,
+            _current_elem->true_centroid(),
             "stress_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
       }
     residual = _stress[_qp].row(_component) * _grad_test[_i][_qp] *
