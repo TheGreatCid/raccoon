@@ -64,5 +64,6 @@ ADPenaltyConstraint::computeQpResidual()
   else
     RaccoonUtils::Macaulay(delta_d);
 
-  return -_penalty * _test[_i][_qp] * function;
+  const Real sign = _upper ? +1.0 : -1.0; // upper‑bound uses +, lower‑bound uses –
+  return sign * _penalty * _test[_i][_qp] * function;
 }
