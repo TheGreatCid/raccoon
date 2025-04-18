@@ -24,4 +24,6 @@ protected:
   const VariableValue & _u_old;
 
   const bool _smooth;
+
+  const bool _conditional;
 };
