@@ -44,6 +44,8 @@ ADDynamicStressDivergenceTensorsRecover::ADDynamicStressDivergenceTensorsRecover
   : ADStressDivergenceTensors(parameters),
     _stress_older(getMaterialPropertyOlder<RankTwoTensor>(_base_name + "stress")),
     _stress_old(getMaterialPropertyOld<RankTwoTensor>(_base_name + "stress")),
+    _stress_older_sol(getMaterialProperty<RankTwoTensor>("stress_old_store_sol")),
+    _stress_old_sol(getMaterialProperty<RankTwoTensor>("stress_sol")),
     _zeta(getMaterialProperty<Real>("zeta")),
     _alpha(getParam<Real>("alpha")),
     _static_initialization(getParam<bool>("static_initialization")),
@@ -85,73 +87,35 @@ ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
   }
   else if (_dt > 0 && _t_step == 1)
   {
-    std::vector<std::string> indices = {"x", "y", "z"};
-    // Get recovered stresses
-    ADRankTwoTensor stress_old_curr;
-    ADRankTwoTensor stress_older_curr;
-
-    int dim = _mesh.dimension();
-
-    // Populate tensor from solution object
-    for (int i_ind = 0; i_ind < dim; i_ind++)
-    {
-      for (int j_ind = 0; j_ind < dim; j_ind++)
-      {
-        stress_old_curr(i_ind, j_ind) = _solution_object_ptr->pointValue(
-            _t,
-            _assembly_undisplaced.elem()->true_centroid(),
-            "stress_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
-            nullptr);
-        stress_older_curr(i_ind, j_ind) = _solution_object_ptr->pointValue(
-            _t,
-            _assembly_undisplaced.elem()->true_centroid(),
-            "stress_old_store_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
-            nullptr);
-        //      std::cout << " " << MetaPhysicL::raw_value(stress_old_curr(i_ind, j_ind));
-      }
-      //   std::cout << std::endl;
-    }
 
     residual =
         _stress[_qp].row(_component) * _grad_test[_i][_qp] *
             (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
-        (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * stress_old_curr.row(_component) *
+        (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * _stress_old_sol[_qp].row(_component) *
             _grad_test[_i][_qp] +
-        (_alpha * _zeta[_qp] / _dt) * stress_older_curr.row(_component) * _grad_test[_i][_qp];
+        (_alpha * _zeta[_qp] / _dt) * _stress_older_sol[_qp].row(_component) * _grad_test[_i][_qp];
 
     if (_volumetric_locking_correction)
-      residual += (_stress[_qp].trace() * (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
-                   (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * stress_old_curr.trace() +
-                   (_alpha * _zeta[_qp] / _dt) * stress_older_curr.trace()) /
-                  3.0 * (_avg_grad_test[_i] - _grad_test[_i][_qp](_component));
+      residual +=
+          (_stress[_qp].trace() * (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
+           (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * _stress_old_sol[_qp].trace() +
+           (_alpha * _zeta[_qp] / _dt) * _stress_older_sol[_qp].trace()) /
+          3.0 * (_avg_grad_test[_i] - _grad_test[_i][_qp](_component));
   }
   else if (_dt > 0 && _t_step == 2) // Need to user stored stress as older stress
   {
 
-    // Get recovered stresses
-    ADRankTwoTensor stress_old_curr;
-    std::vector<std::string> indices = {"x", "y", "z"};
-    int dim = _mesh.dimension();
-
-    for (int i_ind = 0; i_ind < dim; i_ind++)
-      for (int j_ind = 0; j_ind < dim; j_ind++)
-      {
-        stress_old_curr(i_ind, j_ind) = _solution_object_ptr->pointValue(
-            _t,
-            _assembly_undisplaced.elem()->true_centroid(),
-            "stress_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1),
-            nullptr);
-      }
-    residual = _stress[_qp].row(_component) * _grad_test[_i][_qp] *
-                   (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
-               (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) *
-                   _stress_old[_qp].row(_component) * _grad_test[_i][_qp] +
-               (_alpha * _zeta[_qp] / _dt) * stress_old_curr.row(_component) * _grad_test[_i][_qp];
+    residual =
+        _stress[_qp].row(_component) * _grad_test[_i][_qp] *
+            (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
+        (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * _stress_old[_qp].row(_component) *
+            _grad_test[_i][_qp] +
+        (_alpha * _zeta[_qp] / _dt) * _stress_old_sol[_qp].row(_component) * _grad_test[_i][_qp];
 
     if (_volumetric_locking_correction)
       residual += (_stress[_qp].trace() * (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
                    (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * _stress_old[_qp].trace() +
-                   (_alpha * _zeta[_qp] / _dt) * stress_old_curr.trace()) /
+                   (_alpha * _zeta[_qp] / _dt) * _stress_old_sol[_qp].trace()) /
                   3.0 * (_avg_grad_test[_i] - _grad_test[_i][_qp](_component));
   }
   else if (_dt > 0)
