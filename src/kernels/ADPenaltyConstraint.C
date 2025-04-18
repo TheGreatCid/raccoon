@@ -20,6 +20,8 @@ ADPenaltyConstraint::validParams()
   params.addParam<Real>("epsilon", 1e-6, "The penalty param");
   params.addParam<bool>("smooth", false, "Whether or not to use a smoothed macaulay bracket");
   params.addParam<bool>("conditional", false, "Use conditional bounds?");
+  params.addParam<bool>("upper", false, "Upper bound?");
+  params.addParam<Real>("upper_val", 1, "Upper bound value");
   return params;
 }
 
@@ -30,7 +32,9 @@ ADPenaltyConstraint::ADPenaltyConstraint(const InputParameters & parameters)
     _epsilon(getParam<Real>("epsilon")),
     _u_old(valueOld()),
     _smooth(getParam<bool>("smooth")),
-    _conditional(getParam<bool>("conditional"))
+    _conditional(getParam<bool>("conditional")),
+    _upper(getParam<bool>("upper")),
+    _upper_val(getParam<Real>("upper_val"))
 {
 }
 
@@ -39,16 +43,22 @@ ADPenaltyConstraint::computeQpResidual()
 {
   ADReal function = 0;
   ADReal delta_d;
-  if (!_conditional)
-    delta_d = _u_old[_qp] > 0 ? _u_old[_qp] - _u[_qp] : 0 - _u[_qp];
+  if (!_upper)
+  {
+    if (!_conditional)
+      delta_d = _u_old[_qp] > 0 ? _u_old[_qp] - _u[_qp] : 0 - _u[_qp];
+    else
+    {
+      if (_u_old[_qp] > 0.95)
+        delta_d = _u_old[_qp] - _u[_qp];
+      else
+        delta_d = 0 - _u[_qp];
+    }
+  }
   else
   {
-    if (_u_old[_qp] > 0.95)
-      delta_d = _u_old[_qp] - _u[_qp];
-    else
-      delta_d = 0 - _u[_qp];
+    delta_d = _u[_qp] - _upper_val;
   }
-
   if (_smooth)
     function = 0.5 * (std::sqrt(delta_d * delta_d + _epsilon * _epsilon) + delta_d);
   else

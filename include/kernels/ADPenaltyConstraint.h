@@ -26,4 +26,8 @@ protected:
   const bool _smooth;
 
   const bool _conditional;
+
+  const bool _upper;
+
+  const Real _upper_val;
 };
