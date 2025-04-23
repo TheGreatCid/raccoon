@@ -28,7 +28,7 @@ SolutionTensor::SolutionTensor(const InputParameters & parameters)
   : Material(parameters),
     BaseNameInterface(parameters),
     _tensor_name(getParam<std::string>("tensor_name")),
-    _tensor(declareProperty<RankTwoTensor>(prependBaseName(_tensor_name + "_sol"))),
+    _tensor(declareADProperty<RankTwoTensor>(prependBaseName(_tensor_name + "_sol"))),
     _tensor_old(getMaterialPropertyOld<RankTwoTensor>(prependBaseName(_tensor_name + "_sol"))),
     _solution_object_ptr(NULL),
     _qpnum(getParam<Real>("num_qps"))
@@ -58,9 +58,11 @@ SolutionTensor::initStatefulProperties(unsigned int n_points)
     else
       return (qp < 10) ? "0" + std::to_string(qp) : std::to_string(qp); // Two digits
   };
+
+  std::vector<std::string> indices = {"x", "y", "z"};
+
   for (_qp = 0; _qp < n_points; ++_qp)
   {
-    std::vector<std::string> indices = {"x", "y", "z"};
 
     // Populate tensor from solution object
     for (int i_ind = 0; i_ind < 3; i_ind++)

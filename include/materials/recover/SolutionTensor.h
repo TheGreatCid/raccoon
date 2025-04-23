@@ -26,7 +26,7 @@ public:
 protected:
   const std::string _tensor_name;
 
-  MaterialProperty<RankTwoTensor> & _tensor;
+  ADMaterialProperty<RankTwoTensor> & _tensor;
   const MaterialProperty<RankTwoTensor> & _tensor_old;
   const SolutionUserObject * _solution_object_ptr;
   const Real _qpnum;

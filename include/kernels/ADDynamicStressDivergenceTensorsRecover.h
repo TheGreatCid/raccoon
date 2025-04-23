@@ -31,8 +31,8 @@ protected:
   ///{@ The old and older states of the stress tensor that the divergence operator operates on
   const MaterialProperty<RankTwoTensor> & _stress_older;
   const MaterialProperty<RankTwoTensor> & _stress_old;
-  const MaterialProperty<RankTwoTensor> & _stress_older_sol;
-  const MaterialProperty<RankTwoTensor> & _stress_old_sol;
+  const ADMaterialProperty<RankTwoTensor> & _stress_older_sol;
+  const ADMaterialProperty<RankTwoTensor> & _stress_old_sol;
   ///@}
 
   // Rayleigh damping parameter _zeta and HHT time integration parameter _alpha
