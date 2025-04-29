@@ -142,10 +142,10 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
   if (_recover == true && _volumetric_locking_correction == true)
   {
     ADReal ave_F_det_init = 0;
-    // Get average
 
     std::vector<std::string> indices = {"x", "y", "z"};
 
+    // Get average
     for (_qp = 0; _qp < n_points; ++_qp)
     {
       // Populate tensor from solution object
@@ -158,9 +158,6 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
               _current_elem->true_centroid(),
               "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(_qp + 1),
               nullptr);
-          //				_F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->directValue(
-          //         _current_elem,
-          //       "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
         }
       _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
 
@@ -194,10 +191,6 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
               _current_elem->true_centroid(),
               "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(_qp + 1),
               nullptr);
-          //          _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->directValue(
-          //              _current_elem,
-          //              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp +
-          //              1));
         }
       _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
 
@@ -206,13 +199,6 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
     }
   }
 }
-
-// void
-// ComputeDeformationGradient::initQpStatefulProperties()
-// {
-//   _F[_qp].setToIdentity();
-//   _Fm[_qp].setToIdentity();
-// }
 
 ADReal
 ComputeDeformationGradient::computeQpOutOfPlaneGradDisp()
@@ -230,7 +216,6 @@ ComputeDeformationGradient::computeProperties()
 
   for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
   {
-
     ADRankTwoTensor A = ADRankTwoTensor::initializeFromRows(
         (*_grad_disp[0])[_qp], (*_grad_disp[1])[_qp], (*_grad_disp[2])[_qp]);
     if (_coord_sys == Moose::COORD_RZ)
