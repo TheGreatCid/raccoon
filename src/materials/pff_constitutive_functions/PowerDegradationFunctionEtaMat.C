@@ -2,24 +2,25 @@
 //* being developed at Dolbow lab at Duke University
 //* http://dolbow.pratt.duke.edu
 
-#include "PowerDegradationFunction.h"
+#include "PowerDegradationFunctionEtaMat.h"
 
-registerMooseObject("raccoonApp", PowerDegradationFunction);
+registerMooseObject("raccoonApp", PowerDegradationFunctionEtaMat);
 
 InputParameters
-PowerDegradationFunction::validParams()
+PowerDegradationFunctionEtaMat::validParams()
 {
   InputParameters params = DegradationFunctionBase::validParams();
   params.addClassDescription(
       "defines the power degradation function $g(d) = (1-d)^p (1-\\eta) + \\eta$.");
 
   params.set<std::string>("expression") = "(1-d)^p*(1-eta)+eta";
-  params.set<std::vector<std::string>>("parameter_names") = {"p", "eta"};
+  params.set<std::vector<std::string>>("parameter_names") = {"p"};
+  params.set<std::vector<std::string>>("material_property_names") = {"eta"};
 
   return params;
 }
 
-PowerDegradationFunction::PowerDegradationFunction(const InputParameters & parameters)
+PowerDegradationFunctionEtaMat::PowerDegradationFunctionEtaMat(const InputParameters & parameters)
   : DegradationFunctionBase(parameters)
 {
 }
