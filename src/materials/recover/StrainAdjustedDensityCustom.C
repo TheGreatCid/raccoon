@@ -43,7 +43,7 @@ StrainAdjustedDensityCustomTempl<is_ad>::StrainAdjustedDensityCustomTempl(
     _strain_free_density(
         this->template getGenericMaterialProperty<Real, is_ad>("strain_free_density")),
     _density(declareGenericProperty<Real, is_ad>(_base_name + "density")),
-    _F(getADMaterialProperty<RankTwoTensor>("deformation_gradient"))
+    _F(getADMaterialProperty<RankTwoTensor>("deformation_gradient_Fbar"))
 {
   if (getParam<bool>("use_displaced_mesh"))
     paramError("use_displaced_mesh",
