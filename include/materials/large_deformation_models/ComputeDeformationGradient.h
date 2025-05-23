@@ -79,4 +79,6 @@ protected:
   const SolutionUserObject * _solution_object_ptr;
 
   const Real _qpnum;
+
+  std::vector<const ADVariableValue *> _F_recover;
 };
