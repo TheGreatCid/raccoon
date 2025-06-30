@@ -86,7 +86,8 @@ LargeDeformationJ2PlasticityCorrection::initQpStatefulProperties()
                                                 _current_elem->true_centroid(),
                                                 "effective_plastic_strain_" + formatQP(_qp + 1),
                                                 nullptr);
-
+    if (_ep[_qp] < 0)
+      _ep[_qp] = 0;
     for (int i_ind = 0; i_ind < 3; i_ind++)
       for (int j_ind = 0; j_ind < 3; j_ind++)
       {
@@ -105,7 +106,10 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
 {
   ADRankTwoTensor I2;
   I2.setToIdentity();
-
+  if (_recover && MetaPhysicL::raw_value(_ep[_qp]) < 0)
+  {
+    _ep[_qp] = 0;
+  }
   // Assume no plastic increment
   ADReal delta_ep = 0;
 
@@ -162,6 +166,15 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   computeStrainEnergyDensity();
   _hardening_model->plasticEnergy(_ep[_qp]);
   _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 0);
+    // Avoiding NaN issues for rate depedent models
+  if (_t_step > 0)
+  {
+    _heat[_qp] = _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 1) * delta_ep / _dt;
+
+    _heat[_qp] += _hardening_model->thermalConjugate(_ep[_qp]) * delta_ep / _dt;
+  }
+  else
+    _heat[_qp] = 0;
   // if (_current_elem->id() == 1)
   // {
   //   std::cout << "=================" << std::endl;
@@ -186,7 +199,9 @@ LargeDeformationJ2PlasticityCorrection::computeResidual(const ADReal & effective
                                                         const ADReal & delta_ep)
 {
   ADReal ep = _ep_old[_qp] + delta_ep;
-  return effective_trial_stress - std::sqrt(2.0 / 3.0) * _hardening_model->plasticEnergy(ep, 1) -
+
+  return effective_trial_stress - std::sqrt(2.0 / 3.0) * (_hardening_model->plasticEnergy(ep, 1) +
+         _hardening_model->plasticDissipation(delta_ep, ep, 1)) -
          std::sqrt(3.0 / 2.0) * _ge[_qp] * _G[_qp] * delta_ep * _bebar[_qp].trace();
 }
 
@@ -196,7 +211,8 @@ LargeDeformationJ2PlasticityCorrection::computeDerivative(const ADReal & /*effec
                                                           const ADReal & delta_ep)
 {
   ADReal ep = _ep_old[_qp] + delta_ep;
-  return -std::sqrt(2.0 / 3.0) * _hardening_model->plasticEnergy(ep, 2) -
+  return -std::sqrt(2.0 / 3.0) * (_hardening_model->plasticEnergy(ep, 2) +
+         _hardening_model->plasticDissipation(delta_ep, ep, 2)) -
          std::sqrt(3.0 / 2.0) * _ge[_qp] * _G[_qp] * _bebar[_qp].trace();
 }
 
