@@ -166,6 +166,11 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   computeStrainEnergyDensity();
   _hardening_model->plasticEnergy(_ep[_qp]);
   _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 0);
+
+  // Updating elastic energy
+  // Modified CNH to not calculate be itself
+  _elasticity_model->computeCauchyStress(_bebar[_qp]);
+
     // Avoiding NaN issues for rate depedent models
   if (_t_step > 0)
   {

@@ -113,6 +113,7 @@ CNHIsotropicElasticity::computeMandelStressNoDecomposition(const ADRankTwoTensor
     _psie_active[_qp] = U + W;
     _psie[_qp] = _g[_qp] * _psie_active[_qp];
     _dpsie_dd[_qp] = _dg_dd[_qp] * _psie_active[_qp];
+
   }
 
   return stress;
@@ -123,14 +124,14 @@ CNHIsotropicElasticity::computeMandelStressVolDevDecomposition(const ADRankTwoTe
                                                                const bool plasticity_update)
 {
   // We use the left Cauchy-Green strain
-  ADRankTwoTensor strain;
-  if (plasticity_update)
-  {
-    ADRankTwoTensor expFe = RaccoonUtils::exp(Fe);
-    strain = expFe * expFe.transpose();
-  }
-  else
-    strain = Fe * Fe.transpose();
+  ADRankTwoTensor strain = Fe;
+  // if (plasticity_update)
+  // {
+  //   ADRankTwoTensor expFe = RaccoonUtils::exp(Fe);
+  //   strain = expFe * expFe.transpose();
+  // }
+  // else
+  //   strain = Fe * Fe.transpose();
 
   ADReal J = std::sqrt(strain.det());
 
