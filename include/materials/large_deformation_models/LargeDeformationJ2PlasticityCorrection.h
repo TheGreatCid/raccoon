@@ -65,5 +65,9 @@ protected:
   // @}
   const Real _qpnum;
   ADMaterialProperty<Real> & _triaxfunc;
+  const Real _d1;
+  const Real _d2;
+  const Real _d3;
+
 
 };
