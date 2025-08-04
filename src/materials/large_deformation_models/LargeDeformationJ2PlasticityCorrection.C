@@ -57,8 +57,8 @@ LargeDeformationJ2PlasticityCorrection::LargeDeformationJ2PlasticityCorrection(
     _psie_corr(declareADProperty<Real>(_psie_name)),
     _psie_active_corr(declareADProperty<Real>(_psie_name + "_active")),
     _dpsie_dd_corr(declareADProperty<Real>(derivativePropertyName(_psie_name, {_d_name}))),
-    _qpnum(getParam<Real>("num_qps"))
-
+    _qpnum(getParam<Real>("num_qps")),
+    _triaxfunc(declareADProperty<Real>(prependBaseName("triaxfunc")))
 {
   _check_range = true;
 }
@@ -180,6 +180,19 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   }
   else
     _heat[_qp] = 0;
+
+  // Calculate triax function 
+  double d1 = 0.1; //Parameters
+  double d2 = 3.8;
+  double d3 = -1.8;
+  auto tm = stress.trace() / 3;
+  //Reusing variable names for simplicity
+  s_trial = _G[_qp] * _ge[_qp] * _bebar[_qp].deviatoric();
+  s_trial_norm = s_trial.doubleContraction(s_trial);
+  s_trial_norm = std::sqrt(s_trial_norm);
+
+  _triaxfunc[_qp] = d1+d2*std::exp(MetaPhysicL::raw_value(d3*tm/s_trial_norm));
+
   // if (_current_elem->id() == 1)
   // {
   //   std::cout << "=================" << std::endl;
