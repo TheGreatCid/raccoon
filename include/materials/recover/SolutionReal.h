@@ -27,6 +27,8 @@ protected:
   const std::string _mat_name;
 
   ADMaterialProperty<Real> & _mat;
+  const MaterialProperty<Real> & _mat_old;
+
   const SolutionUserObject * _solution_object_ptr;
   const Real _qpnum;
 };

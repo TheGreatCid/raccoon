@@ -26,6 +26,7 @@ SolutionReal::SolutionReal(const InputParameters & parameters)
     BaseNameInterface(parameters),
     _mat_name(getParam<std::string>("mat_name")),
     _mat(declareADProperty<Real>(prependBaseName(_mat_name + "_sol"))),
+    _mat_old(getMaterialPropertyOld<Real>(prependBaseName(_mat_name + "_sol"))),
     _solution_object_ptr(NULL),
     _qpnum(getParam<Real>("num_qps"))
 {
