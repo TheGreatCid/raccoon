@@ -82,7 +82,7 @@ SolutionReal::initStatefulProperties(unsigned int n_points)
 
   for (_qp = 0; _qp < n_points; ++_qp)
   {
-    Real _qp_sel = _lookup->find(_qp)->second;
+    Real _qp_sel = _lookup->find(_qp + 1)->second;
     // Populate from solution user object
     _mat[_qp] = _solution_object_ptr->pointValue(
         _t, _current_elem->true_centroid(), _mat_name + "_" + formatQP(_qp_sel + 1), nullptr);
