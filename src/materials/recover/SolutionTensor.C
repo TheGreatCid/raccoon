@@ -66,7 +66,7 @@ SolutionTensor::initStatefulProperties(unsigned int n_points)
 
   for (_qp = 0; _qp < n_points; ++_qp)
   {
-    unsigned int qp_sel = QpMapping::getQP(_qp, _lookup);
+    unsigned int qp_sel = QpMapping::getQP(_qp + 1, _lookup);
 
     // Populate tensor from solution object
     for (int i_ind = 0; i_ind < 3; i_ind++)
