@@ -30,5 +30,11 @@ protected:
   const MaterialProperty<Real> & _mat_old;
 
   const SolutionUserObject * _solution_object_ptr;
-  const Real _qpnum;
+  Real _qpnum;
+
+  /// Element types
+  const enum class Element { TET4_2nd, TET4_4th, TET10_4th, HEX8_3rd } _element;
+
+private:
+  const std::unordered_map<int, int> * _lookup;
 };
