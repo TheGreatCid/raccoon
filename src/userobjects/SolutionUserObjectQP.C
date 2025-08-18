@@ -36,7 +36,8 @@ SolutionUserObjectQP::validParams()
 SolutionUserObjectQP::SolutionUserObjectQP(const InputParameters & parameters)
   : SolutionUserObject(parameters),
     _tensor_materials(getParam<std::vector<MaterialName>>("tensor_materials")),
-    _materials(getParam<std::vector<MaterialName>>("materials"))
+    _materials(getParam<std::vector<MaterialName>>("materials")),
+    _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>())
 {
   _lookup = QpMapping::getLookup(_element, _qpnum, /*reversed=*/true);
 
