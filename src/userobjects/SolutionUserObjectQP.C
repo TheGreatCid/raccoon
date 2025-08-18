@@ -62,7 +62,7 @@ SolutionUserObjectQP::SolutionUserObjectQP(const InputParameters & parameters)
         matname.erase(26, _tensor_materials[i].size() - 1);
       for (unsigned int qp = 1; qp <= qp_max; qp++)
       {
-        unsigned int qp_sel = QpMapping::getQP(qp + 1, _lookup);
+        unsigned int qp_sel = QpMapping::getQP(qp, _lookup);
         for (int j = 0; j < dim; j++)
           for (int k = 0; k < dim; k++)
           {
@@ -79,7 +79,7 @@ SolutionUserObjectQP::SolutionUserObjectQP(const InputParameters & parameters)
       // Starting at 1 because qps start at one in Sierra
       for (unsigned int qp = 1; qp <= qp_max; qp++)
       {
-        unsigned int qp_sel = QpMapping::getQP(qp + 1, _lookup);
+        unsigned int qp_sel = QpMapping::getQP(qp, _lookup);
         _system_variables.push_back(_materials[i] + "_" + formatQP(qp_sel));
       }
     }
