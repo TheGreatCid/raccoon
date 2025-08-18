@@ -10,7 +10,7 @@
 #include "MaterialProperty.h"
 #include "MooseArray.h"
 #include "SolutionUserObject.h"
-
+#include "Qp_Mapping.h"
 /**
  * This class computes the deformation gradient
  */
@@ -78,7 +78,12 @@ protected:
 
   const SolutionUserObject * _solution_object_ptr;
 
-  const Real _qpnum;
-
   std::vector<const ADVariableValue *> _F_recover;
+
+  QpMapping::Element _element;
+
+  unsigned int _qpnum;
+
+private:
+  const std::unordered_map<int, int> * _lookup;
 };

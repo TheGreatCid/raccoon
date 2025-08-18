@@ -20,7 +20,7 @@ SolutionReal::validParams()
   params.addParam<Real>("num_qps", 8, "Number of QPs");
   params.addParam<std::string>("mat_name", "stress", "Name of tensor");
   params.addRequiredParam<MooseEnum>(
-      "element", MooseEnum("TET4_2nd TET4_4th TET10_4th HEX8_3rd"), "The element type");
+      "element", MooseEnum(QpMapping::ELEMENT_ENUM_DEFINITION), "The element type");
   return params;
 }
 
@@ -31,34 +31,9 @@ SolutionReal::SolutionReal(const InputParameters & parameters)
     _mat(declareADProperty<Real>(prependBaseName(_mat_name + "_sol"))),
     _mat_old(getMaterialPropertyOld<Real>(prependBaseName(_mat_name + "_sol"))),
     _solution_object_ptr(NULL),
-    _qpnum(getParam<Real>("num_qps")),
-    _element(getParam<MooseEnum>("element").getEnum<Element>())
+    _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>())
 {
-  // _mesh->elemTypes();
-  // Picking mapping for MOOSE to SIERRA qp numbering
-  switch (_element)
-  {
-    // _mesh->elemTypes();
-    // Picking mapping for MOOSE to SIERRA qp numbering
-    case Element::TET4_2nd:
-      _lookup = &Qp_Mapping::TET4_2nd_lookup_rev;
-      _qpnum = 4;
-      break;
-    case Element::TET4_4th:
-      _lookup = &Qp_Mapping::TET4_4th_lookup_rev;
-      _qpnum = 5;
-      break;
-    case Element::TET10_4th:
-      _lookup = &Qp_Mapping::TET10_4th_lookup_rev;
-      _qpnum = 11;
-      break;
-    case Element::HEX8_3rd:
-      _lookup = &Qp_Mapping::HEX8_3rd_lookup_rev;
-      _qpnum = 8;
-      break;
-    default:
-      mooseError("Unknown element type");
-  }
+  _lookup = QpMapping::getLookup(_element, _qpnum, /*reversed=*/true);
 }
 
 void
@@ -82,9 +57,9 @@ SolutionReal::initStatefulProperties(unsigned int n_points)
 
   for (_qp = 0; _qp < n_points; ++_qp)
   {
-    Real _qp_sel = _lookup->find(_qp + 1)->second;
+    unsigned int qp_sel = QpMapping::getQP(_qp, _lookup);
     // Populate from solution user object
     _mat[_qp] = _solution_object_ptr->pointValue(
-        _t, _current_elem->true_centroid(), _mat_name + "_" + formatQP(_qp_sel), nullptr);
+        _t, _current_elem->true_centroid(), _mat_name + "_" + formatQP(qp_sel), nullptr);
   }
 }

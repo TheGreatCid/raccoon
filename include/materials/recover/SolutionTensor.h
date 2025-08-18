@@ -11,6 +11,7 @@
 #include "MaterialProperty.h"
 #include "MooseArray.h"
 #include "SolutionUserObject.h"
+#include "Qp_Mapping.h"
 
 class SolutionTensor : public Material, public BaseNameInterface
 {
@@ -29,5 +30,9 @@ protected:
   ADMaterialProperty<RankTwoTensor> & _tensor;
   const MaterialProperty<RankTwoTensor> & _tensor_old;
   const SolutionUserObject * _solution_object_ptr;
-  const Real _qpnum;
+  unsigned int _qpnum;
+  QpMapping::Element _element;
+
+private:
+  const std::unordered_map<int, int> * _lookup;
 };

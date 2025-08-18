@@ -13,6 +13,7 @@
 #include "RankTwoTensorForward.h"
 #include "SolutionUserObject.h"
 #include "metaphysicl/raw_type.h"
+#include "Qp_Mapping.h"
 
 registerADMooseObject("raccoonApp", ComputeDeformationGradient);
 
@@ -40,7 +41,8 @@ ComputeDeformationGradient::validParams()
   params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
   params.addParam<Real>("num_qps", 8, "Number of QPs");
   params.addCoupledVar("F_ext_rec", "External F to recover with");
-
+  params.addRequiredParam<MooseEnum>(
+      "element", MooseEnum(QpMapping::ELEMENT_ENUM_DEFINITION), "The element type");
   return params;
 }
 
@@ -70,8 +72,8 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _weights(declareADProperty<Real>("weights")),
     _recover(getParam<bool>("recover")),
     _solution_object_ptr(NULL),
-    _qpnum(getParam<Real>("num_qps")),
-    _F_recover(adCoupledValues("F_ext_rec"))
+    _F_recover(adCoupledValues("F_ext_rec")),
+    _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>())
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &Material::getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
@@ -79,6 +81,8 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
   if (MaterialBase::getParam<bool>("use_displaced_mesh"))
     MaterialBase::paramError("use_displaced_mesh",
                              "The strain calculator needs to run on the undisplaced mesh.");
+  if (_recover)
+    _lookup = QpMapping::getLookup(_element, _qpnum, /*reversed=*/true);
 }
 
 void
@@ -169,6 +173,8 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
       // Get average
       for (_qp = 0; _qp < n_points; ++_qp)
       {
+        unsigned int qp_sel = QpMapping::getQP(_qp + 1, _lookup);
+
         // Populate tensor from solution object
         for (int i_ind = 0; i_ind < 3; i_ind++)
           for (int j_ind = 0; j_ind < 3; j_ind++)
@@ -176,7 +182,7 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
             _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
                 _t,
                 _current_elem->true_centroid(),
-                "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(_qp + 1),
+                "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
                 nullptr);
           }
         _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
@@ -201,6 +207,8 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
       std::vector<std::string> indices = {"x", "y", "z"};
       for (_qp = 0; _qp < n_points; ++_qp)
       {
+        unsigned int qp_sel = QpMapping::getQP(_qp + 1, _lookup);
+
         _F_store_noFbar[_qp].setToIdentity();
         // Populate tensor from solution object
         for (int i_ind = 0; i_ind < 3; i_ind++)
@@ -209,7 +217,7 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
             _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
                 _t,
                 _current_elem->true_centroid(),
-                "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(_qp + 1),
+                "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
                 nullptr);
           }
         _F_store_Fbar[_qp] = _F_store_noFbar[_qp];

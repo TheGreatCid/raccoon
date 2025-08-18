@@ -6,6 +6,7 @@
 
 #include "LargeDeformationPlasticityModel.h"
 #include "DerivativeMaterialPropertyNameInterface.h"
+#include "Qp_Mapping.h"
 
 class LargeDeformationJ2PlasticityCorrection : public LargeDeformationPlasticityModel,
                                                public DerivativeMaterialPropertyNameInterface
@@ -63,11 +64,14 @@ protected:
   ADMaterialProperty<Real> & _psie_active_corr;
   ADMaterialProperty<Real> & _dpsie_dd_corr;
   // @}
-  const Real _qpnum;
   ADMaterialProperty<Real> & _triaxfunc;
   const Real _d1;
   const Real _d2;
   const Real _d3;
+  QpMapping::Element _element;
 
+  unsigned int _qpnum;
 
+private:
+  const std::unordered_map<int, int> * _lookup;
 };

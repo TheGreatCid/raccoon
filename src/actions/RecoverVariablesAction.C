@@ -19,7 +19,7 @@ RecoverVariablesAction::validParams()
   params.addParam<std::string>("output_name", "exodusqp", "name of output for variables");
   // params.addParam<Real>("num_qps", 8, "Number of QPs");
   params.addRequiredParam<MooseEnum>(
-      "element", MooseEnum("TET4_2nd TET4_4th TET10_4th HEX8_3rd"), "The element type");
+      "element", MooseEnum(QpMapping::ELEMENT_ENUM_DEFINITION), "The element type");
   return params;
 }
 
@@ -28,31 +28,9 @@ RecoverVariablesAction::RecoverVariablesAction(const InputParameters & params)
     _tensor_materials(getParam<std::vector<MaterialName>>("tensor_materials")),
     _materials(getParam<std::vector<MaterialName>>("materials")),
     _output_name(getParam<std::string>("output_name")),
-    _element(getParam<MooseEnum>("element").getEnum<Element>())
+    _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>())
 {
-  switch (_element)
-  {
-    // _mesh->elemTypes();
-    // Picking mapping for MOOSE to SIERRA qp numbering
-    case Element::TET4_2nd:
-      _lookup = &Qp_Mapping::TET4_2nd_lookup;
-      _qpnum = 4;
-      break;
-    case Element::TET4_4th:
-      _lookup = &Qp_Mapping::TET4_4th_lookup;
-      _qpnum = 5;
-      break;
-    case Element::TET10_4th:
-      _lookup = &Qp_Mapping::TET10_4th_lookup;
-      _qpnum = 11;
-      break;
-    case Element::HEX8_3rd:
-      _lookup = &Qp_Mapping::HEX8_3rd_lookup;
-      _qpnum = 8;
-      break;
-    default:
-      mooseError("Unknown element type");
-  }
+  _lookup = QpMapping::getLookup(_element, _qpnum, /*reversed=*/false);
 }
 
 void
@@ -63,6 +41,7 @@ RecoverVariablesAction::act()
 
   std::vector<std::string> conv = {"x", "y", "z"};
 
+  // Formatting qp number in the case where num_qps > 10
   auto formatQP = [qp_max](unsigned int qp)
   {
     if (qp_max < 10)
@@ -80,7 +59,6 @@ RecoverVariablesAction::act()
     // Non tensor mats
     for (unsigned int i = 0; i < _materials.size(); i++)
     {
-      // Assuming 8 QPs
       // Starting at 1 because qps start at one in Sierra
       for (unsigned int qp = 1; qp <= qp_max; qp++)
         _problem->addAuxVariable("MooseVariable", _materials[i] + "_" + formatQP(qp), var_params);
@@ -112,15 +90,11 @@ RecoverVariablesAction::act()
       // assuming 8 QPs
       for (unsigned int qp = 1; qp <= qp_max; qp++)
       {
-        auto selected_qp = _lookup->find(qp);
-        if (selected_qp == _lookup->end())
-        {
-          mooseError(qp, " not found in mapping for element type ");
-        }
+        unsigned int qp_sel = QpMapping::getQP(qp, _lookup);
         InputParameters params = _factory.getValidParams("ADMaterialRealAux");
         params.set<AuxVariableName>("variable") = _materials[i] + "_" + formatQP(qp);
         params.set<MaterialPropertyName>("property") = _materials[i];
-        params.set<unsigned int>("selected_qp") = _lookup->find(qp)->second - 1;
+        params.set<unsigned int>("selected_qp") = qp_sel - 1;
         _problem->addAuxKernel("ADMaterialRealAux", _materials[i] + "_" + formatQP(qp), params);
       }
 
@@ -132,17 +106,16 @@ RecoverVariablesAction::act()
         matname.erase(26, _tensor_materials[i].size() - 1);
       // assuming 8 QPs
       for (unsigned int qp = 1; qp <= qp_max; qp++)
+      {
+        unsigned int qp_sel = QpMapping::getQP(qp, _lookup);
         for (unsigned int j = 0; j < dim; j++)
           for (unsigned int k = 0; k < dim; k++)
           {
-            auto selected_qp = _lookup->find(qp);
-            if (selected_qp == _lookup->end())
-              mooseError(qp, " not found in mapping for element type ");
             InputParameters params = _factory.getValidParams("ADRankTwoAux");
             params.set<AuxVariableName>("variable") =
                 matname + "_" + conv[j] + conv[k] + "_" + formatQP(qp);
             params.set<MaterialPropertyName>("rank_two_tensor") = _tensor_materials[i];
-            params.set<unsigned int>("selected_qp") = _lookup->find(qp)->second - 1;
+            params.set<unsigned int>("selected_qp") = qp_sel - 1;
             params.set<unsigned int>("index_i") = j;
             params.set<unsigned int>("index_j") = k;
             _problem->addAuxKernel("ADRankTwoAux",
@@ -150,6 +123,7 @@ RecoverVariablesAction::act()
                                        formatQP(qp),
                                    params);
           }
+      }
     }
   }
 }

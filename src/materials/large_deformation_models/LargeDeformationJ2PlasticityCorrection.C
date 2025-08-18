@@ -11,6 +11,7 @@
 #include "RaccoonUtils.h"
 #include "RankTwoTensorForward.h"
 #include <cmath>
+#include "Qp_Mapping.h"
 
 registerMooseObject("raccoonApp", LargeDeformationJ2PlasticityCorrection);
 
@@ -31,11 +32,11 @@ LargeDeformationJ2PlasticityCorrection::validParams()
       "psie_corr",
       "Name of the strain energy density computed by this material model");
   params.addParam<Real>("num_qps", 8, "Number of QPs");
-  params.addParam<Real>("d1",0.1, "d1 triax");
-  params.addParam<Real>("d2",3.8, "d2 triax");
-  params.addParam<Real>("d3", -1.8,"d3 triax");
-
-
+  params.addParam<Real>("d1", 0.1, "d1 triax");
+  params.addParam<Real>("d2", 3.8, "d2 triax");
+  params.addParam<Real>("d3", -1.8, "d3 triax");
+  params.addRequiredParam<MooseEnum>(
+      "element", MooseEnum(QpMapping::ELEMENT_ENUM_DEFINITION), "The element type");
   return params;
 }
 
@@ -61,13 +62,15 @@ LargeDeformationJ2PlasticityCorrection::LargeDeformationJ2PlasticityCorrection(
     _psie_corr(declareADProperty<Real>(_psie_name)),
     _psie_active_corr(declareADProperty<Real>(_psie_name + "_active")),
     _dpsie_dd_corr(declareADProperty<Real>(derivativePropertyName(_psie_name, {_d_name}))),
-    _qpnum(getParam<Real>("num_qps")),
     _triaxfunc(declareADProperty<Real>(prependBaseName("triaxfunc"))),
     _d1(getParam<Real>("d1")),
     _d2(getParam<Real>("d2")),
-    _d3(getParam<Real>("d3"))
+    _d3(getParam<Real>("d3")),
+    _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>())
 {
   _check_range = true;
+  if (_recover)
+    _lookup = QpMapping::getLookup(_element, _qpnum, /*reversed=*/true);
 }
 
 void
@@ -89,9 +92,11 @@ LargeDeformationJ2PlasticityCorrection::initQpStatefulProperties()
   std::vector<std::string> indices = {"x", "y", "z"};
   if (_recover)
   {
+    unsigned int qp_sel = QpMapping::getQP(_qp + 1, _lookup);
+
     _ep[_qp] = _solution_object_ptr->pointValue(_t,
                                                 _current_elem->true_centroid(),
-                                                "effective_plastic_strain_" + formatQP(_qp + 1),
+                                                "effective_plastic_strain_" + formatQP(qp_sel),
                                                 nullptr);
     if (_ep[_qp] < 0)
       _ep[_qp] = 0;
@@ -101,7 +106,7 @@ LargeDeformationJ2PlasticityCorrection::initQpStatefulProperties()
         _bebar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
             _t,
             _current_elem->true_centroid(),
-            "be_bar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(_qp + 1),
+            "be_bar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
             nullptr);
       }
   }
@@ -174,7 +179,7 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   _hardening_model->plasticEnergy(_ep[_qp]);
   _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 0);
 
-    // Avoiding NaN issues for rate depedent models
+  // Avoiding NaN issues for rate depedent models
   if (_t_step > 0)
   {
     _heat[_qp] = _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 1) * delta_ep / _dt;
@@ -184,14 +189,14 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   else
     _heat[_qp] = 0;
 
-  // Calculate triax function 
+  // Calculate triax function
   auto tm = stress.trace() / 3;
-  //Reusing variable names for simplicity
+  // Reusing variable names for simplicity
   s_trial = _G[_qp] * _ge[_qp] * _bebar[_qp].deviatoric();
   s_trial_norm = s_trial.doubleContraction(s_trial);
   s_trial_norm = std::sqrt(s_trial_norm);
 
-  _triaxfunc[_qp] = _d1+_d2*std::exp(MetaPhysicL::raw_value(_d3*tm/s_trial_norm));
+  _triaxfunc[_qp] = _d1 + _d2 * std::exp(MetaPhysicL::raw_value(_d3 * tm / s_trial_norm));
 
   // if (_current_elem->id() == 1)
   // {
@@ -218,8 +223,9 @@ LargeDeformationJ2PlasticityCorrection::computeResidual(const ADReal & effective
 {
   ADReal ep = _ep_old[_qp] + delta_ep;
 
-  return effective_trial_stress - std::sqrt(2.0 / 3.0) * (_hardening_model->plasticEnergy(ep, 1) +
-         _hardening_model->plasticDissipation(delta_ep, ep, 1)) -
+  return effective_trial_stress -
+         std::sqrt(2.0 / 3.0) * (_hardening_model->plasticEnergy(ep, 1) +
+                                 _hardening_model->plasticDissipation(delta_ep, ep, 1)) -
          std::sqrt(3.0 / 2.0) * _ge[_qp] * _G[_qp] * delta_ep * _bebar[_qp].trace();
 }
 
@@ -230,7 +236,7 @@ LargeDeformationJ2PlasticityCorrection::computeDerivative(const ADReal & /*effec
 {
   ADReal ep = _ep_old[_qp] + delta_ep;
   return -std::sqrt(2.0 / 3.0) * (_hardening_model->plasticEnergy(ep, 2) +
-         _hardening_model->plasticDissipation(delta_ep, ep, 2)) -
+                                  _hardening_model->plasticDissipation(delta_ep, ep, 2)) -
          std::sqrt(3.0 / 2.0) * _ge[_qp] * _G[_qp] * _bebar[_qp].trace();
 }
 

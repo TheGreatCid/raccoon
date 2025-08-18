@@ -11,7 +11,7 @@
 #include "MaterialProperty.h"
 #include "MooseArray.h"
 #include "SolutionUserObject.h"
-
+#include "Qp_Mapping.h"
 class SolutionReal : public Material, public BaseNameInterface
 {
 public:
@@ -30,10 +30,10 @@ protected:
   const MaterialProperty<Real> & _mat_old;
 
   const SolutionUserObject * _solution_object_ptr;
-  Real _qpnum;
 
-  /// Element types
-  const enum class Element { TET4_2nd, TET4_4th, TET10_4th, HEX8_3rd } _element;
+  QpMapping::Element _element;
+
+  unsigned int _qpnum;
 
 private:
   const std::unordered_map<int, int> * _lookup;

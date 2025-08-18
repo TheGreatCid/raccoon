@@ -3,6 +3,7 @@
 #include "MooseTypes.h"
 #include "MooseEnum.h"
 #include <unordered_map>
+#include "Qp_Mapping.h"
 
 class RecoverVariablesAction : public Action
 
@@ -21,10 +22,9 @@ protected:
 
   std::string _output_name;
 
-  Real _qpnum;
+  unsigned int _qpnum;
 
-  /// Element types
-  const enum class Element { TET4_2nd, TET4_4th, TET10_4th, HEX8_3rd } _element;
+  QpMapping::Element _element;
 
 private:
   const std::unordered_map<int, int> * _lookup;
