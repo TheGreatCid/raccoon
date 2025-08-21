@@ -73,7 +73,8 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _recover(getParam<bool>("recover")),
     _solution_object_ptr(NULL),
     _F_recover(adCoupledValues("F_ext_rec")),
-    _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>())
+    _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>()),
+    _Frobenius(declareProperty<RankTwoTensor>(prependBaseName("Frobenius_norm")))
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &Material::getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
@@ -271,6 +272,8 @@ ComputeDeformationGradient::computeProperties()
 
     _Fnobar[_qp].setToIdentity();
 
+    // Outputting the Frobenius norm for post processing reasons
+    _Frobenius[_qp] = MetaPhysicL::raw_value(_F[_qp]).norm();
     // Add in recovered F
     if (_recover == true)
       _Fnobar[_qp] = _F[_qp] * _F_store_noFbar[_qp];

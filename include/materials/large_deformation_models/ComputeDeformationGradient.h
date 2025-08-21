@@ -83,6 +83,7 @@ protected:
   QpMapping::Element _element;
 
   unsigned int _qpnum;
+  MaterialProperty<RankTwoTensor> & _Frobenius;
 
 private:
   const std::unordered_map<int, int> * _lookup;
