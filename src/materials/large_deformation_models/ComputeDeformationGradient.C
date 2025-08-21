@@ -74,7 +74,7 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _solution_object_ptr(NULL),
     _F_recover(adCoupledValues("F_ext_rec")),
     _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>()),
-    _Frobenius(declareProperty<RankTwoTensor>(prependBaseName("Frobenius_norm")))
+    _Frobenius(declareProperty<Real>(prependBaseName("Frobenius_norm")))
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &Material::getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
