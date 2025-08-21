@@ -273,7 +273,9 @@ ComputeDeformationGradient::computeProperties()
     _Fnobar[_qp].setToIdentity();
 
     // Outputting the Frobenius norm for post processing reasons
-    _Frobenius[_qp] = MetaPhysicL::raw_value(_F[_qp]).norm();
+    ADRankTwoTensor temp = _F[_qp];
+    temp.addIa(-1);
+    _Frobenius[_qp] = MetaPhysicL::raw_value(temp).norm();
     // Add in recovered F
     if (_recover == true)
       _Fnobar[_qp] = _F[_qp] * _F_store_noFbar[_qp];
