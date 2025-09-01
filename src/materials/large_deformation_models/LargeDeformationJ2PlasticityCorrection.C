@@ -162,8 +162,8 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
     // Updating Kirchoff stress
     ADReal J = _F[_qp].det();
     ADReal p = 0.5 * _K[_qp] * (J * J - 1);
-    stress = J >= 1.0 ? _ge[_qp] * p * I2 + s : p * I2 + s;
-
+    ADRankTwoTensor tau = J >= 1.0 ? _ge[_qp] * p * I2 + s : p * I2 + s;
+    stress = tau / J;
     ADRankTwoTensor devbebar = s / _ge[_qp] / _G[_qp];
     computeCorrectionTerm(devbebar);
   }
@@ -172,7 +172,8 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
     // Updating Kirchoff stress
     ADReal J = _F[_qp].det();
     ADReal p = 0.5 * _K[_qp] * (J * J - 1);
-    stress = J * p * I2 + s_trial;
+    ADRankTwoTensor tau = J >= 1.0 ? _ge[_qp] * p * I2 + s_trial : p * I2 + s_trial;
+    stress = tau / J;
     _ep[_qp] = _ep_old[_qp];
   }
   computeStrainEnergyDensity();
@@ -213,8 +214,8 @@ Real
 LargeDeformationJ2PlasticityCorrection::computeReferenceResidual(
     const ADReal & effective_trial_stress, const ADReal & delta_ep)
 {
-  return MetaPhysicL::raw_value(effective_trial_stress -
-                                std::sqrt(3.0 / 2.0) * _G[_qp] * delta_ep * _bebar[_qp].trace());
+  return MetaPhysicL::raw_value(effective_trial_stress - std::sqrt(3.0 / 2.0) * _ge[_qp] * _G[_qp] *
+                                                             delta_ep * _bebar[_qp].trace());
 }
 
 ADReal
