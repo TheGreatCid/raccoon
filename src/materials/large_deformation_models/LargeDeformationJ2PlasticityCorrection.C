@@ -248,22 +248,22 @@ LargeDeformationJ2PlasticityCorrection::computeCorrectionTerm(const ADRankTwoTen
   // Identity tensor
   ADRankTwoTensor I2(RankTwoTensorTempl<ADReal>::initIdentity);
 
-  Real a = MetaPhysicL::raw_value(devbebar(0, 0));
-  Real b = MetaPhysicL::raw_value(devbebar(1, 1));
-  Real c = MetaPhysicL::raw_value(devbebar(2, 2));
-  Real d = MetaPhysicL::raw_value(devbebar(1, 2));
-  Real e = MetaPhysicL::raw_value(devbebar(0, 2));
-  Real h = MetaPhysicL::raw_value(devbebar(0, 1));
+  ADReal a = devbebar(0, 0);
+  ADReal b = devbebar(1, 1);
+  ADReal c = devbebar(2, 2);
+  ADReal d = devbebar(1, 2);
+  ADReal e = devbebar(0, 2);
+  ADReal h = devbebar(0, 1);
 
-  Real A = a + b + c;
-  Real B = a * b + a * c + b * c - d * d - e * e - h * h;
-  Real C = a * b * c + 2.0 * d * e * h - a * d * d - b * e * e - c * h * h - 1.0;
+  ADReal A = a + b + c;
+  ADReal B = a * b + a * c + b * c - d * d - e * e - h * h;
+  ADReal C = a * b * c + 2.0 * d * e * h - a * d * d - b * e * e - c * h * h - 1.0;
 
-  Real D = std::cbrt(-2 * A * A * A +
-                     3 * std::sqrt(3) *
-                         std::sqrt(4 * A * A * A * C - A * A * B * B - 18 * A * B * C +
-                                   4 * B * B * B + 27 * C * C) +
-                     9 * A * B - 27 * C);
+  ADReal D = std::cbrt(-2 * A * A * A +
+                       3 * std::sqrt(3) *
+                           std::sqrt(4 * A * A * A * C - A * A * B * B - 18 * A * B * C +
+                                     4 * B * B * B + 27 * C * C) +
+                       9 * A * B - 27 * C);
 
   ADReal Ie_bar = D / 3 / std::cbrt(2) - std::cbrt(2) * (3 * B - A * A) / 3 / D - A / 3;
   _bebar[_qp] = devbebar + Ie_bar * I2;
