@@ -8,6 +8,7 @@
 #include "BaseNameInterface.h"
 #include "ADRankTwoTensorForward.h"
 #include "SolutionUserObject.h"
+#include "Qp_Mapping.h"
 
 /**
  * This class computes the deformation gradient
@@ -70,5 +71,9 @@ protected:
 
   const SolutionUserObject * _solution_object_ptr;
 
-  const Real _qpnum;
+  unsigned int _qpnum;
+  QpMapping::Element _element;
+
+private:
+  const std::unordered_map<int, int> * _lookup;
 };

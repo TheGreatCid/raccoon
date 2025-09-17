@@ -3,6 +3,7 @@
 //* http://dolbow.pratt.duke.edu
 
 #include "ComputePlaneDeformationGradient.h"
+#include "Qp_Mapping.h"
 
 registerADMooseObject("raccoonApp", ComputePlaneDeformationGradient);
 
@@ -27,6 +28,8 @@ ComputePlaneDeformationGradient::validParams()
   params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
   params.addParam<Real>("num_qps", 8, "Number of QPs");
   params.suppressParameter<bool>("use_displaced_mesh");
+  params.addRequiredParam<MooseEnum>(
+      "element", MooseEnum(QpMapping::ELEMENT_ENUM_DEFINITION), "The element type");
   return params;
 }
 
@@ -56,13 +59,15 @@ ComputePlaneDeformationGradient::ComputePlaneDeformationGradient(const InputPara
     _Fgs(_Fg_names.size()),
     _recover(getParam<bool>("recover")),
     _solution_object_ptr(NULL),
-    _qpnum(getParam<Real>("num_qps"))
+    _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>())
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
 
   if (getParam<bool>("use_displaced_mesh"))
     paramError("use_displaced_mesh", "The strain calculator needs to run on the undisplaced mesh.");
+  if (_recover)
+    _lookup = QpMapping::getLookup(_element, _qpnum, /*reversed=*/true);
 }
 
 void
@@ -99,70 +104,88 @@ ComputePlaneDeformationGradient::initStatefulProperties(unsigned int n_points)
       return (qp < 10) ? "0" + std::to_string(qp) : std::to_string(qp); // Two digits
   };
 
-  if (_recover == true && _volumetric_locking_correction == true)
+  // If we are using an an externally provided F to recover with (instead of using a solution user
+  // object)
+  if (isParamValid("F_ext_rec"))
   {
-    ADReal ave_F_det_init = 0;
-    // Get average
-
-    std::vector<std::string> indices = {"x", "y", "z"};
-
-    for (_qp = 0; _qp < n_points; ++_qp)
+    for (_qp = 0; _qp < qp_max; ++_qp)
     {
-      // Populate tensor from solution object
-      for (int i_ind = 0; i_ind < 3; i_ind++)
-        for (int j_ind = 0; j_ind < 3; j_ind++)
-        {
-
-          _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
-              _t,
-              _current_elem->true_centroid(),
-              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(_qp + 1),
-              nullptr);
-          //				_F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->directValue(
-          //         _current_elem,
-          //       "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp + 1));
-        }
-      _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
-
-      ave_F_det_init += 1 / _F_store_noFbar[_qp].det() * _JxW[_qp] * _coord[_qp];
-    }
-
-    ave_F_det_init = _current_elem_volume / ave_F_det_init;
-
-    for (_qp = 0; _qp < n_points; ++_qp)
-    // Store value
-    {
-      _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / _F_store_noFbar[_qp].det());
-      // For getting the old value of F
-      _F[_qp] = _F_store_noFbar[_qp];
+      _F_store_Fbar[_qp].setToIdentity();
+      // int i = 0;
+      //
+      // for (int i_ind = 0; i_ind < 3; i_ind++)
+      //   for (int j_ind = 0; j_ind < 3; j_ind++)
+      //   {
+      //     std::cout << MetaPhysicL::raw_value((*_F_recover[i])[_qp]) << std::endl;
+      //     _F_store_noFbar[_qp](i_ind, j_ind) = (*_F_recover[i])[_qp];
+      //     i++;
+      //   }
+      _F[_qp].setToIdentity();
     }
   }
-
-  // Recovering without fbar method
-  if (_recover == true && _volumetric_locking_correction == false)
+  else
   {
-    std::vector<std::string> indices = {"x", "y", "z"};
-    for (_qp = 0; _qp < n_points; ++_qp)
+    if (_recover == true && _volumetric_locking_correction == true)
     {
-      _F_store_noFbar[_qp].setToIdentity();
-      // Populate tensor from solution object
-      for (int i_ind = 0; i_ind < 3; i_ind++)
-        for (int j_ind = 0; j_ind < 3; j_ind++)
-        {
-          _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
-              _t,
-              _current_elem->true_centroid(),
-              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(_qp + 1),
-              nullptr);
-          //          _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->directValue(
-          //              _current_elem,
-          //              "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + std::to_string(_qp +
-          //              1));
-        }
-      _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
+      ADReal ave_F_det_init = 0;
 
-      // For getting the old value of F
-      _F[_qp] = _F_store_noFbar[_qp];
+      std::vector<std::string> indices = {"x", "y", "z"};
+
+      // Get average
+      for (_qp = 0; _qp < qp_max; ++_qp)
+      {
+        unsigned int qp_sel = QpMapping::getQP(_qp + 1, _lookup);
+
+        // Populate tensor from solution object
+        for (int i_ind = 0; i_ind < 3; i_ind++)
+          for (int j_ind = 0; j_ind < 3; j_ind++)
+          {
+            _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
+                _t,
+                _current_elem->true_centroid(),
+                "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
+                nullptr);
+          }
+        _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
+
+        ave_F_det_init += 1 / _F_store_noFbar[_qp].det() * _JxW[_qp] * _coord[_qp];
+      }
+
+      ave_F_det_init = _current_elem_volume / ave_F_det_init;
+
+      for (_qp = 0; _qp < qp_max; ++_qp)
+      // Store value
+      {
+        _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / _F_store_noFbar[_qp].det());
+        // For getting the old value of F
+        _F[_qp] = _F_store_noFbar[_qp];
+      }
+    }
+
+    // Recovering without fbar method
+    if (_recover == true && _volumetric_locking_correction == false)
+    {
+      std::vector<std::string> indices = {"x", "y", "z"};
+      for (_qp = 0; _qp < qp_max; ++_qp)
+      {
+        unsigned int qp_sel = QpMapping::getQP(_qp + 1, _lookup);
+
+        _F_store_noFbar[_qp].setToIdentity();
+        // Populate tensor from solution object
+        for (int i_ind = 0; i_ind < 3; i_ind++)
+          for (int j_ind = 0; j_ind < 3; j_ind++)
+          {
+            _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
+                _t,
+                _current_elem->true_centroid(),
+                "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
+                nullptr);
+          }
+        _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
+
+        // For getting the old value of F
+        _F[_qp] = _F_store_noFbar[_qp];
+      }
     }
   }
 }
