@@ -59,7 +59,9 @@ ComputePlaneDeformationGradient::ComputePlaneDeformationGradient(const InputPara
     _Fgs(_Fg_names.size()),
     _recover(getParam<bool>("recover")),
     _solution_object_ptr(NULL),
-    _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>())
+    _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>()),
+    _Frobenius(declareProperty<Real>(prependBaseName("Frobenius_norm")))
+
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
@@ -240,6 +242,10 @@ ComputePlaneDeformationGradient::computeProperties()
     _F[_qp].addIa(1.0);
 
     _Fnobar[_qp].setToIdentity();
+    // Outputting the Frobenius norm for post processing reasons
+    ADRankTwoTensor temp = _F[_qp];
+    temp.addIa(-1);
+    _Frobenius[_qp] = MetaPhysicL::raw_value(temp).norm();
     // Add in recovered F
     if (_recover == true)
       _Fnobar[_qp] = _F[_qp] * _F_store_noFbar[_qp];

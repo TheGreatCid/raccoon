@@ -73,6 +73,7 @@ protected:
 
   unsigned int _qpnum;
   QpMapping::Element _element;
+  MaterialProperty<Real> & _Frobenius;
 
 private:
   const std::unordered_map<int, int> * _lookup;
