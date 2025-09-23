@@ -150,10 +150,10 @@ ComputePlaneDeformationGradient::initStatefulProperties(unsigned int n_points)
           }
         _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
 
-        ave_F_det_init += 1 / _F_store_noFbar[_qp].det() * _JxW[_qp] * _coord[_qp];
+        ave_F_det_init += _F_store_noFbar[_qp].det() * _JxW[_qp] * _coord[_qp];
       }
 
-      ave_F_det_init = _current_elem_volume / ave_F_det_init;
+      ave_F_det_init /= _current_elem_volume;
 
       for (_qp = 0; _qp < qp_max; ++_qp)
       // Store value
