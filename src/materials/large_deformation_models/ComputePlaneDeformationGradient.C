@@ -110,7 +110,7 @@ ComputePlaneDeformationGradient::initStatefulProperties(unsigned int n_points)
   // object)
   if (isParamValid("F_ext_rec"))
   {
-    for (_qp = 0; _qp < qp_max; ++_qp)
+    for (_qp = 0; _qp < n_points; ++_qp)
     {
       _F_store_Fbar[_qp].setToIdentity();
       // int i = 0;
@@ -132,9 +132,8 @@ ComputePlaneDeformationGradient::initStatefulProperties(unsigned int n_points)
       ADReal ave_F_det_init = 0;
 
       std::vector<std::string> indices = {"x", "y", "z"};
-
       // Get average
-      for (_qp = 0; _qp < qp_max; ++_qp)
+      for (_qp = 0; _qp < n_points; ++_qp)
       {
         unsigned int qp_sel = QpMapping::getQP(_qp + 1, _lookup);
 
@@ -155,7 +154,7 @@ ComputePlaneDeformationGradient::initStatefulProperties(unsigned int n_points)
 
       ave_F_det_init /= _current_elem_volume;
 
-      for (_qp = 0; _qp < qp_max; ++_qp)
+      for (_qp = 0; _qp < n_points; ++_qp)
       // Store value
       {
         _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / _F_store_noFbar[_qp].det());
@@ -168,7 +167,7 @@ ComputePlaneDeformationGradient::initStatefulProperties(unsigned int n_points)
     if (_recover == true && _volumetric_locking_correction == false)
     {
       std::vector<std::string> indices = {"x", "y", "z"};
-      for (_qp = 0; _qp < qp_max; ++_qp)
+      for (_qp = 0; _qp < n_points; ++_qp)
       {
         unsigned int qp_sel = QpMapping::getQP(_qp + 1, _lookup);
 
@@ -222,8 +221,11 @@ ADReal
 ComputePlaneDeformationGradient::computeQpOutOfPlaneGradDisp()
 {
   // std::cout << std::exp(_out_of_plane_strain[_qp]) << std::endl;
+  
   //  std::cout << _out_of_plane_strain[_qp] << std::endl;
-  return std::exp(_out_of_plane_strain[_qp]);
+  // return std::exp(_out_of_plane_strain[_qp]);
+    return 1+_out_of_plane_strain[_qp];
+
 }
 
 void
