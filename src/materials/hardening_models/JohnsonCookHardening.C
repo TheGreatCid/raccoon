@@ -38,6 +38,10 @@ JohnsonCookHardening::validParams()
       "psip",
       "Name of the plastic energy density computed by this material model");
   params.addParam<MaterialPropertyName>("degradation_function", "gp", "The degradation function");
+  params.addParam<bool>(
+      "disable_dissipation",
+      false,
+      "Set to true to turn off Johnson-Cook plastic dissipation contributions.");
   return params;
 }
 
@@ -67,7 +71,8 @@ JohnsonCookHardening::JohnsonCookHardening(const InputParameters & parameters)
     // The degradation function and its derivatives
     _gp_name(prependBaseName("degradation_function", true)),
     _gp(getADMaterialProperty<Real>(_gp_name)),
-    _dgp_dd(getADMaterialProperty<Real>(derivativePropertyName(_gp_name, {_d_name})))
+    _dgp_dd(getADMaterialProperty<Real>(derivativePropertyName(_gp_name, {_d_name}))),
+    _disable_dissipation(getParam<bool>("disable_dissipation"))
 {
 }
 
@@ -119,6 +124,9 @@ JohnsonCookHardening::plasticDissipation(const ADReal & delta_ep,
                                          const ADReal & ep,
                                          const unsigned int derivative)
 {
+  if (_disable_dissipation)
+    return ADReal(0);
+
   // For all cases, we are splitting between rate dependent and non rate dependent portions to avoid
   // /0 errors
 

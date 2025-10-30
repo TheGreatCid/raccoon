@@ -55,6 +55,9 @@ protected:
   const ADMaterialProperty<Real> & _dgp_dd;
   // @}
 
+  /// Option to remove dissipation contributions
+  const bool _disable_dissipation;
+
 private:
   ADReal temperatureDependence();
 };
