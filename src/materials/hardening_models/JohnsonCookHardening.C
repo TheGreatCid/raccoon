@@ -38,10 +38,9 @@ JohnsonCookHardening::validParams()
       "psip",
       "Name of the plastic energy density computed by this material model");
   params.addParam<MaterialPropertyName>("degradation_function", "gp", "The degradation function");
-  params.addParam<bool>(
-      "disable_dissipation",
-      false,
-      "Set to true to turn off Johnson-Cook plastic dissipation contributions.");
+  params.addParam<bool>("disable_dissipation",
+                        false,
+                        "Set to true to turn off Johnson-Cook plastic dissipation contributions.");
   return params;
 }
 
@@ -166,6 +165,8 @@ ADReal // Thermal conjugate term
 JohnsonCookHardening::thermalConjugate(const ADReal & ep)
 {
 
+  if (_disable_dissipation)
+    return ADReal(0);
   return _gp[_qp] * _T[_qp] * (1 - _tqf) * _sigma_0[_qp] *
          (_A[_qp] + _B * std::pow(ep / _ep0, _n)) *
          (_m * (std::pow((_T0 - _T[_qp]) / (_T0 - _Tm), _m))) / (_T0 - _T[_qp]);
