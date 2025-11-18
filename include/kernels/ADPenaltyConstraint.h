@@ -17,17 +17,42 @@ public:
 protected:
   virtual ADReal computeQpResidual() override;
 
-  /// The fracture toughness
+  /// Smooth Heaviside function for conditional logic
+  ADReal smoothHeaviside(const ADReal x, const Real width) const;
+
+  /// Smooth approximation of max(0, x)
+  ADReal smoothMacaulay(const ADReal x, const Real eps) const;
+
+  /// The penalty parameter
   const Real _penalty;
+
+  /// Smoothing parameter
   const Real _epsilon;
 
+  /// Previous time step value
   const VariableValue & _u_old;
 
+  /// Use smooth approximation
   const bool _smooth;
 
+  /// Use conditional bounds
   const bool _conditional;
 
+  /// Enforce upper bound (true) or lower bound (false)
   const bool _upper;
 
+  /// Upper bound value
   const Real _upper_val;
+
+  /// Smoothing method
+  const MooseEnum _smoothing_type;
+
+  /// Adaptive penalty parameters
+  const bool _adaptive_penalty;
+  const Real _initial_penalty;
+  const Real _penalty_growth;
+  const Real _violation_tol;
+
+  /// Smooth transition width for conditional mode
+  const Real _transition_width;
 };
