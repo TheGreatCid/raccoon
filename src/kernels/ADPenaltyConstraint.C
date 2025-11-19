@@ -131,10 +131,10 @@ ADPenaltyConstraint::smoothMacaulay(const ADReal x, const Real eps) const
     // Much better conditioned than SQRT, smoother derivatives
     // For large |x/ε|, approaches max(0,x) exponentially fast
     const ADReal z = -x / eps;
-    if (MetaPhysicL::raw_value(z) > 20.0) // exp(-z) ≈ 0, avoid overflow
-      return x > 0 ? x : eps * z; // Returns x for x>0, nearly 0 for x<0
-    else if (MetaPhysicL::raw_value(z) < -20.0) // exp(-z) huge, but log cancels
-      return eps * std::log(std::exp(z));
+    if (MetaPhysicL::raw_value(z) > 20.0) // x very negative: exp(z) huge
+      return x + eps * z; // Asymptotic: x + ε*ln(exp(z)) ≈ x + ε*z = 0
+    else if (MetaPhysicL::raw_value(z) < -20.0) // x very positive: exp(z) ≈ 0
+      return x; // Asymptotic: x + ε*ln(1) = x
     else
       return x + eps * std::log(1.0 + std::exp(z));
   }
