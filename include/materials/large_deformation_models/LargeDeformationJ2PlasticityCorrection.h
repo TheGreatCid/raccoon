@@ -65,6 +65,8 @@ protected:
   ADMaterialProperty<Real> & _dpsie_dd_corr;
   // @}
   ADMaterialProperty<Real> & _triaxfunc;
+  ADMaterialProperty<Real> & _triaxiality_kirchhoff;
+  ADMaterialProperty<Real> & _triaxiality_cauchy;
   const Real _d1;
   const Real _d2;
   const Real _d3;

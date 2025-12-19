@@ -63,6 +63,8 @@ LargeDeformationJ2PlasticityCorrection::LargeDeformationJ2PlasticityCorrection(
     _psie_active_corr(declareADProperty<Real>(_psie_name + "_active")),
     _dpsie_dd_corr(declareADProperty<Real>(derivativePropertyName(_psie_name, {_d_name}))),
     _triaxfunc(declareADProperty<Real>(prependBaseName("triaxfunc"))),
+    _triaxiality_kirchhoff(declareADProperty<Real>(prependBaseName("triaxiality_kirchhoff"))),
+    _triaxiality_cauchy(declareADProperty<Real>(prependBaseName("triaxiality_cauchy"))),
     _d1(getParam<Real>("d1")),
     _d2(getParam<Real>("d2")),
     _d3(getParam<Real>("d3")),
@@ -190,14 +192,35 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   else
     _heat[_qp] = 0;
 
-  // Calculate triax function
-  auto tm = stress.trace() / 3;
-  // Reusing variable names for simplicity
-  s_trial = _G[_qp] * _ge[_qp] * _bebar[_qp].deviatoric();
-  s_trial_norm = s_trial.doubleContraction(s_trial);
-  s_trial_norm = std::sqrt(s_trial_norm);
+  // Calculate triaxiality for both Kirchhoff and Cauchy stresses
+  // Kirchhoff stress: tau = J * sigma
+  ADReal J = _F[_qp].det();
+  ADRankTwoTensor tau = J * stress;
 
-  _triaxfunc[_qp] = _d1 + _d2 * std::exp(MetaPhysicL::raw_value(_d3 * tm / s_trial_norm));
+  // Triaxiality for Kirchhoff stress: η_tau = τ_m / τ_eq
+  // Mean Kirchhoff stress: τ_m = trace(τ) / 3
+  ADReal tau_mean = tau.trace() / 3.0;
+  // Von Mises equivalent Kirchhoff stress: τ_eq = sqrt(3/2 * s_tau : s_tau)
+  ADRankTwoTensor s_tau = tau.deviatoric();
+  ADReal s_tau_norm_sq = s_tau.doubleContraction(s_tau);
+  if (MooseUtils::absoluteFuzzyEqual(s_tau_norm_sq, 0))
+    s_tau_norm_sq.value() = libMesh::TOLERANCE * libMesh::TOLERANCE;
+  ADReal tau_eq = std::sqrt(1.5 * s_tau_norm_sq);
+  _triaxiality_kirchhoff[_qp] = tau_mean / tau_eq;
+
+  // Triaxiality for Cauchy stress: η_sigma = σ_m / σ_eq
+  // Mean Cauchy stress: σ_m = trace(σ) / 3
+  ADReal sigma_mean = stress.trace() / 3.0;
+  // Von Mises equivalent Cauchy stress: σ_eq = sqrt(3/2 * s_sigma : s_sigma)
+  ADRankTwoTensor s_sigma = stress.deviatoric();
+  ADReal s_sigma_norm_sq = s_sigma.doubleContraction(s_sigma);
+  if (MooseUtils::absoluteFuzzyEqual(s_sigma_norm_sq, 0))
+    s_sigma_norm_sq.value() = libMesh::TOLERANCE * libMesh::TOLERANCE;
+  ADReal sigma_eq = std::sqrt(1.5 * s_sigma_norm_sq);
+  _triaxiality_cauchy[_qp] = sigma_mean / sigma_eq;
+
+  // Johnson-Cook damage function using Cauchy stress triaxiality: f(η) = d1 + d2 * exp(d3 * η)
+  _triaxfunc[_qp] = _d1 + _d2 * std::exp(MetaPhysicL::raw_value(_d3 * _triaxiality_cauchy[_qp]));
 
   // if (_current_elem->id() == 1)
   // {
