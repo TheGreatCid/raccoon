@@ -44,6 +44,7 @@ protected:
   // Bebar state variable
   ADMaterialProperty<RankTwoTensor> & _bebar;
   const MaterialProperty<RankTwoTensor> & _bebar_old;
+  ADMaterialProperty<Real> & _bebar_det;
   // ADMaterialProperty<RankTwoTensor> & _f;
   const ADMaterialProperty<Real> & _G;
   const ADMaterialProperty<Real> & _K;

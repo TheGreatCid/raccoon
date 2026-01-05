@@ -46,6 +46,7 @@ LargeDeformationJ2PlasticityCorrection::LargeDeformationJ2PlasticityCorrection(
     DerivativeMaterialPropertyNameInterface(),
     _bebar(declareADProperty<RankTwoTensor>(prependBaseName("be_bar"))),
     _bebar_old(getMaterialPropertyOldByName<RankTwoTensor>(prependBaseName("be_bar"))),
+    _bebar_det(declareADProperty<Real>(prependBaseName("be_bar_det"))),
     // _f(declareADProperty<RankTwoTensor>(prependBaseName("incremental_deformation_gradient"))),
     _G(getADMaterialPropertyByName<Real>("G")),
     _K(getADMaterialPropertyByName<Real>("K")),
@@ -221,6 +222,9 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
 
   // Johnson-Cook damage function using Cauchy stress triaxiality: f(η) = d1 + d2 * exp(d3 * η)
   _triaxfunc[_qp] = _d1 + _d2 * std::exp(MetaPhysicL::raw_value(_d3 * _triaxiality_cauchy[_qp]));
+
+  // Store determinant of bebar
+  _bebar_det[_qp] = _bebar[_qp].det();
 
   // if (_current_elem->id() == 1)
   // {
