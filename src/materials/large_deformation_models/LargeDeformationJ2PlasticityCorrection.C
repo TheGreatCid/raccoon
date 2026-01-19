@@ -220,8 +220,15 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   ADReal sigma_eq = std::sqrt(1.5 * s_sigma_norm_sq);
   _triaxiality_cauchy[_qp] = sigma_mean / sigma_eq;
 
-  // Johnson-Cook damage function using Cauchy stress triaxiality: f(η) = d1 + d2 * exp(d3 * η)
-  _triaxfunc[_qp] = _d1 + _d2 * std::exp(MetaPhysicL::raw_value(_d3 * _triaxiality_cauchy[_qp]));
+  // Old Johnson-Cook damage function using Cauchy stress triaxiality: f(η) = d1 + d2 * exp(d3 * η)
+  // _triaxfunc[_qp] = _d1 + _d2 * std::exp(MetaPhysicL::raw_value(_d3 * _triaxiality_cauchy[_qp]));
+
+  // Gaussian damage function: f(η) = 1 + exp(-η²/2σ²)
+  // Peak at η=0: f(0) = 2, minimum asymptotic value: f(±∞) = 1
+  // Reaches ~1.1 at η = ±1
+  ADReal eta = _triaxiality_cauchy[_qp];
+  ADReal sigma_sq = 0.1803; // σ² = 0.1803, so σ ≈ 0.4247
+  _triaxfunc[_qp] = 1.0 + std::exp(MetaPhysicL::raw_value(-eta * eta / (2.0 * sigma_sq)));
 
   // Store determinant of bebar
   _bebar_det[_qp] = _bebar[_qp].det();
