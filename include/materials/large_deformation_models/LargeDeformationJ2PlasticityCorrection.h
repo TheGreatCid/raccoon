@@ -64,6 +64,7 @@ protected:
   ADMaterialProperty<Real> & _psie_corr;
   ADMaterialProperty<Real> & _psie_active_corr;
   ADMaterialProperty<Real> & _dpsie_dd_corr;
+  ADMaterialProperty<Real> & _psie_unsplit;
   // @}
   ADMaterialProperty<Real> & _triaxfunc;
   ADMaterialProperty<Real> & _triaxiality_kirchhoff;

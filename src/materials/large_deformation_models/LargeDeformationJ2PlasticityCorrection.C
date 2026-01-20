@@ -63,6 +63,7 @@ LargeDeformationJ2PlasticityCorrection::LargeDeformationJ2PlasticityCorrection(
     _psie_corr(declareADProperty<Real>(_psie_name)),
     _psie_active_corr(declareADProperty<Real>(_psie_name + "_active")),
     _dpsie_dd_corr(declareADProperty<Real>(derivativePropertyName(_psie_name, {_d_name}))),
+    _psie_unsplit(declareADProperty<Real>(_psie_name + "_unsplit")),
     _triaxfunc(declareADProperty<Real>(prependBaseName("triaxfunc"))),
     _triaxiality_kirchhoff(declareADProperty<Real>(prependBaseName("triaxiality_kirchhoff"))),
     _triaxiality_cauchy(declareADProperty<Real>(prependBaseName("triaxiality_cauchy"))),
@@ -315,6 +316,7 @@ LargeDeformationJ2PlasticityCorrection::computeStrainEnergyDensity()
 
   _psie_active_corr[_qp] = E_el_pos;
   _psie_corr[_qp] = _ge[_qp] * E_el_pos + E_el_neg;
+  _psie_unsplit[_qp] = U + W;
 
   _dpsie_dd_corr[_qp] = _dge_dd[_qp] * _psie_active_corr[_qp];
 }
