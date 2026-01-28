@@ -37,6 +37,12 @@ LargeDeformationJ2PlasticityCorrection::validParams()
   params.addParam<Real>("d3", -1.8, "d3 triax");
   params.addRequiredParam<MooseEnum>(
       "element", MooseEnum(QpMapping::ELEMENT_ENUM_DEFINITION), "The element type");
+  params.addParam<bool>("apply_strain_energy_split",
+                        true,
+                        "Whether to apply volumetric/deviatoric split to the active strain "
+                        "energy (psie_active). If true (default), only the positive part of the "
+                        "energy is assigned to psie_active. If false, the full unsplit energy U + "
+                        "W is used for psie_active.");
   return params;
 }
 
@@ -70,7 +76,8 @@ LargeDeformationJ2PlasticityCorrection::LargeDeformationJ2PlasticityCorrection(
     _d1(getParam<Real>("d1")),
     _d2(getParam<Real>("d2")),
     _d3(getParam<Real>("d3")),
-    _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>())
+    _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>()),
+    _apply_strain_energy_split(getParam<bool>("apply_strain_energy_split"))
 {
   _check_range = true;
   if (_recover)
@@ -311,12 +318,18 @@ LargeDeformationJ2PlasticityCorrection::computeStrainEnergyDensity()
   ADReal U = 0.5 * _K[_qp] * (0.5 * (J * J - 1) - std::log(J));
   ADReal W = 0.5 * _G[_qp] * (_bebar[_qp].trace() - 3.0);
 
+  // Compute unsplit total elastic energy
+  _psie_unsplit[_qp] = U + W;
+
+  // Compute split energies
   ADReal E_el_pos = J >= 1.0 ? U + W : W;
   ADReal E_el_neg = J >= 1.0 ? 0.0 : U;
 
-  _psie_active_corr[_qp] = E_el_pos;
+  // Set psie_active based on whether split is applied
+  _psie_active_corr[_qp] = _apply_strain_energy_split ? E_el_pos : _psie_unsplit[_qp];
+
+  // Degraded energy (always uses split for stability)
   _psie_corr[_qp] = _ge[_qp] * E_el_pos + E_el_neg;
-  _psie_unsplit[_qp] = U + W;
 
   _dpsie_dd_corr[_qp] = _dge_dd[_qp] * _psie_active_corr[_qp];
 }

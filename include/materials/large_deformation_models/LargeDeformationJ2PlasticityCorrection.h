@@ -73,6 +73,7 @@ protected:
   const Real _d2;
   const Real _d3;
   QpMapping::Element _element;
+  const bool _apply_strain_energy_split;
 
   unsigned int _qpnum;
 
