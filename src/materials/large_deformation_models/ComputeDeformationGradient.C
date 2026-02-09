@@ -37,6 +37,11 @@ ComputeDeformationGradient::validParams()
       "eigen_deformation_gradient_names", {}, "List of eigen deformation gradients to be applied");
   params.addParam<MaterialPropertyName>("F_store", "F_store");
   params.addParam<bool>("recover", false, "Are you trying to recover");
+  MooseEnum recover_mode("deformation_gradient polar_decomposition", "deformation_gradient");
+  params.addParam<MooseEnum>("recover_mode",
+                             recover_mode,
+                             "Recovery mode: 'deformation_gradient' reads F directly, "
+                             "'polar_decomposition' reads R and U and reconstructs F = R*U");
   params.suppressParameter<bool>("use_displaced_mesh");
   params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
   params.addParam<Real>("num_qps", 8, "Number of QPs");
@@ -77,7 +82,8 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _Frobenius(declareProperty<Real>(prependBaseName("Frobenius_norm"))),
     _Jacobian(declareProperty<Real>(prependBaseName("Jacobian"))),
     _rotation_tensor(declareADProperty<RankTwoTensor>(prependBaseName("rotation_tensor"))),
-    _stretch_tensor(declareADProperty<RankTwoTensor>(prependBaseName("stretch_tensor")))
+    _stretch_tensor(declareADProperty<RankTwoTensor>(prependBaseName("stretch_tensor"))),
+    _recover_from_polar(getParam<MooseEnum>("recover_mode") == "polar_decomposition")
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &Material::getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
@@ -179,16 +185,43 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
       {
         unsigned int qp_sel = QpMapping::getQP(_qp + 1, _lookup);
 
-        // Populate tensor from solution object
-        for (int i_ind = 0; i_ind < 3; i_ind++)
-          for (int j_ind = 0; j_ind < 3; j_ind++)
-          {
-            _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
-                _t,
-                _current_elem->true_centroid(),
-                "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
-                nullptr);
-          }
+        if (_recover_from_polar)
+        {
+          // Recover from rotation and stretch tensors
+          RankTwoTensor R, U;
+          for (int i_ind = 0; i_ind < 3; i_ind++)
+            for (int j_ind = 0; j_ind < 3; j_ind++)
+            {
+              R(i_ind, j_ind) = _solution_object_ptr->pointValue(
+                  _t,
+                  _current_elem->true_centroid(),
+                  "rotation_tensor_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
+                  nullptr);
+              U(i_ind, j_ind) = _solution_object_ptr->pointValue(
+                  _t,
+                  _current_elem->true_centroid(),
+                  "stretch_tensor_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
+                  nullptr);
+            }
+          // Reconstruct F = R * U and convert to AD type
+          RankTwoTensor F_reconstructed = R * U;
+          for (int i_ind = 0; i_ind < 3; i_ind++)
+            for (int j_ind = 0; j_ind < 3; j_ind++)
+              _F_store_noFbar[_qp](i_ind, j_ind) = F_reconstructed(i_ind, j_ind);
+        }
+        else
+        {
+          // Populate tensor from solution object (traditional recovery from F)
+          for (int i_ind = 0; i_ind < 3; i_ind++)
+            for (int j_ind = 0; j_ind < 3; j_ind++)
+            {
+              _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
+                  _t,
+                  _current_elem->true_centroid(),
+                  "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
+                  nullptr);
+            }
+        }
         _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
 
         ave_F_det_init += _F_store_noFbar[_qp].det() * _JxW[_qp] * _coord[_qp];
@@ -214,16 +247,45 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
         unsigned int qp_sel = QpMapping::getQP(_qp + 1, _lookup);
 
         _F_store_noFbar[_qp].setToIdentity();
-        // Populate tensor from solution object
-        for (int i_ind = 0; i_ind < 3; i_ind++)
-          for (int j_ind = 0; j_ind < 3; j_ind++)
-          {
-            _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
-                _t,
-                _current_elem->true_centroid(),
-                "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
-                nullptr);
-          }
+
+        if (_recover_from_polar)
+        {
+          // Recover from rotation and stretch tensors
+          RankTwoTensor R, U;
+          for (int i_ind = 0; i_ind < 3; i_ind++)
+            for (int j_ind = 0; j_ind < 3; j_ind++)
+            {
+              R(i_ind, j_ind) = _solution_object_ptr->pointValue(
+                  _t,
+                  _current_elem->true_centroid(),
+                  "rotation_tensor_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
+                  nullptr);
+              U(i_ind, j_ind) = _solution_object_ptr->pointValue(
+                  _t,
+                  _current_elem->true_centroid(),
+                  "stretch_tensor_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
+                  nullptr);
+            }
+          // Reconstruct F = R * U and convert to AD type
+          RankTwoTensor F_reconstructed = R * U;
+          for (int i_ind = 0; i_ind < 3; i_ind++)
+            for (int j_ind = 0; j_ind < 3; j_ind++)
+              _F_store_noFbar[_qp](i_ind, j_ind) = F_reconstructed(i_ind, j_ind);
+        }
+        else
+        {
+          // Populate tensor from solution object (traditional recovery from F)
+          for (int i_ind = 0; i_ind < 3; i_ind++)
+            for (int j_ind = 0; j_ind < 3; j_ind++)
+            {
+              _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
+                  _t,
+                  _current_elem->true_centroid(),
+                  "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
+                  nullptr);
+            }
+        }
+
         _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
 
         // For getting the old value of F

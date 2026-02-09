@@ -90,6 +90,9 @@ protected:
   ADMaterialProperty<RankTwoTensor> & _rotation_tensor;
   ADMaterialProperty<RankTwoTensor> & _stretch_tensor;
 
+  // Recovery mode flag
+  const bool _recover_from_polar;
+
 private:
   const std::unordered_map<int, int> * _lookup;
 };
