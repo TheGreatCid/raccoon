@@ -87,8 +87,8 @@ protected:
   MaterialProperty<Real> & _Jacobian;
 
   // Polar decomposition output (R and U from F = R*U)
-  MaterialProperty<RankTwoTensor> & _rotation_tensor;
-  MaterialProperty<RankTwoTensor> & _stretch_tensor;
+  ADMaterialProperty<RankTwoTensor> & _rotation_tensor;
+  ADMaterialProperty<RankTwoTensor> & _stretch_tensor;
 
 private:
   const std::unordered_map<int, int> * _lookup;

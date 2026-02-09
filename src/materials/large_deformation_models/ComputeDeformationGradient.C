@@ -76,8 +76,8 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>()),
     _Frobenius(declareProperty<Real>(prependBaseName("Frobenius_norm"))),
     _Jacobian(declareProperty<Real>(prependBaseName("Jacobian"))),
-    _rotation_tensor(declareProperty<RankTwoTensor>(prependBaseName("rotation_tensor"))),
-    _stretch_tensor(declareProperty<RankTwoTensor>(prependBaseName("stretch_tensor")))
+    _rotation_tensor(declareADProperty<RankTwoTensor>(prependBaseName("rotation_tensor"))),
+    _stretch_tensor(declareADProperty<RankTwoTensor>(prependBaseName("stretch_tensor")))
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &Material::getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
