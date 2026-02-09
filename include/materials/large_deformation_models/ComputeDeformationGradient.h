@@ -84,6 +84,11 @@ protected:
 
   unsigned int _qpnum;
   MaterialProperty<Real> & _Frobenius;
+  MaterialProperty<Real> & _Jacobian;
+
+  // Polar decomposition output (R and U from F = R*U)
+  MaterialProperty<RankTwoTensor> & _rotation_tensor;
+  MaterialProperty<RankTwoTensor> & _stretch_tensor;
 
 private:
   const std::unordered_map<int, int> * _lookup;

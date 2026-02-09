@@ -74,7 +74,10 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _solution_object_ptr(NULL),
     _F_recover(adCoupledValues("F_ext_rec")),
     _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>()),
-    _Frobenius(declareProperty<Real>(prependBaseName("Frobenius_norm")))
+    _Frobenius(declareProperty<Real>(prependBaseName("Frobenius_norm"))),
+    _Jacobian(declareProperty<Real>(prependBaseName("Jacobian"))),
+    _rotation_tensor(declareProperty<RankTwoTensor>(prependBaseName("rotation_tensor"))),
+    _stretch_tensor(declareProperty<RankTwoTensor>(prependBaseName("stretch_tensor")))
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &Material::getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
@@ -276,6 +279,10 @@ ComputeDeformationGradient::computeProperties()
     ADRankTwoTensor temp = _F[_qp];
     temp.addIa(-1);
     _Frobenius[_qp] = MetaPhysicL::raw_value(temp).norm();
+
+    // Outputting the Jacobian (determinant of F) for post processing reasons
+    _Jacobian[_qp] = MetaPhysicL::raw_value(_F[_qp].det());
+
     // Add in recovered F
     if (_recover == true)
       _Fnobar[_qp] = _F[_qp] * _F_store_noFbar[_qp];
@@ -304,5 +311,19 @@ ComputeDeformationGradient::computeProperties()
     for (auto Fgi : _Fgs)
       Fg *= (*Fgi)[_qp];
     _Fm[_qp] = Fg.inverse() * _F[_qp];
+
+    // Compute polar decomposition of non-volume corrected F
+    // Convert ADRankTwoTensor to RankTwoTensor for polar decomposition
+    RankTwoTensor Fnobar_real = MetaPhysicL::raw_value(_Fnobar[_qp]);
+    RankTwoTensor R, U;
+
+    // Compute rotation tensor R from F = R*U decomposition
+    Fnobar_real.getRUDecompositionRotation(R);
+
+    // Compute right stretch tensor U = R^T * F
+    U = R.transpose() * Fnobar_real;
+
+    _rotation_tensor[_qp] = R;
+    _stretch_tensor[_qp] = U;
   }
 }
