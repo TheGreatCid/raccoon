@@ -8,6 +8,9 @@
         },
         {
             "path": "../genprojects"
+        },
+        {
+            "path": "../inputfiles"
         }
     ],
     "settings": {
