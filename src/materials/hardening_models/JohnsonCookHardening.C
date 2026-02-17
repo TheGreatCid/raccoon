@@ -78,7 +78,8 @@ JohnsonCookHardening::JohnsonCookHardening(const InputParameters & parameters)
 ADReal // Temperature degradation
 JohnsonCookHardening::temperatureDependence()
 {
-  return 1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m);
+  using std::pow;
+  return 1 - pow((_T[_qp] - _T0) / (_Tm - _T0), _m);
 }
 
 ADReal
@@ -177,6 +178,6 @@ JohnsonCookHardening::thermalConjugate(const ADReal & ep)
   if (_disable_dissipation)
     return ADReal(0);
   return _gp[_qp] * _T[_qp] * (1 - _tqf) * _sigma_0[_qp] *
-         (_A[_qp] + _B * std::pow(ep / _ep0, _n)) *
-         (_m * (std::pow((_T0 - _T[_qp]) / (_T0 - _Tm), _m))) / (_T0 - _T[_qp]);
+         (_A[_qp] + _B * pow(ep / _ep0, _n)) *
+         (_m * (pow((_T0 - _T[_qp]) / (_T0 - _Tm), _m))) / (_T0 - _T[_qp]);
 }

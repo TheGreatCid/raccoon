@@ -68,6 +68,9 @@ ADRankTwoTensor
 CustomElasticity::computeMandelStressNoDecomposition(const ADRankTwoTensor & Fe,
                                                      const bool plasticity_update)
 {
+  using std::sqrt;
+  using std::log;
+  using std::pow;
   // We use the left Cauchy-Green strain
   ADRankTwoTensor strain;
   if (plasticity_update)
@@ -78,7 +81,7 @@ CustomElasticity::computeMandelStressNoDecomposition(const ADRankTwoTensor & Fe,
   else
     strain = Fe * Fe.transpose();
 
-  ADReal J = std::sqrt(strain.det());
+  ADReal J = sqrt(strain.det());
 
   const ADRankTwoTensor I2(ADRankTwoTensor::initIdentity);
   // ADRankTwoTensor stress_intact =
@@ -100,9 +103,9 @@ CustomElasticity::computeMandelStressNoDecomposition(const ADRankTwoTensor & Fe,
   {
     // Compute the strain energy density
     ADRankTwoTensor C = Fe.transpose() * Fe;
-    ADReal J = std::sqrt(C.det());
+    ADReal J = sqrt(C.det());
     ADReal lambda = _K[_qp] - (2.0 / 3.0) * _G[_qp];
-    ADReal W_vol = -_G[_qp] * std::log(J) + 0.5 * lambda * std::pow((J - 1), 2);
+    ADReal W_vol = -_G[_qp] * log(J) + 0.5 * lambda * pow((J - 1), 2);
     ADReal I1 = C.trace(); // First invariant of C
     ADReal W_dev = 0.5 * _G[_qp] * (I1 - 3.0);
     _psie_active[_qp] = W_vol + W_dev;
@@ -120,7 +123,7 @@ CustomElasticity::computeMandelStressNoDecomposition(const ADRankTwoTensor & Fe,
 
 //   // We use the right Cauchy-Green strain
 
-//   ADReal J = std::sqrt(strain.det());
+//   ADReal J = sqrt(strain.det());
 
 //   // Compute the first Piola-Kirchoff Stress
 //   ADRankTwoTensor Fe_invT = Fe.inverse().transpose();

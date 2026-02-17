@@ -127,6 +127,10 @@ void
 LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
                                                     ADRankTwoTensor & /*Fe*/)
 {
+  using std::cbrt;
+  using std::sqrt;
+  using std::log;
+  using std::exp;
   ADRankTwoTensor I2;
   I2.setToIdentity();
   if (_recover && MetaPhysicL::raw_value(_ep[_qp]) < 0)
@@ -140,7 +144,7 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   ADRankTwoTensor f = _F[_qp] * _F_old[_qp].inverse();
 
   // Compute fbar
-  ADRankTwoTensor fbar = f / std::cbrt(f.det());
+  ADRankTwoTensor fbar = f / cbrt(f.det());
 
   // Not sure if this actually helps
   if (_t_step > 0 || _recover == false)
@@ -155,10 +159,10 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
     s_trial_norm.value() = libMesh::TOLERANCE * libMesh::TOLERANCE;
 
   // Norm of trial stress
-  s_trial_norm = std::sqrt(s_trial_norm);
+  s_trial_norm = sqrt(s_trial_norm);
 
   // Check for plastic loading
-  _Np[_qp] = std::sqrt(1.5) * s_trial / s_trial_norm;
+  _Np[_qp] = sqrt(1.5) * s_trial / s_trial_norm;
 
   // Return mapping
   ADReal phi = computeResidual(s_trial_norm, delta_ep);
@@ -214,7 +218,7 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   ADReal s_tau_norm_sq = s_tau.doubleContraction(s_tau);
   if (MooseUtils::absoluteFuzzyEqual(s_tau_norm_sq, 0))
     s_tau_norm_sq.value() = libMesh::TOLERANCE * libMesh::TOLERANCE;
-  ADReal tau_eq = std::sqrt(1.5 * s_tau_norm_sq);
+  ADReal tau_eq = sqrt(1.5 * s_tau_norm_sq);
   _triaxiality_kirchhoff[_qp] = tau_mean / tau_eq;
 
   // Triaxiality for Cauchy stress: η_sigma = σ_m / σ_eq
@@ -225,7 +229,7 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   ADReal s_sigma_norm_sq = s_sigma.doubleContraction(s_sigma);
   if (MooseUtils::absoluteFuzzyEqual(s_sigma_norm_sq, 0))
     s_sigma_norm_sq.value() = libMesh::TOLERANCE * libMesh::TOLERANCE;
-  ADReal sigma_eq = std::sqrt(1.5 * s_sigma_norm_sq);
+  ADReal sigma_eq = sqrt(1.5 * s_sigma_norm_sq);
   _triaxiality_cauchy[_qp] = sigma_mean / sigma_eq;
 
   // Old Johnson-Cook damage function using Cauchy stress triaxiality: f(η) = d1 + d2 * exp(d3 * η)
@@ -286,6 +290,8 @@ LargeDeformationJ2PlasticityCorrection::computeDerivative(const ADReal & /*effec
 void
 LargeDeformationJ2PlasticityCorrection::computeCorrectionTerm(const ADRankTwoTensor & devbebar)
 {
+  using std::cbrt;
+  using std::sqrt;
 
   // Identity tensor
   ADRankTwoTensor I2(RankTwoTensorTempl<ADReal>::initIdentity);
@@ -301,21 +307,22 @@ LargeDeformationJ2PlasticityCorrection::computeCorrectionTerm(const ADRankTwoTen
   ADReal B = a * b + a * c + b * c - d * d - e * e - h * h;
   ADReal C = a * b * c + 2.0 * d * e * h - a * d * d - b * e * e - c * h * h - 1.0;
 
-  ADReal D = std::cbrt(-2 * A * A * A +
-                       3 * std::sqrt(3) *
-                           std::sqrt(4 * A * A * A * C - A * A * B * B - 18 * A * B * C +
-                                     4 * B * B * B + 27 * C * C) +
-                       9 * A * B - 27 * C);
+  ADReal D = cbrt(-2 * A * A * A +
+                  3 * sqrt(3) *
+                      sqrt(4 * A * A * A * C - A * A * B * B - 18 * A * B * C +
+                           4 * B * B * B + 27 * C * C) +
+                  9 * A * B - 27 * C);
 
-  ADReal Ie_bar = D / 3 / std::cbrt(2) - std::cbrt(2) * (3 * B - A * A) / 3 / D - A / 3;
+  ADReal Ie_bar = D / 3 / cbrt(2) - cbrt(2) * (3 * B - A * A) / 3 / D - A / 3;
   _bebar[_qp] = devbebar + Ie_bar * I2;
 }
 
 void
 LargeDeformationJ2PlasticityCorrection::computeStrainEnergyDensity()
 {
+  using std::log;
   ADReal J = _F[_qp].det();
-  ADReal U = 0.5 * _K[_qp] * (0.5 * (J * J - 1) - std::log(J));
+  ADReal U = 0.5 * _K[_qp] * (0.5 * (J * J - 1) - log(J));
   ADReal W = 0.5 * _G[_qp] * (_bebar[_qp].trace() - 3.0);
 
   // Compute unsplit total elastic energy

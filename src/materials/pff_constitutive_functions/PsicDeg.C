@@ -52,6 +52,8 @@ PsicDeg::initialGuess(const ADReal & effective_trial_stress)
 ADReal
 PsicDeg::elasticEnergy(const ADReal & ep, const unsigned int derivative)
 {
+  using std::atan;
+  using std::pow;
 
   ADReal result = 0;
   ADReal coef = _Gc[_qp] / _c0[_qp] / _l[_qp];
@@ -61,28 +63,28 @@ PsicDeg::elasticEnergy(const ADReal & ep, const unsigned int derivative)
 
   ADReal dg1 = 1;
   ADReal dg2 = 2;
-  ADReal dg = _psic_orig * ((_A * std::atan(_B * ep - _C) + _D));
+  ADReal dg = _psic_orig * ((_A * atan(_B * ep - _C) + _D));
   if (derivative == 1 || derivative == 2)
   {
-    dg1 = _psic_orig * (_A * _B) / (std::pow(_C - _B * ep, 2) + 1);
+    dg1 = _psic_orig * (_A * _B) / (pow(_C - _B * ep, 2) + 1);
   }
   if (derivative == 2)
   {
     dg2 = _psic_orig * (2 * _A * _B * _B * (_C - _B * ep)) /
-          std::pow(std::pow(_C - _B * ep, 2) + 1, 2);
+          pow(pow(_C - _B * ep, 2) + 1, 2);
     // std::cout << "dg2 " << MetaPhysicL::raw_value(_C - _B * ep) << std::endl;
   }
   if (derivative == 1)
   {
 
-    result = -(coef * (1 - d) * d * (_eta - 1) * dg1) / std::pow((coef * d - d * dg + dg), 2);
+    result = -(coef * (1 - d) * d * (_eta - 1) * dg1) / pow((coef * d - d * dg + dg), 2);
   }
   if (derivative == 2)
   {
 
     result = (coef * (d - 1) * d * (_eta - 1) *
               (coef * d * dg2 + (d - 1) * (2 * dg1 * dg1 - dg * dg2))) /
-             std::pow(coef * d - (d - 1) * dg, 3);
+             pow(coef * d - (d - 1) * dg, 3);
   }
   return result * _psie_active[_qp];
 }

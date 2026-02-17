@@ -68,17 +68,20 @@ JCDOT::JCDOT(const InputParameters & parameters)
 ADReal // Temperature degradation
 JCDOT::temperatureDependence()
 {
-  return 1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m);
+  using std::pow;
+  return 1 - pow((_T[_qp] - _T0) / (_Tm - _T0), _m);
 }
 
 ADReal
 JCDOT::initialGuess(const ADReal & effective_trial_stress)
 {
+  using std::max;
+  using std::pow;
   ADReal trial_over_stress =
       effective_trial_stress / _sigma_0[_qp] / temperatureDependence() - _A[_qp];
   if (trial_over_stress < 0)
     trial_over_stress = 0;
-  return std::max(_ep0 * std::pow(trial_over_stress / _B, 1 / _n),
+  return max(_ep0 * pow(trial_over_stress / _B, 1 / _n),
                   libMesh::TOLERANCE * libMesh::TOLERANCE);
 }
 
@@ -104,15 +107,17 @@ JCDOT::plasticEnergy(const ADReal & ep, const unsigned int derivative)
 ADReal
 JCDOT::plasticDissipation(const ADReal & delta_ep, const ADReal & ep, const unsigned int derivative)
 {
+  using std::pow;
+  using std::log;
   ADReal result = 0;
 
   if (derivative == 0)
   {
-    result += (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * (1 - _C);
+    result += (_A[_qp] + _B * pow(ep / _ep0, _n)) * (1 - _C);
     if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
     {
       result +=
-          (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * (_C * std::log(delta_ep / _dt / _epdot0));
+          (_A[_qp] + _B * pow(ep / _ep0, _n)) * (_C * log(delta_ep / _dt / _epdot0));
     }
 
     result *= delta_ep;
@@ -122,19 +127,19 @@ JCDOT::plasticDissipation(const ADReal & delta_ep, const ADReal & ep, const unsi
 
   if (derivative == 1)
   {
-    result += (_A[_qp] + _B * std::pow(ep / _ep0, _n));
+    result += (_A[_qp] + _B * pow(ep / _ep0, _n));
     if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
       result +=
-          (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * (_C * std::log(delta_ep / _dt / _epdot0));
+          (_A[_qp] + _B * pow(ep / _ep0, _n)) * (_C * log(delta_ep / _dt / _epdot0));
   }
 
   if (derivative == 2)
   {
-    result += (_n * _B * std::pow(ep / _ep0, _n - 1)) / _ep0;
+    result += (_n * _B * pow(ep / _ep0, _n - 1)) / _ep0;
     if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
-      result += (_C / delta_ep) * (_A[_qp] + _B * std::pow(ep / _ep0, _n)) +
-                (_n * _B * std::pow(ep / _ep0, _n - 1)) *
-                    (_C * std::log(delta_ep / _dt / _epdot0)) / _ep0;
+      result += (_C / delta_ep) * (_A[_qp] + _B * pow(ep / _ep0, _n)) +
+                (_n * _B * pow(ep / _ep0, _n - 1)) *
+                    (_C * log(delta_ep / _dt / _epdot0)) / _ep0;
   }
 
   return _gp[_qp] * result * _sigma_0[_qp] * temperatureDependence();

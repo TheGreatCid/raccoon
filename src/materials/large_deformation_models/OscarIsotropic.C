@@ -72,6 +72,8 @@ ADRankTwoTensor
 OscarIsotropic::computeMandelStressNoDecomposition(const ADRankTwoTensor & Fe,
                                                    const bool plasticity_update)
 {
+  using std::sqrt;
+  using std::pow;
   // We use the left Cauchy-Green strain
   ADRankTwoTensor strain;
   if (plasticity_update)
@@ -86,11 +88,11 @@ OscarIsotropic::computeMandelStressNoDecomposition(const ADRankTwoTensor & Fe,
   else
     strain = Fe * Fe.transpose();
 
-  ADReal J = std::sqrt(strain.det());
+  ADReal J = sqrt(strain.det());
   const ADRankTwoTensor I2(ADRankTwoTensor::initIdentity);
 
   ADRankTwoTensor stress_intact =
-      -std::pow(3, 1 - _alpha) * _G[_qp] * std::pow((strain.inverse()).trace(), _alpha - 1) *
+      -pow(3, 1 - _alpha) * _G[_qp] * pow((strain.inverse()).trace(), _alpha - 1) *
           strain.inverse() +
       ((_K[_qp] - 2 / 3 * _alpha * _G[_qp]) * J * (J - 1) + _G[_qp]) * I2;
 

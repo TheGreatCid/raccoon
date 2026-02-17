@@ -90,6 +90,7 @@ ComputePlaneDeformationGradient::initialSetup()
 void
 ComputePlaneDeformationGradient::initStatefulProperties(unsigned int n_points)
 {
+  using std::cbrt;
 
   for (_qp = 0; _qp < n_points; ++_qp)
   {
@@ -157,7 +158,7 @@ ComputePlaneDeformationGradient::initStatefulProperties(unsigned int n_points)
       for (_qp = 0; _qp < n_points; ++_qp)
       // Store value
       {
-        _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / _F_store_noFbar[_qp].det());
+        _F_store_Fbar[_qp] *= cbrt(ave_F_det_init / _F_store_noFbar[_qp].det());
         // For getting the old value of F
         _F[_qp] = _F_store_noFbar[_qp];
       }
@@ -231,6 +232,7 @@ ComputePlaneDeformationGradient::computeQpOutOfPlaneGradDisp()
 void
 ComputePlaneDeformationGradient::computeProperties()
 {
+  using std::cbrt;
   ADReal ave_F_det = 0;
 
   for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
@@ -264,7 +266,7 @@ ComputePlaneDeformationGradient::computeProperties()
   for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
   {
     if (_volumetric_locking_correction)
-      _F[_qp] *= std::cbrt(ave_F_det / _F[_qp].det());
+      _F[_qp] *= cbrt(ave_F_det / _F[_qp].det());
     // Multiply in old deformation
     if (_recover == true)
       _F[_qp] = _F[_qp] * _F_store_Fbar[_qp];

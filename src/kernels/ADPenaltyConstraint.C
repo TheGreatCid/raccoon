@@ -112,9 +112,10 @@ ADPenaltyConstraint::ADPenaltyConstraint(const InputParameters & parameters)
 ADReal
 ADPenaltyConstraint::smoothHeaviside(const ADReal x, const Real width) const
 {
+  using std::tanh;
   // Smooth approximation: H(x) ≈ 0.5 * (1 + tanh(x/width))
   // Continuous and differentiable, transitions over ~4*width
-  return 0.5 * (1.0 + std::tanh(x / width));
+  return 0.5 * (1.0 + tanh(x / width));
 }
 
 ADReal
@@ -122,11 +123,14 @@ ADPenaltyConstraint::smoothMacaulay(const ADReal x, const Real eps) const
 {
   if (_smoothing_type == "SQRT")
   {
+    using std::sqrt;
     // Original: f(x) = 0.5 * (sqrt(x² + ε²) + x)
-    return 0.5 * (std::sqrt(x * x + eps * eps) + x);
+    return 0.5 * (sqrt(x * x + eps * eps) + x);
   }
   else if (_smoothing_type == "EXPONENTIAL")
   {
+    using std::exp;
+    using std::log;
     // Exponential smoothing: f(x) = x + ε*ln(1 + exp(-x/ε))
     // Much better conditioned than SQRT, smoother derivatives
     // For large |x/ε|, approaches max(0,x) exponentially fast
@@ -136,7 +140,7 @@ ADPenaltyConstraint::smoothMacaulay(const ADReal x, const Real eps) const
     else if (MetaPhysicL::raw_value(z) < -20.0) // x very positive: exp(z) ≈ 0
       return x; // Asymptotic: x + ε*ln(1) = x
     else
-      return x + eps * std::log(1.0 + std::exp(z));
+      return x + eps * log(1.0 + exp(z));
   }
   else // POLYNOMIAL
   {

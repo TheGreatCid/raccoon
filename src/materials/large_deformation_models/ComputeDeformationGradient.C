@@ -234,7 +234,7 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
       for (_qp = 0; _qp < n_points; ++_qp)
       // Store value
       {
-        _F_store_Fbar[_qp] *= std::cbrt(ave_F_det_init / _F_store_noFbar[_qp].det());
+        _F_store_Fbar[_qp] *= cbrt(ave_F_det_init / _F_store_noFbar[_qp].det());
         // For getting the old value of F
         _F[_qp] = _F_store_noFbar[_qp];
       }

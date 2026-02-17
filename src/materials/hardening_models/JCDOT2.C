@@ -94,27 +94,35 @@ JCDOT2::JCDOT2(const InputParameters & parameters)
 ADReal // Temperature degradation
 JCDOT2::temperatureDependence()
 {
+  using std::pow;
   return 1 - std::pow((_T[_qp] - _T0) / (_Tm - _T0), _m);
 }
 
 ADReal
 JCDOT2::initialGuess(const ADReal & effective_trial_stress)
 {
+  using std::log;
+  using std::max;
+  using std::pow;
+
   ADReal trial_over_stress =
       effective_trial_stress / _sigma_0[_qp] / temperatureDependence() - _A[_qp];
   if (trial_over_stress < 0)
     trial_over_stress = 0;
-  return std::max(_ep0 * std::pow(trial_over_stress / _B, 1 / _n),
+  return max(_ep0 * pow(trial_over_stress / _B, 1 / _n),
                   libMesh::TOLERANCE * libMesh::TOLERANCE);
 }
 
 ADReal
 JCDOT2::plasticEnergy(const ADReal & ep, const unsigned int derivative)
 {
+  using std::log;
+  using std::pow;
+
   if (derivative == 0)
   {
     _psip_active[_qp] = (1 - _tqf) * _sigma_0[_qp] *
-                        (_A[_qp] * ep + _B * _ep0 * std::pow(ep / _ep0, _n + 1) / (_n + 1)) *
+                        (_A[_qp] * ep + _B * _ep0 * pow(ep / _ep0, _n + 1) / (_n + 1)) *
                         temperatureDependence();
     _psip[_qp] = _gp[_qp] * _psip_active[_qp];
     _dpsip_dd[_qp] = _dgp_dd[_qp] * _psip_active[_qp];
@@ -123,12 +131,12 @@ JCDOT2::plasticEnergy(const ADReal & ep, const unsigned int derivative)
 
   if (derivative == 1)
   {
-    return _gp[_qp] * (1 - _tqf) * _sigma_0[_qp] * (_A[_qp] + _B * std::pow(ep / _ep0, _n)) *
+    return _gp[_qp] * (1 - _tqf) * _sigma_0[_qp] * (_A[_qp] + _B * pow(ep / _ep0, _n)) *
            temperatureDependence();
   }
   if (derivative == 2)
   {
-    return _gp[_qp] * (1 - _tqf) * _sigma_0[_qp] * _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 *
+    return _gp[_qp] * (1 - _tqf) * _sigma_0[_qp] * _B * pow(ep / _ep0, _n - 1) * _n / _ep0 *
            temperatureDependence();
   }
   mooseError(name(), "internal error: unsupported derivative order.");
@@ -139,15 +147,17 @@ JCDOT2::plasticDissipation(const ADReal & delta_ep,
                            const ADReal & ep,
                            const unsigned int derivative)
 {
+  using std::log;
+  using std::pow;
   ADReal result = 0;
 
   if (derivative == 0)
   {
-    result += (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * _tqf * delta_ep;
+    result += (_A[_qp] + _B * pow(ep / _ep0, _n)) * _tqf * delta_ep;
     if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
     {
-      result += (_A[_qp] + _B * std::pow(ep / _ep0, _n)) *
-                (_C * std::log(delta_ep / _dt / _epdot0) - _C) * delta_ep;
+      result += (_A[_qp] + _B * pow(ep / _ep0, _n)) *
+                (_C * log(delta_ep / _dt / _epdot0) - _C) * delta_ep;
     }
 
     _psip_active_vis[_qp] = result / _dt;
@@ -157,19 +167,19 @@ JCDOT2::plasticDissipation(const ADReal & delta_ep,
 
   if (derivative == 1)
   {
-    result += (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * _tqf;
+    result += (_A[_qp] + _B * pow(ep / _ep0, _n)) * _tqf;
     if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
       result +=
-          (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * (_C * std::log(delta_ep / _dt / _epdot0));
+          (_A[_qp] + _B * pow(ep / _ep0, _n)) * (_C * log(delta_ep / _dt / _epdot0));
   }
 
   if (derivative == 2)
   {
-    result += _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 * _tqf;
+    result += _B * pow(ep / _ep0, _n - 1) * _n / _ep0 * _tqf;
     if (_t_step > 0 && delta_ep > libMesh::TOLERANCE * libMesh::TOLERANCE)
       result +=
-          (_A[_qp] + _B * std::pow(ep / _ep0, _n)) * _C / delta_ep +
-          _B * std::pow(ep / _ep0, _n - 1) * _n / _ep0 * _C * std::log(delta_ep / _dt / _epdot0);
+          (_A[_qp] + _B * pow(ep / _ep0, _n)) * _C / delta_ep +
+          _B * pow(ep / _ep0, _n - 1) * _n / _ep0 * _C * log(delta_ep / _dt / _epdot0);
   }
 
   return _gp_ddot[_qp] * result * _sigma_0[_qp] * temperatureDependence();
@@ -180,8 +190,8 @@ JCDOT2::plasticDissipation(const ADReal & delta_ep,
 ADReal // Thermal conjugate term
 JCDOT2::thermalConjugate(const ADReal & ep)
 {
-
+  using std::pow;
   return _gp[_qp] * _T[_qp] * (1 - _tqf) * _sigma_0[_qp] *
-         (_A[_qp] + _B * std::pow(ep / _ep0, _n)) *
-         (_m * (std::pow((_T0 - _T[_qp]) / (_T0 - _Tm), _m))) / (_T0 - _T[_qp]);
+         (_A[_qp] + _B * pow(ep / _ep0, _n)) *
+         (_m * (pow((_T0 - _T[_qp]) / (_T0 - _Tm), _m))) / (_T0 - _T[_qp]);
 }
