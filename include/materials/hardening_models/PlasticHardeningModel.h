@@ -52,6 +52,28 @@ public:
    */
   virtual ADReal thermalConjugate(const ADReal & /*ep*/) { return 0; }
 
+  /**
+   * Set a local temperature override for use during a coupled thermo-plastic local Newton solve.
+   * Subclasses that support temperature coupling should override these.
+   */
+  virtual void setLocalTemperature(Real /*T*/) {}
+  virtual void clearLocalTemperature() {}
+
+  /// Return the lagged (old) temperature at the active quadrature point.
+  virtual Real getQpTemperatureOld() const { return 0.0; }
+
+  /// Log-derivative of the temperature dependence function: xi = d(TD)/dT / TD.
+  /// Used for the analytic Jacobian of the coupled thermo-plastic local Newton.
+  virtual Real temperatureDependenceLogDerivative(Real /*T*/) { return 0.0; }
+
+  /// d(TC)/dT where TC = thermalConjugate(ep), evaluated at the current local temperature.
+  /// Used for J[1][1] in the coupled thermo-plastic local Newton.
+  virtual Real thermalConjugateTemperatureDerivative(Real /*ep*/) { return 0.0; }
+
+  /// dep * partial(plasticDissipation(dep,ep,1))/partial(dep) — rate-dependent contribution
+  /// for J[1][0] in the coupled thermo-plastic local Newton.
+  virtual Real dissipationFlowStressRateJacobian(Real /*dep*/, Real /*ep*/) { return 0.0; }
+
   // @{ Retained as empty methods to avoid a warning from Material.C in framework. These methods are
   // unused in all inheriting classes and should not be overwritten.
   void resetQpProperties() final {}

@@ -22,6 +22,18 @@ public:
                                     const unsigned int derivative) override;
   virtual ADReal thermalConjugate(const ADReal & ep) override;
 
+  virtual void setLocalTemperature(Real T) override
+  {
+    _T_local = T;
+    _use_local_T = true;
+  }
+  virtual void clearLocalTemperature() override { _use_local_T = false; }
+  virtual Real getQpTemperatureOld() const override { return _T[_qp]; }
+
+  virtual Real temperatureDependenceLogDerivative(Real T) override;
+  virtual Real thermalConjugateTemperatureDerivative(Real ep) override;
+  virtual Real dissipationFlowStressRateJacobian(Real dep, Real ep) override;
+
 protected:
   // @{ The plastic energy parameters
   const ADMaterialProperty<Real> & _sigma_0;
@@ -58,6 +70,11 @@ protected:
   /// Option to remove dissipation contributions
   const bool _disable_dissipation;
 
+  /// Local temperature override for coupled thermo-plastic Newton solve
+  Real _T_local;
+  bool _use_local_T;
+
 private:
   ADReal temperatureDependence();
+  Real getQpT() const { return _use_local_T ? _T_local : _T[_qp]; }
 };

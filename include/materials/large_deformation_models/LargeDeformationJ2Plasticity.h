@@ -36,4 +36,11 @@ protected:
   ADMaterialProperty<Real> & _phi;
   ADMaterialProperty<Real> & _flowstress;
   ADMaterialProperty<Real> & _visflowstress;
+
+  /// When true, solve for (delta_ep, delta_T) together in a local 2x2 Newton
+  const bool _coupled_temp_solve;
+  /// Mass density material property (used when coupled_temp_solve = true)
+  const ADMaterialProperty<Real> * _rho;
+  /// Specific heat capacity c_v [J/(kg·K)] (used when coupled_temp_solve = true)
+  const Real _cv;
 };
