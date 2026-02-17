@@ -1,11 +1,13 @@
-//* This file is part of the RACCOON application
-//* being developed at Dolbow lab at Duke University
-//* http://dolbow.pratt.duke.edu
+// JohnsonCookHardening.h
+// This file is part of the RACCOON application
+// being developed at Dolbow lab at Duke University
+// http://dolbow.pratt.duke.edu
 
 #pragma once
 
 #include "PlasticHardeningModel.h"
 #include "DerivativeMaterialPropertyNameInterface.h"
+#include <vector>
 
 class JohnsonCookHardening : public PlasticHardeningModel,
                              public DerivativeMaterialPropertyNameInterface
@@ -22,14 +24,14 @@ public:
                                     const unsigned int derivative) override;
   virtual ADReal thermalConjugate(const ADReal & ep) override;
 
-  virtual void setLocalTemperature(Real T) override
-  {
-    _T_local = T;
-    _use_local_T = true;
-  }
-  virtual void clearLocalTemperature() override { _use_local_T = false; }
-  virtual Real getQpTemperatureOld() const override { return _T[_qp]; }
+  // Set a per-QP local temperature (used inside a local Newton for this qp)
+  virtual void setLocalTemperature(Real T) override;
+  virtual void clearLocalTemperature() override;
 
+  // Return the OLD timestep temperature at this QP (previous step)
+  virtual Real getQpTemperatureOld() const override;
+
+  // Aux helpers used by the plasticity material
   virtual Real temperatureDependenceLogDerivative(Real T) override;
   virtual Real thermalConjugateTemperatureDerivative(Real ep) override;
   virtual Real dissipationFlowStressRateJacobian(Real dep, Real ep) override;
@@ -42,8 +44,10 @@ protected:
   const Real _ep0;
   const Real _epdot0;
   const Real _T0;
-  // const ADVariableValue & _T;
+  // Current iterative temperature (array per-qp)
   const VariableValue & _T;
+  // Old timestep temperature (array per-qp)
+  const VariableValue & _T_old;
   const Real _tqf;
   const ADMaterialProperty<Real> & _A;
   const Real _B;
@@ -70,11 +74,14 @@ protected:
   /// Option to remove dissipation contributions
   const bool _disable_dissipation;
 
-  /// Local temperature override for coupled thermo-plastic Newton solve
-  Real _T_local;
-  bool _use_local_T;
+  /// Per-QP local temperature override for coupled thermo-plastic Newton solve
+  /// Indexed by _qp in per-QP calls to setLocalTemperature/clearLocalTemperature/getQpT.
+  std::vector<Real> _T_local;
+  std::vector<char> _use_local_T;
 
 private:
   ADReal temperatureDependence();
-  Real getQpT() const { return _use_local_T ? _T_local : _T[_qp]; }
+
+  // Return the temperature to use in calls: either per-QP override, or current iterative T.
+  Real getQpT() const;
 };

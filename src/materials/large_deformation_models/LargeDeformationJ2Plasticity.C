@@ -78,8 +78,6 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   stress_dev_norm = sqrt(1.5 * stress_dev_norm);
   _Np[_qp] = 1.5 * stress_dev / stress_dev_norm;
 
-  if (_t_step == 4)
-    std::cout << MetaPhysicL::raw_value(stress_dev_norm) << " " << delta_ep << std::endl;
   _phi[_qp] = computeResidual(stress_dev_norm, delta_ep);
 
   if (_coupled_temp_solve)
@@ -94,7 +92,15 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
       const Real eff_trial = MetaPhysicL::raw_value(stress_dev_norm);
       const Real R1_ref = std::max(eff_trial, 1.0);
 
-      Real dep = MetaPhysicL::raw_value(_hardening_model->initialGuess(stress_dev_norm));
+      // Evaluate initial guess using the old timestep temperature (safer starting point)
+      _hardening_model->setLocalTemperature(T_old);
+      Real dep_raw = MetaPhysicL::raw_value(_hardening_model->initialGuess(stress_dev_norm));
+      _hardening_model->clearLocalTemperature();
+
+      // Clamp the scalar initial guess to a sensible value (debug / safety; tune as needed)
+      const Real dep_max = 1.0; // absolute max plastic strain increment allowed as an initial guess
+      const Real dep_safe_init = std::max(std::min(dep_raw, dep_max), 1e-12);
+      Real dep = dep_safe_init;
       Real dT = 0.0;
 
       // Evaluates both residuals at a given (dep, dT), injecting the temperature into the
@@ -119,12 +125,10 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
         const Real elas_corr = MetaPhysicL::raw_value(
             _elasticity_model->computeMandelStress(dep_safe * _Np[_qp], /*plasticity_update=*/true)
                 .doubleContraction(_Np[_qp]));
-        const Real Y =
-            MetaPhysicL::raw_value(_hardening_model->plasticEnergy(ADReal(ep), 1));
+        const Real Y = MetaPhysicL::raw_value(_hardening_model->plasticEnergy(ADReal(ep), 1));
         const Real W_d = MetaPhysicL::raw_value(
             _hardening_model->plasticDissipation(ADReal(dep_safe), ADReal(ep), 1));
-        const Real TC =
-            MetaPhysicL::raw_value(_hardening_model->thermalConjugate(ADReal(ep)));
+        const Real TC = MetaPhysicL::raw_value(_hardening_model->thermalConjugate(ADReal(ep)));
 
         R1 = eff_trial - elas_corr - Y - W_d;
         R2 = rho_cv * dT_in - (W_d + TC) * dep_safe;
@@ -162,8 +166,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
         // Analytic Jacobian
         // evalR left the local temperature set to T_old+dT; reuse that state.
         const Real dep_safe_j = (dep <= 0.0) ? 1e-20 : dep;
-        const Real ep_j =
-            std::max(MetaPhysicL::raw_value(_ep_old[_qp]) + dep_safe_j, 1e-20);
+        const Real ep_j = std::max(MetaPhysicL::raw_value(_ep_old[_qp]) + dep_safe_j, 1e-20);
         const Real T_curr = T_old + dT;
         // xi = d(TD)/dT / TD; used for dY/dT = Y*xi and dW_d/dT = W_d*xi
         const Real xi = _hardening_model->temperatureDependenceLogDerivative(T_curr);
@@ -182,32 +185,70 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
 
         const Real det = J00 * J11 - J01 * J10;
         if (std::abs(det) < 1e-30 * std::max(std::abs(J00 * J11), 1.0))
-          mooseError(name(),
-                     ": singular local Jacobian in coupled thermo-plastic solve at qp ",
-                     _qp);
+          mooseError(
+              name(), ": singular local Jacobian in coupled thermo-plastic solve at qp ", _qp);
 
         // Newton update: dx = -J^{-1} * R
-        dep += -(J11 * R1 - J01 * R2) / det;
-        dT += -(J00 * R2 - J10 * R1) / det;
-        if (dep < 0.0)
-          dep = 0.0;
+        // Limit the dep step to at most 50% relative change per iteration.
+        // This prevents the 1/dep singularity in the rate-dependent log term from
+        // making J[0][0] astronomically large when dep→0, which would reduce the
+        // Newton step to near zero and stall convergence.
+        const Real step_dep_full = -(J11 * R1 - J01 * R2) / det;
+        const Real step_dT_full = -(J00 * R2 - J10 * R1) / det;
+        const Real dep_step_limit = 0.5 * std::max(dep, 1e-14);
+        const Real step_dep = std::max(std::min(step_dep_full, dep_step_limit), -dep_step_limit);
+        dep = std::max(dep + step_dep, 1e-14);
+        dT += step_dT_full;
+
+        // const Real rho_cv_check = rho_cv;
+        // const Real Wd = W_d;
+        // const Real Tc = TC;
+        // const Real sum = Wd + Tc;
+        // const Real dep_check = dep;
+        // compute what the integrated-balance ΔT would be (for sanity)
+        // const Real expected_dT = (rho_cv_check != 0.0) ? (sum * dep_check / rho_cv_check) :
+        // 1e300;
+
+        // std::cout << "qp=" << _qp << " iter=" << iter << " R1=" << R1 << " R2=" << R2
+        //           << " dep=" << dep_check << " dT=" << dT << " Wd=" << Wd << " TC=" << Tc
+        //           << " (Wd+TC)=" << sum << " rho_cv=" << rho_cv_check
+        //           << " expected_dT=" << expected_dT << " J00=" << J00 << " J01=" << J01
+        //           << " J10=" << J10 << " J11=" << J11 << " det=" << det
+        //           << " step_dep_full=" << step_dep_full << " step_dT_full=" << step_dT_full
+        //           << std::endl;
       }
 
       // Fix temperature at converged value and run the standard 1D ADReal return mapping
       // to obtain delta_ep with correct derivatives for the global tangent stiffness.
+      // Convert the converged scalar dep (Real) into an ADReal and pass it to returnMappingSolve.
       _hardening_model->setLocalTemperature(T_old + dT);
-      returnMappingSolve(stress_dev_norm, delta_ep, _console);
+
+      // seed an ADReal with the converged scalar dep so the AD return-mapping uses the correct
+      // value
+      ADReal delta_ep_ad = ADReal(dep);
+
+      // call the AD return mapping with the AD initial guess
+      returnMappingSolve(stress_dev_norm, delta_ep_ad, _console);
+
+      // clear the local temperature after AD operations
       _hardening_model->clearLocalTemperature();
+
+      // commit the AD result to the delta_ep used later in the routine
+      delta_ep = delta_ep_ad; // delta_ep is the ADReal declared earlier
     }
   }
   else
   {
+    // ensure hardening uses lagged temperature explicitly
+    const Real T_old = _hardening_model->getQpTemperatureOld();
+    _hardening_model->setLocalTemperature(T_old);
+
     if (_phi[_qp] > 0)
       returnMappingSolve(stress_dev_norm, delta_ep, _console);
+
+    _hardening_model->clearLocalTemperature();
   }
 
-  if (_t_step == 4)
-    std::cout << "after" << std::endl;
   _ep[_qp] = _ep_old[_qp] + delta_ep;
 
   // Avoiding /0 issues for rate dependent models

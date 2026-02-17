@@ -53,7 +53,8 @@ JohnsonCookHardening::JohnsonCookHardening(const InputParameters & parameters)
     _ep0(getParam<Real>("reference_plastic_strain")),
     _epdot0(getParam<Real>("reference_plastic_strain_rate")),
     _T0(getParam<Real>("T0")),
-    _T(coupledValueOld("T")),
+    _T(coupledValue("T")),
+    _T_old(coupledValueOld("T")),
     _tqf(getParam<Real>("taylor_quinney_factor")),
     _A(getADMaterialProperty<Real>("A")),
     _B(getParam<Real>("B")),
@@ -72,9 +73,11 @@ JohnsonCookHardening::JohnsonCookHardening(const InputParameters & parameters)
     _gp(getADMaterialProperty<Real>(_gp_name)),
     _dgp_dd(getADMaterialProperty<Real>(derivativePropertyName(_gp_name, {_d_name}))),
     _disable_dissipation(getParam<bool>("disable_dissipation")),
-    _T_local(0.0),
-    _use_local_T(false)
+    _T_local(),
+    _use_local_T()
 {
+  _T_local.resize(_fe_problem.getMaxQps());
+  _use_local_T.resize(_fe_problem.getMaxQps(), 0);
 }
 
 ADReal // Temperature degradation
@@ -203,8 +206,7 @@ JohnsonCookHardening::thermalConjugateTemperatureDerivative(Real ep)
   // TC from thermalConjugate, computed in Real arithmetic:
   // TC = gp * T * (1-tqf) * sigma_0 * A_ep * m * (1-TD) / (T0-T)
   const Real TC = MetaPhysicL::raw_value(_gp[_qp]) * T * (1.0 - _tqf) *
-                  MetaPhysicL::raw_value(_sigma_0[_qp]) * A_ep * _m * one_minus_TD /
-                  (_T0 - T);
+                  MetaPhysicL::raw_value(_sigma_0[_qp]) * A_ep * _m * one_minus_TD / (_T0 - T);
   return TC * (_m * T - _T0) / (T * (T - _T0));
 }
 
@@ -213,8 +215,7 @@ JohnsonCookHardening::dissipationFlowStressRateJacobian(Real dep, Real ep)
 {
   // dep * partial(W_d_flowstress)/partial(dep)
   // Only the rate-dependent (log) term contributes: gp * sigma_0 * A_ep * C * TD
-  if (_disable_dissipation || _t_step == 0 ||
-      dep <= libMesh::TOLERANCE * libMesh::TOLERANCE)
+  if (_disable_dissipation || _t_step == 0 || dep <= libMesh::TOLERANCE * libMesh::TOLERANCE)
     return 0.0;
   using std::pow;
   const Real T = getQpT();
@@ -222,8 +223,7 @@ JohnsonCookHardening::dissipationFlowStressRateJacobian(Real dep, Real ep)
     return 0.0;
   const Real TD = 1.0 - pow((T - _T0) / (_Tm - _T0), _m);
   const Real A_ep = MetaPhysicL::raw_value(_A[_qp]) + _B * pow(ep / _ep0, _n);
-  return MetaPhysicL::raw_value(_gp[_qp]) * MetaPhysicL::raw_value(_sigma_0[_qp]) * A_ep *
-         _C * TD;
+  return MetaPhysicL::raw_value(_gp[_qp]) * MetaPhysicL::raw_value(_sigma_0[_qp]) * A_ep * _C * TD;
 }
 
 ADReal // Thermal conjugate term
@@ -234,7 +234,41 @@ JohnsonCookHardening::thermalConjugate(const ADReal & ep)
   if (_disable_dissipation)
     return ADReal(0);
   const Real T = getQpT();
-  return _gp[_qp] * T * (1 - _tqf) * _sigma_0[_qp] *
-         (_A[_qp] + _B * pow(ep / _ep0, _n)) *
+  return _gp[_qp] * T * (1 - _tqf) * _sigma_0[_qp] * (_A[_qp] + _B * pow(ep / _ep0, _n)) *
          (_m * (pow((_T0 - T) / (_T0 - _Tm), _m))) / (_T0 - T);
+}
+
+void
+JohnsonCookHardening::setLocalTemperature(Real T)
+{
+  if (_T_local.size() == 0)
+  {
+    _T_local.resize(_fe_problem.getMaxQps());
+    _use_local_T.resize(_fe_problem.getMaxQps(), 0);
+  }
+  _T_local[_qp] = T;
+  _use_local_T[_qp] = 1;
+}
+
+void
+JohnsonCookHardening::clearLocalTemperature()
+{
+  // assume sized already
+  if (_use_local_T.size() > 0)
+    _use_local_T[_qp] = 0;
+}
+
+Real
+JohnsonCookHardening::getQpTemperatureOld() const
+{
+  // return previous-step temperature at this qp (used in some places)
+  return _T_old[_qp];
+}
+
+Real
+JohnsonCookHardening::getQpT() const
+{
+  if (_use_local_T.size() > 0 && _use_local_T[_qp])
+    return _T_local[_qp];
+  return _T[_qp]; // current iterative temperature DOF
 }
