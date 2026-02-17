@@ -138,6 +138,8 @@ ComputeDeformationGradient::displacementIntegrityCheck()
 void
 ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
 {
+  using std::cbrt;
+
   for (_qp = 0; _qp < n_points; ++_qp)
   {
     _F[_qp].setToIdentity();
@@ -307,6 +309,8 @@ ComputeDeformationGradient::computeQpOutOfPlaneGradDisp()
 void
 ComputeDeformationGradient::computeProperties()
 {
+  using std::cbrt;
+
   ADReal ave_F_det = 0;
 
   if (isParamValid("F_ext_rec"))
@@ -360,9 +364,8 @@ ComputeDeformationGradient::computeProperties()
 
   for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
   {
-
     if (_volumetric_locking_correction)
-      _F[_qp] *= std::cbrt(ave_F_det / _F[_qp].det());
+      _F[_qp] *= cbrt(ave_F_det / _F[_qp].det());
 
     // Multiply in old deformation
     if (_recover == true)

@@ -41,6 +41,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
 
   // populate curr_FP and _ep_old_store
   //_ep_old store is a material property so that it can be used in the residual calculation
+  using std::sqrt;
 
   // First assume no plastic increment
   ADReal delta_ep = 0;
@@ -53,7 +54,7 @@ LargeDeformationJ2Plasticity::updateState(ADRankTwoTensor & stress, ADRankTwoTen
   ADReal stress_dev_norm = stress_dev.doubleContraction(stress_dev);
   if (MooseUtils::absoluteFuzzyEqual(stress_dev_norm, 0))
     stress_dev_norm.value() = libMesh::TOLERANCE * libMesh::TOLERANCE;
-  stress_dev_norm = std::sqrt(1.5 * stress_dev_norm);
+  stress_dev_norm = sqrt(1.5 * stress_dev_norm);
   _Np[_qp] = 1.5 * stress_dev / stress_dev_norm;
 
   if (_t_step == 4)

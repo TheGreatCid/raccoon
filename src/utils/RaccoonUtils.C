@@ -17,9 +17,10 @@ namespace RaccoonUtils
 ADReal
 Macaulay(const ADReal x, const bool deriv)
 {
+  using std::abs;
   if (deriv)
     return x > 0 ? 1 : 0;
-  return 0.5 * (x + std::abs(x));
+  return 0.5 * (x + abs(x));
 }
 
 std::vector<ADReal>
@@ -97,12 +98,13 @@ log(const ADRankTwoTensor & r2t)
   // ADRankTwoTensor B;
   // B = A.get();
   // return B;
+  using std::log;
 
   std::vector<ADReal> d;
   ADRankTwoTensor V, D;
   r2t.symmetricEigenvaluesEigenvectors(d, V);
   for (auto & di : d)
-    di = std::log(di);
+    di = log(di);
   D.fillFromInputVector(d);
   return V * D * V.transpose();
 }
@@ -110,6 +112,7 @@ log(const ADRankTwoTensor & r2t)
 ADRankTwoTensor
 exp(const ADRankTwoTensor & r2t)
 {
+  using std::exp;
 
   // FactorizedRankTwoTensor A = MetaPhysicL::raw_value(r2t);
   // A = MathUtils::exp(A);
@@ -167,7 +170,7 @@ exp(const ADRankTwoTensor & r2t)
   ADRankTwoTensor V, D;
   r2t.symmetricEigenvaluesEigenvectors(d, V);
   for (auto & di : d)
-    di = std::exp(di);
+    di = exp(di);
   D.fillFromInputVector(d);
   return V * D * V.transpose();
 }
