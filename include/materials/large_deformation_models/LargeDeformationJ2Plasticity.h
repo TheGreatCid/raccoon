@@ -17,10 +17,7 @@ public:
   virtual void updateState(ADRankTwoTensor & stress, ADRankTwoTensor & Fe) override;
 
 protected:
-  virtual ADReal initialGuess(const ADReal & effective_trial_stress) override
-  {
-    return _hardening_model->initialGuess(effective_trial_stress);
-  }
+  virtual ADReal initialGuess(const ADReal & effective_trial_stress) override;
 
   virtual ADReal minimumPermissibleValue(const ADReal &) const override { return 0; }
 
@@ -43,4 +40,8 @@ protected:
   const ADMaterialProperty<Real> * _rho;
   /// Specific heat capacity c_v [J/(kg·K)] (used when coupled_temp_solve = true)
   const Real _cv;
+
+  /// Converged dep from the 2x2 Newton; used to seed returnMappingSolve with a good initial guess
+  Real _dep_2x2_guess;
+  bool _use_2x2_guess;
 };

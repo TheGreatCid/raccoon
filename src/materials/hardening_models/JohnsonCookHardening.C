@@ -53,7 +53,7 @@ JohnsonCookHardening::JohnsonCookHardening(const InputParameters & parameters)
     _ep0(getParam<Real>("reference_plastic_strain")),
     _epdot0(getParam<Real>("reference_plastic_strain_rate")),
     _T0(getParam<Real>("T0")),
-    _T(coupledValue("T")),
+    _T(adCoupledValue("T")),
     _T_old(coupledValueOld("T")),
     _tqf(getParam<Real>("taylor_quinney_factor")),
     _A(getADMaterialProperty<Real>("A")),
@@ -84,6 +84,7 @@ ADReal // Temperature degradation
 JohnsonCookHardening::temperatureDependence()
 {
   using std::pow;
+  // std::cout << getQpT() << std::endl;
   return 1 - pow((getQpT() - _T0) / (_Tm - _T0), _m);
 }
 
@@ -196,7 +197,7 @@ JohnsonCookHardening::thermalConjugateTemperatureDerivative(Real ep)
   // dTC/dT = TC * (m*T - T0) / (T * (T - T0))
   if (_disable_dissipation)
     return 0.0;
-  const Real T = getQpT();
+  const Real T = MetaPhysicL::raw_value(getQpT());
   if (T <= _T0 + 1e-14 || T >= _Tm)
     return 0.0;
   using std::pow;
@@ -211,6 +212,25 @@ JohnsonCookHardening::thermalConjugateTemperatureDerivative(Real ep)
 }
 
 Real
+JohnsonCookHardening::thermalConjugateEpDerivative(Real ep)
+{
+  // dTC/dep = gp * T * (1-tqf) * sigma_0 * d(A_ep)/dep * m * (1-TD) / (T0-T)
+  // where d(A_ep)/dep = B * n * (ep/ep0)^(n-1) / ep0
+  if (_disable_dissipation)
+    return 0.0;
+  const Real T = MetaPhysicL::raw_value(getQpT());
+  if (T <= _T0 + 1e-14 || T >= _Tm)
+    return 0.0;
+  using std::pow;
+  const Real u = (T - _T0) / (_Tm - _T0);
+  const Real one_minus_TD = pow(u, _m);
+  const Real ep_safe = std::max(ep, 1e-20);
+  const Real dA_ep_dep = _B * _n * pow(ep_safe / _ep0, _n - 1) / _ep0;
+  return MetaPhysicL::raw_value(_gp[_qp]) * T * (1.0 - _tqf) *
+         MetaPhysicL::raw_value(_sigma_0[_qp]) * dA_ep_dep * _m * one_minus_TD / (_T0 - T);
+}
+
+Real
 JohnsonCookHardening::dissipationFlowStressRateJacobian(Real dep, Real ep)
 {
   // dep * partial(W_d_flowstress)/partial(dep)
@@ -218,7 +238,7 @@ JohnsonCookHardening::dissipationFlowStressRateJacobian(Real dep, Real ep)
   if (_disable_dissipation || _t_step == 0 || dep <= libMesh::TOLERANCE * libMesh::TOLERANCE)
     return 0.0;
   using std::pow;
-  const Real T = getQpT();
+  const Real T = MetaPhysicL::raw_value(getQpT());
   if (T <= _T0 + 1e-14 || T >= _Tm)
     return 0.0;
   const Real TD = 1.0 - pow((T - _T0) / (_Tm - _T0), _m);
@@ -233,7 +253,7 @@ JohnsonCookHardening::thermalConjugate(const ADReal & ep)
 
   if (_disable_dissipation)
     return ADReal(0);
-  const Real T = getQpT();
+  const ADReal T = getQpT();
   return _gp[_qp] * T * (1 - _tqf) * _sigma_0[_qp] * (_A[_qp] + _B * pow(ep / _ep0, _n)) *
          (_m * (pow((_T0 - T) / (_T0 - _Tm), _m))) / (_T0 - T);
 }
@@ -265,10 +285,25 @@ JohnsonCookHardening::getQpTemperatureOld() const
   return _T_old[_qp];
 }
 
-Real
+ADReal
 JohnsonCookHardening::getQpT() const
 {
+  // When a local temperature is injected (e.g. T_old + dT_adiabatic from the 2x2 Newton),
+  // preserve that value while keeping the AD derivatives of the global T DOF:
+  //   value   = _T_local[_qp]                   (the desired evaluation temperature)
+  //   ∂/∂T_g  = ∂_T[_qp]/∂T_DOF = 1            (carried through the global AD chain)
+  // This makes all material properties (yield stress, dissipation, heat source) consistent
+  // with the global Jacobian without any additional manual correction.
   if (_use_local_T.size() > 0 && _use_local_T[_qp])
-    return _T_local[_qp];
-  return _T[_qp]; // current iterative temperature DOF
+    return _T[_qp] + (_T_local[_qp] - MetaPhysicL::raw_value(_T[_qp]));
+  return _T[_qp];
+}
+
+ADReal
+JohnsonCookHardening::getQpTAD() const
+{
+  // Return the bare global T (no local offset) so callers can construct
+  // analytic AD sensitivity w.r.t. the temperature DOF independently of
+  // any local temperature override that may be active.
+  return _T[_qp];
 }

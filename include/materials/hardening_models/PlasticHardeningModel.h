@@ -70,6 +70,14 @@ public:
   /// Used for J[1][1] in the coupled thermo-plastic local Newton.
   virtual Real thermalConjugateTemperatureDerivative(Real /*ep*/) { return 0.0; }
 
+  /// d(TC)/d(ep) where TC = thermalConjugate(ep), evaluated at the current local temperature.
+  /// Used for J[1][0] in the coupled thermo-plastic local Newton.
+  virtual Real thermalConjugateEpDerivative(Real /*ep*/) { return 0.0; }
+
+  /// Return the current global temperature as an ADReal (carries derivatives w.r.t. T DOF).
+  /// Override in subclasses that couple to a temperature field variable.
+  virtual ADReal getQpTAD() const { return ADReal(0); }
+
   /// dep * partial(plasticDissipation(dep,ep,1))/partial(dep) — rate-dependent contribution
   /// for J[1][0] in the coupled thermo-plastic local Newton.
   virtual Real dissipationFlowStressRateJacobian(Real /*dep*/, Real /*ep*/) { return 0.0; }

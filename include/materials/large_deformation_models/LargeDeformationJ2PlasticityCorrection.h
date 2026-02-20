@@ -75,6 +75,14 @@ protected:
   QpMapping::Element _element;
   const bool _apply_strain_energy_split;
 
+  /// Active plastic energy density from the hardening model (psip_active)
+  const ADMaterialProperty<Real> & _psip_active_ref;
+  /// Activation threshold: psip_active/triaxfunc must exceed this before psip_triax is non-zero
+  const Real _psip_triax_threshold;
+  /// Triaxiality-weighted plastic energy (stateful for irreversibility)
+  MaterialProperty<Real> & _psip_triax;
+  const MaterialProperty<Real> & _psip_triax_old;
+
   unsigned int _qpnum;
 
 private:

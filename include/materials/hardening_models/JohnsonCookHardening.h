@@ -34,7 +34,9 @@ public:
   // Aux helpers used by the plasticity material
   virtual Real temperatureDependenceLogDerivative(Real T) override;
   virtual Real thermalConjugateTemperatureDerivative(Real ep) override;
+  virtual Real thermalConjugateEpDerivative(Real ep) override;
   virtual Real dissipationFlowStressRateJacobian(Real dep, Real ep) override;
+  virtual ADReal getQpTAD() const override;
 
 protected:
   // @{ The plastic energy parameters
@@ -44,8 +46,8 @@ protected:
   const Real _ep0;
   const Real _epdot0;
   const Real _T0;
-  // Current iterative temperature (array per-qp)
-  const VariableValue & _T;
+  // Current iterative temperature (array per-qp) — AD for global Jacobian coupling
+  const ADVariableValue & _T;
   // Old timestep temperature (array per-qp)
   const VariableValue & _T_old;
   const Real _tqf;
@@ -82,6 +84,7 @@ protected:
 private:
   ADReal temperatureDependence();
 
-  // Return the temperature to use in calls: either per-QP override, or current iterative T.
-  Real getQpT() const;
+  // Return the temperature to use in material calls: local override (offset onto global AD T)
+  // or the current global T. Returns ADReal so all material properties carry ∂/∂T_DOF.
+  ADReal getQpT() const;
 };

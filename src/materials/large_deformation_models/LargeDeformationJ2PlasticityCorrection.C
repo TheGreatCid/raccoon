@@ -43,6 +43,15 @@ LargeDeformationJ2PlasticityCorrection::validParams()
                         "energy (psie_active). If true (default), only the positive part of the "
                         "energy is assigned to psie_active. If false, the full unsplit energy U + "
                         "W is used for psie_active.");
+  params.addParam<MaterialPropertyName>(
+      "hardening_plastic_energy_density_active",
+      "psip_active",
+      "Name of the active plastic energy density declared by the hardening model "
+      "(used for psip_triax). Must match the hardening model's declared property name.");
+  params.addParam<Real>("psip_triax_threshold",
+                        200.0,
+                        "Activation threshold for psip_triax. psip_active/triaxfunc must exceed "
+                        "this value before psip_triax becomes non-zero.");
   return params;
 }
 
@@ -77,7 +86,12 @@ LargeDeformationJ2PlasticityCorrection::LargeDeformationJ2PlasticityCorrection(
     _d2(getParam<Real>("d2")),
     _d3(getParam<Real>("d3")),
     _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>()),
-    _apply_strain_energy_split(getParam<bool>("apply_strain_energy_split"))
+    _apply_strain_energy_split(getParam<bool>("apply_strain_energy_split")),
+    _psip_active_ref(getADMaterialProperty<Real>(
+        getParam<MaterialPropertyName>("hardening_plastic_energy_density_active"))),
+    _psip_triax_threshold(getParam<Real>("psip_triax_threshold")),
+    _psip_triax(declareProperty<Real>(prependBaseName("psip_triax"))),
+    _psip_triax_old(getMaterialPropertyOld<Real>(prependBaseName("psip_triax")))
 {
   _check_range = true;
   if (_recover)
@@ -90,6 +104,7 @@ LargeDeformationJ2PlasticityCorrection::initQpStatefulProperties()
   _Fp[_qp].setToIdentity();
   _ep[_qp] = 0;
   _bebar[_qp].setToIdentity();
+  _psip_triax[_qp] = 0.0;
   unsigned int qp_max = _qpnum;
 
   auto formatQP = [qp_max](unsigned int qp)
@@ -128,9 +143,9 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
                                                     ADRankTwoTensor & /*Fe*/)
 {
   using std::cbrt;
-  using std::sqrt;
-  using std::log;
   using std::exp;
+  using std::log;
+  using std::sqrt;
   ADRankTwoTensor I2;
   I2.setToIdentity();
   if (_recover && MetaPhysicL::raw_value(_ep[_qp]) < 0)
@@ -194,6 +209,25 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   computeStrainEnergyDensity();
   _hardening_model->plasticEnergy(_ep[_qp]);
   _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 0);
+
+  // Compute psip_triax: triaxiality-weighted plastic energy with activation threshold
+  // and irreversibility constraint.
+  {
+    const Real psi_a = MetaPhysicL::raw_value(_psip_active_ref[_qp]);
+    const Real tf = MetaPhysicL::raw_value(_triaxfunc[_qp]);
+    if (psi_a < 0.1)
+      _psip_triax[_qp] = 0.0;
+    else
+    {
+      const Real ratio = psi_a / tf;
+      if (ratio < _psip_triax_old[_qp])
+        _psip_triax[_qp] = _psip_triax_old[_qp]; // irreversibility
+      else if (ratio < _psip_triax_threshold)
+        _psip_triax[_qp] = 0.0;
+      else
+        _psip_triax[_qp] = ratio;
+    }
+  }
 
   // Avoiding NaN issues for rate depedent models
   if (_t_step > 0)
@@ -307,11 +341,11 @@ LargeDeformationJ2PlasticityCorrection::computeCorrectionTerm(const ADRankTwoTen
   ADReal B = a * b + a * c + b * c - d * d - e * e - h * h;
   ADReal C = a * b * c + 2.0 * d * e * h - a * d * d - b * e * e - c * h * h - 1.0;
 
-  ADReal D = cbrt(-2 * A * A * A +
-                  3 * sqrt(3) *
-                      sqrt(4 * A * A * A * C - A * A * B * B - 18 * A * B * C +
-                           4 * B * B * B + 27 * C * C) +
-                  9 * A * B - 27 * C);
+  ADReal D = cbrt(
+      -2 * A * A * A +
+      3 * sqrt(3) *
+          sqrt(4 * A * A * A * C - A * A * B * B - 18 * A * B * C + 4 * B * B * B + 27 * C * C) +
+      9 * A * B - 27 * C);
 
   ADReal Ie_bar = D / 3 / cbrt(2) - cbrt(2) * (3 * B - A * A) / 3 / D - A / 3;
   _bebar[_qp] = devbebar + Ie_bar * I2;
