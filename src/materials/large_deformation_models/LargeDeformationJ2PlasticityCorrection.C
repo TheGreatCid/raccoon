@@ -90,7 +90,7 @@ LargeDeformationJ2PlasticityCorrection::LargeDeformationJ2PlasticityCorrection(
     _psip_active_ref(getADMaterialProperty<Real>(
         getParam<MaterialPropertyName>("hardening_plastic_energy_density_active"))),
     _psip_triax_threshold(getParam<Real>("psip_triax_threshold")),
-    _psip_triax(declareProperty<Real>(prependBaseName("psip_triax"))),
+    _psip_triax(declareADProperty<Real>(prependBaseName("psip_triax"))),
     _psip_triax_old(getMaterialPropertyOld<Real>(prependBaseName("psip_triax")))
 {
   _check_range = true;
@@ -215,17 +215,17 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   {
     const Real psi_a = MetaPhysicL::raw_value(_psip_active_ref[_qp]);
     const Real tf = MetaPhysicL::raw_value(_triaxfunc[_qp]);
-    if (psi_a < 0.1)
-      _psip_triax[_qp] = 0.0;
+    if (psi_a < 0.1 || tf <= 0.0)
+      _psip_triax[_qp] = ADReal(0.0);
     else
     {
-      const Real ratio = psi_a / tf;
-      if (ratio < _psip_triax_old[_qp])
-        _psip_triax[_qp] = _psip_triax_old[_qp]; // irreversibility
-      else if (ratio < _psip_triax_threshold)
-        _psip_triax[_qp] = 0.0;
+      const Real ratio_val = psi_a / tf;
+      if (ratio_val < _psip_triax_old[_qp])
+        _psip_triax[_qp] = ADReal(_psip_triax_old[_qp]); // irreversibility: frozen old value
+      else if (ratio_val < _psip_triax_threshold)
+        _psip_triax[_qp] = ADReal(0.0);
       else
-        _psip_triax[_qp] = ratio;
+        _psip_triax[_qp] = _psip_active_ref[_qp] / _triaxfunc[_qp]; // full AD derivatives
     }
   }
 
