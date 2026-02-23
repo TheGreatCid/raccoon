@@ -52,6 +52,9 @@ LargeDeformationJ2PlasticityCorrection::validParams()
                         200.0,
                         "Activation threshold for psip_triax. psip_active/triaxfunc must exceed "
                         "this value before psip_triax becomes non-zero.");
+  params.addParam<bool>("recover_psip_triax",
+                        false,
+                        "If true (and recover=true), read psip_triax from the restart solution.");
   return params;
 }
 
@@ -90,6 +93,7 @@ LargeDeformationJ2PlasticityCorrection::LargeDeformationJ2PlasticityCorrection(
     _psip_active_ref(getADMaterialProperty<Real>(
         getParam<MaterialPropertyName>("hardening_plastic_energy_density_active"))),
     _psip_triax_threshold(getParam<Real>("psip_triax_threshold")),
+    _recover_psip_triax(getParam<bool>("recover_psip_triax")),
     _psip_triax(declareADProperty<Real>(prependBaseName("psip_triax"))),
     _psip_triax_old(getMaterialPropertyOld<Real>(prependBaseName("psip_triax")))
 {
@@ -135,6 +139,14 @@ LargeDeformationJ2PlasticityCorrection::initQpStatefulProperties()
             "be_bar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
             nullptr);
       }
+
+    if (_recover_psip_triax)
+    {
+      _psip_triax[_qp] = _solution_object_ptr->pointValue(
+          _t, _current_elem->true_centroid(), "psip_triax_" + formatQP(qp_sel), nullptr);
+      if (MetaPhysicL::raw_value(_psip_triax[_qp]) < 0)
+        _psip_triax[_qp] = 0.0;
+    }
   }
 };
 

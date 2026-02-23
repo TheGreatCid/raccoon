@@ -79,6 +79,7 @@ protected:
   const ADMaterialProperty<Real> & _psip_active_ref;
   /// Activation threshold: psip_active/triaxfunc must exceed this before psip_triax is non-zero
   const Real _psip_triax_threshold;
+  const bool _recover_psip_triax;
   /// Triaxiality-weighted plastic energy (stateful for irreversibility)
   ADMaterialProperty<Real> & _psip_triax;
   const MaterialProperty<Real> & _psip_triax_old;
