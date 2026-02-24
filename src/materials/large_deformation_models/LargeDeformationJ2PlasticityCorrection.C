@@ -144,7 +144,7 @@ LargeDeformationJ2PlasticityCorrection::initQpStatefulProperties()
     {
       _psip_triax[_qp] = _solution_object_ptr->pointValue(
           _t, _current_elem->true_centroid(), "psip_triax_" + formatQP(qp_sel), nullptr);
-      if (MetaPhysicL::raw_value(_psip_triax[_qp]) < 0)
+      if (MetaPhysicL::raw_value(_psip_triax[_qp]) < _psip_triax_threshold)
         _psip_triax[_qp] = 0.0;
     }
   }
