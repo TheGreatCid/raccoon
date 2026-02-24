@@ -227,17 +227,28 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   {
     const Real psi_a = MetaPhysicL::raw_value(_psip_active_ref[_qp]);
     const Real tf = MetaPhysicL::raw_value(_triaxfunc[_qp]);
-    if (psi_a < 0.1 || tf <= 0.0)
-      _psip_triax[_qp] = ADReal(0.0);
+    const Real old_psip_triax = _psip_triax_old[_qp];
+
+    // Compute the current ratio (if conditions are met)
+    const bool can_compute = (psi_a >= 0.1 && tf > 0.0);
+    const Real new_ratio = can_compute ? psi_a / tf : 0.0;
+
+    // Apply irreversibility and threshold logic
+    if (old_psip_triax > 0.0)
+    {
+      // Irreversibility: can never decrease below old value (includes recovered values)
+      if (!can_compute || new_ratio <= old_psip_triax)
+        _psip_triax[_qp] = ADReal(old_psip_triax);
+      else
+        _psip_triax[_qp] = _psip_active_ref[_qp] / _triaxfunc[_qp]; // new value > old, use AD
+    }
     else
     {
-      const Real ratio_val = psi_a / tf;
-      if (ratio_val < _psip_triax_old[_qp])
-        _psip_triax[_qp] = ADReal(_psip_triax_old[_qp]); // irreversibility: frozen old value
-      else if (ratio_val < _psip_triax_threshold)
+      // No previous value: apply threshold
+      if (!can_compute || new_ratio < _psip_triax_threshold)
         _psip_triax[_qp] = ADReal(0.0);
       else
-        _psip_triax[_qp] = _psip_active_ref[_qp] / _triaxfunc[_qp]; // full AD derivatives
+        _psip_triax[_qp] = _psip_active_ref[_qp] / _triaxfunc[_qp];
     }
   }
 
