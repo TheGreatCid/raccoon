@@ -144,7 +144,7 @@ LargeDeformationJ2PlasticityCorrection::initQpStatefulProperties()
     {
       _psip_triax[_qp] = _solution_object_ptr->pointValue(
           _t, _current_elem->true_centroid(), "psip_triax_" + formatQP(qp_sel), nullptr);
-      if (MetaPhysicL::raw_value(_psip_triax[_qp]) < _psip_triax_threshold)
+      if (MetaPhysicL::raw_value(_psip_triax[_qp]) < 0)
         _psip_triax[_qp] = 0.0;
     }
   }
@@ -241,7 +241,7 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
     }
 
     // Apply irreversibility: value can only increase, never decrease
-    if (new_value >= old_psip_triax && new_value > 0.0)
+    if (new_value >= old_psip_triax && new_value > 0.0 && old_psip_triax > _psip_triax_threshold)
       _psip_triax[_qp] = _psip_active_ref[_qp] / _triaxfunc[_qp]; // new > old, use AD
     else
       _psip_triax[_qp] = ADReal(old_psip_triax); // old >= new, keep old (includes 0)
