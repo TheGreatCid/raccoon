@@ -80,7 +80,10 @@ protected:
   /// Activation threshold: psip_active/triaxfunc must exceed this before psip_triax is non-zero
   const Real _psip_triax_threshold;
   const bool _recover_psip_triax;
-  /// Triaxiality-weighted plastic energy (stateful for irreversibility)
+  /// Triaxiality-weighted plastic energy without threshold (stateful, used for recovery)
+  ADMaterialProperty<Real> & _psip_triax_raw;
+  const MaterialProperty<Real> & _psip_triax_raw_old;
+  /// Triaxiality-weighted plastic energy with threshold applied (derived from _psip_triax_raw)
   ADMaterialProperty<Real> & _psip_triax;
   const MaterialProperty<Real> & _psip_triax_old;
 

@@ -94,6 +94,8 @@ LargeDeformationJ2PlasticityCorrection::LargeDeformationJ2PlasticityCorrection(
         getParam<MaterialPropertyName>("hardening_plastic_energy_density_active"))),
     _psip_triax_threshold(getParam<Real>("psip_triax_threshold")),
     _recover_psip_triax(getParam<bool>("recover_psip_triax")),
+    _psip_triax_raw(declareADProperty<Real>(prependBaseName("psip_triax_raw"))),
+    _psip_triax_raw_old(getMaterialPropertyOld<Real>(prependBaseName("psip_triax_raw"))),
     _psip_triax(declareADProperty<Real>(prependBaseName("psip_triax"))),
     _psip_triax_old(getMaterialPropertyOld<Real>(prependBaseName("psip_triax")))
 {
@@ -108,6 +110,7 @@ LargeDeformationJ2PlasticityCorrection::initQpStatefulProperties()
   _Fp[_qp].setToIdentity();
   _ep[_qp] = 0;
   _bebar[_qp].setToIdentity();
+  _psip_triax_raw[_qp] = 0.0;
   _psip_triax[_qp] = 0.0;
   unsigned int qp_max = _qpnum;
 
@@ -142,10 +145,10 @@ LargeDeformationJ2PlasticityCorrection::initQpStatefulProperties()
 
     if (_recover_psip_triax)
     {
-      _psip_triax[_qp] = _solution_object_ptr->pointValue(
-          _t, _current_elem->true_centroid(), "psip_triax_" + formatQP(qp_sel), nullptr);
-      if (MetaPhysicL::raw_value(_psip_triax[_qp]) < 0)
-        _psip_triax[_qp] = 0.0;
+      _psip_triax_raw[_qp] = _solution_object_ptr->pointValue(
+          _t, _current_elem->true_centroid(), "psip_triax_raw_" + formatQP(qp_sel), nullptr);
+      if (MetaPhysicL::raw_value(_psip_triax_raw[_qp]) < 0)
+        _psip_triax_raw[_qp] = 0.0;
     }
   }
 };
@@ -222,29 +225,32 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   _hardening_model->plasticEnergy(_ep[_qp]);
   _hardening_model->plasticDissipation(delta_ep, _ep[_qp], 0);
 
-  // Compute psip_triax: triaxiality-weighted plastic energy with activation threshold
-  // and irreversibility constraint.
+  // Compute psip_triax_raw: unthresholded triaxiality-weighted plastic energy with irreversibility
+  // This is what gets recovered and tracks the full history without threshold.
   {
     const Real psi_a = MetaPhysicL::raw_value(_psip_active_ref[_qp]);
     const Real tf = MetaPhysicL::raw_value(_triaxfunc[_qp]);
-    const Real old_psip_triax = _psip_triax_old[_qp];
+    const Real old_raw = _psip_triax_raw_old[_qp];
 
-    // Compute the new value according to threshold logic:
-    // - 0 if conditions aren't met or ratio < threshold
-    // - ratio if ratio >= threshold
+    // Compute the new unthresholded value
     Real new_value = 0.0;
     if (psi_a >= 0.1 && tf > 0.0)
-    {
-      const Real new_ratio = psi_a / tf;
-      if (new_ratio >= _psip_triax_threshold)
-        new_value = new_ratio;
-    }
+      new_value = psi_a / tf;
 
     // Apply irreversibility: value can only increase, never decrease
-    if (new_value >= old_psip_triax && new_value > 0.0 && old_psip_triax > _psip_triax_threshold)
-      _psip_triax[_qp] = _psip_active_ref[_qp] / _triaxfunc[_qp]; // new > old, use AD
+    if (new_value >= old_raw && new_value > 0.0)
+      _psip_triax_raw[_qp] = _psip_active_ref[_qp] / _triaxfunc[_qp]; // new > old, use AD
     else
-      _psip_triax[_qp] = ADReal(old_psip_triax); // old >= new, keep old (includes 0)
+      _psip_triax_raw[_qp] = ADReal(old_raw); // old >= new, keep old (includes 0)
+  }
+
+  // Compute psip_triax: thresholded version derived from psip_triax_raw
+  {
+    const Real raw_value = MetaPhysicL::raw_value(_psip_triax_raw[_qp]);
+    if (raw_value >= _psip_triax_threshold)
+      _psip_triax[_qp] = _psip_triax_raw[_qp]; // above threshold, use full AD
+    else
+      _psip_triax[_qp] = ADReal(0.0); // below threshold, zero
   }
 
   // Avoiding NaN issues for rate depedent models
