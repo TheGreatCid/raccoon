@@ -42,6 +42,12 @@ ComputeDeformationGradient::validParams()
                              recover_mode,
                              "Recovery mode: 'deformation_gradient' reads F directly, "
                              "'polar_decomposition' reads R and U and reconstructs F = R*U");
+  params.addParam<bool>("output_half_rotation_tensor",
+                        false,
+                        "Store R^(1/2) (rotation by theta/2) in the rotation_tensor output "
+                        "instead of R. This halves the rotation angle seen by the remapping "
+                        "algorithm's matrix logarithm, avoiding the singularity near theta=pi. "
+                        "When recovering, R is reconstructed as R_half * R_half before F = R*U.");
   params.suppressParameter<bool>("use_displaced_mesh");
   params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
   params.addParam<Real>("num_qps", 8, "Number of QPs");
@@ -83,7 +89,8 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _Jacobian(declareProperty<Real>(prependBaseName("Jacobian"))),
     _rotation_tensor(declareADProperty<RankTwoTensor>(prependBaseName("rotation_tensor"))),
     _stretch_tensor(declareADProperty<RankTwoTensor>(prependBaseName("stretch_tensor"))),
-    _recover_from_polar(getParam<MooseEnum>("recover_mode") == "polar_decomposition")
+    _recover_from_polar(getParam<MooseEnum>("recover_mode") == "polar_decomposition"),
+    _output_half_rotation(getParam<bool>("output_half_rotation_tensor"))
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &Material::getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
@@ -205,7 +212,10 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
                   "stretch_tensor_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
                   nullptr);
             }
-          // Reconstruct F = R * U and convert to AD type
+          // Reconstruct F = R * U and convert to AD type.
+          // If R was stored as R^(1/2), square it first.
+          if (_output_half_rotation)
+            R = R * R;
           RankTwoTensor F_reconstructed = R * U;
           for (int i_ind = 0; i_ind < 3; i_ind++)
             for (int j_ind = 0; j_ind < 3; j_ind++)
@@ -268,7 +278,10 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
                   "stretch_tensor_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
                   nullptr);
             }
-          // Reconstruct F = R * U and convert to AD type
+          // Reconstruct F = R * U and convert to AD type.
+          // If R was stored as R^(1/2), square it first.
+          if (_output_half_rotation)
+            R = R * R;
           RankTwoTensor F_reconstructed = R * U;
           for (int i_ind = 0; i_ind < 3; i_ind++)
             for (int j_ind = 0; j_ind < 3; j_ind++)
@@ -295,6 +308,67 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
       }
     }
   }
+}
+
+RankTwoTensor
+ComputeDeformationGradient::computeHalfRotation(const RankTwoTensor & R)
+{
+  // Extract rotation angle from the trace: cos(theta) = (tr(R) - 1) / 2
+  const Real cos_theta = std::max(-1.0, std::min(1.0, (R.tr() - 1.0) / 2.0));
+  const Real theta = std::acos(cos_theta);
+
+  const RankTwoTensor I(RankTwoTensor::initIdentity);
+
+  if (theta < 1e-10)
+    return I;
+
+  RankTwoTensor K; // skew-symmetric cross-product matrix of the rotation axis
+
+  if (std::abs(theta - M_PI) > 1e-4)
+  {
+    // General case: extract axis from the skew-symmetric part of R.
+    // (R - R^T) / 2 = sin(theta) * K
+    const Real s = std::sin(theta);
+    for (const auto i : make_range(3))
+      for (const auto j : make_range(3))
+        K(i, j) = (R(i, j) - R(j, i)) / (2.0 * s);
+  }
+  else
+  {
+    // Near theta = pi: skew part vanishes (sin(pi) = 0), extract axis from
+    // the symmetric part instead.  At theta = pi: R = -I + 2*n*n^T, so
+    // (R + I)/2 = n*n^T.  Find the dominant diagonal entry to get n_max,
+    // then recover the remaining components from the off-diagonal.
+    int idx = 0;
+    Real max_diag = (R(0, 0) + 1.0) / 2.0;
+    for (const auto k : make_range(1, 3))
+    {
+      const Real d = (R(k, k) + 1.0) / 2.0;
+      if (d > max_diag)
+      {
+        max_diag = d;
+        idx = k;
+      }
+    }
+    Real n[3] = {0.0, 0.0, 0.0};
+    n[idx] = std::sqrt(std::max(0.0, max_diag));
+    for (const auto k : make_range(3))
+      if (k != idx)
+        n[k] = R(idx, k) / (2.0 * n[idx]);
+    // Normalise for robustness
+    const Real len = std::sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+    for (const auto k : make_range(3))
+      n[k] /= len;
+    K(0, 1) = -n[2]; K(0, 2) =  n[1];
+    K(1, 0) =  n[2]; K(1, 2) = -n[0];
+    K(2, 0) = -n[1]; K(2, 1) =  n[0];
+  }
+
+  // Rodrigues formula for R^(1/2): same axis, half angle.
+  // R = I + sin(theta)*K + (1-cos(theta))*K^2
+  // R^(1/2) = I + sin(theta/2)*K + (1-cos(theta/2))*K^2
+  const Real half = theta / 2.0;
+  return I + std::sin(half) * K + (1.0 - std::cos(half)) * (K * K);
 }
 
 ADReal
@@ -426,7 +500,7 @@ ComputeDeformationGradient::computeProperties()
                      ". Reconstruction error is large.");
     }
 
-    _rotation_tensor[_qp] = R;
+    _rotation_tensor[_qp] = _output_half_rotation ? computeHalfRotation(R) : R;
     _stretch_tensor[_qp] = U;
   }
 }

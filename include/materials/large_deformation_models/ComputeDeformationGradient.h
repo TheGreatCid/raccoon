@@ -93,6 +93,16 @@ protected:
   // Recovery mode flag
   const bool _recover_from_polar;
 
+  /// When true, store R^(1/2) (rotation by theta/2) instead of R.
+  /// Halving the rotation angle keeps it in [0, pi/2), improving conditioning
+  /// of the matrix logarithm used by the remapping algorithm.
+  /// The recovery path automatically squares R_half to reconstruct R before F = R*U.
+  const bool _output_half_rotation;
+
 private:
   const std::unordered_map<int, int> * _lookup;
+
+  /// Compute the principal square root of a rotation matrix R in SO(3).
+  /// Returns R_half such that R_half * R_half = R, with rotation angle theta/2.
+  static RankTwoTensor computeHalfRotation(const RankTwoTensor & R);
 };
