@@ -93,11 +93,15 @@ protected:
   // Recovery mode flag
   const bool _recover_from_polar;
 
-  /// When true, store R^(1/2) (rotation by theta/2) instead of R.
+  /// When true, store R^(1/2) (rotation by theta/2) instead of R in the output.
   /// Halving the rotation angle keeps it in [0, pi/2), improving conditioning
   /// of the matrix logarithm used by the remapping algorithm.
-  /// The recovery path automatically squares R_half to reconstruct R before F = R*U.
   const bool _output_half_rotation;
+
+  /// When true, the rotation tensor being read from the recovery file contains R^(1/2)
+  /// and must be squared before reconstructing F = R*U.
+  /// Set this to match what output_half_rotation_tensor was in the run that produced the file.
+  const bool _input_half_rotation;
 
 private:
   const std::unordered_map<int, int> * _lookup;

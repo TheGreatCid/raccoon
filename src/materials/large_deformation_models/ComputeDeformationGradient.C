@@ -46,8 +46,13 @@ ComputeDeformationGradient::validParams()
                         false,
                         "Store R^(1/2) (rotation by theta/2) in the rotation_tensor output "
                         "instead of R. This halves the rotation angle seen by the remapping "
-                        "algorithm's matrix logarithm, avoiding the singularity near theta=pi. "
-                        "When recovering, R is reconstructed as R_half * R_half before F = R*U.");
+                        "algorithm's matrix logarithm, avoiding the singularity near theta=pi.");
+  params.addParam<bool>("input_half_rotation_tensor",
+                        false,
+                        "Indicates that the rotation tensor in the recovery file contains R^(1/2) "
+                        "(i.e., the run that produced the file had output_half_rotation_tensor = "
+                        "true). When set, R is reconstructed as R_half * R_half before F = R*U. "
+                        "Set to false (default) when the recovery file stores the full R.");
   params.suppressParameter<bool>("use_displaced_mesh");
   params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
   params.addParam<Real>("num_qps", 8, "Number of QPs");
@@ -90,7 +95,8 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _rotation_tensor(declareADProperty<RankTwoTensor>(prependBaseName("rotation_tensor"))),
     _stretch_tensor(declareADProperty<RankTwoTensor>(prependBaseName("stretch_tensor"))),
     _recover_from_polar(getParam<MooseEnum>("recover_mode") == "polar_decomposition"),
-    _output_half_rotation(getParam<bool>("output_half_rotation_tensor"))
+    _output_half_rotation(getParam<bool>("output_half_rotation_tensor")),
+    _input_half_rotation(getParam<bool>("input_half_rotation_tensor"))
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &Material::getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
@@ -213,8 +219,8 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
                   nullptr);
             }
           // Reconstruct F = R * U and convert to AD type.
-          // If R was stored as R^(1/2), square it first.
-          if (_output_half_rotation)
+          // If the recovery file stored R^(1/2), square it first to recover full R.
+          if (_input_half_rotation)
             R = R * R;
           RankTwoTensor F_reconstructed = R * U;
           for (int i_ind = 0; i_ind < 3; i_ind++)
@@ -279,8 +285,8 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
                   nullptr);
             }
           // Reconstruct F = R * U and convert to AD type.
-          // If R was stored as R^(1/2), square it first.
-          if (_output_half_rotation)
+          // If the recovery file stored R^(1/2), square it first to recover full R.
+          if (_input_half_rotation)
             R = R * R;
           RankTwoTensor F_reconstructed = R * U;
           for (int i_ind = 0; i_ind < 3; i_ind++)
