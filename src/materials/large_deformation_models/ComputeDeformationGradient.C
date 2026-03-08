@@ -388,6 +388,44 @@ ComputeDeformationGradient::computeProperties()
     // Compute right stretch tensor U = R^T * F
     U = R.transpose() * Fnobar_real;
 
+    // Verify polar decomposition quality
+    {
+      const Real det_R = R.det();
+      if (std::abs(det_R - 1.0) > 1e-6)
+        mooseWarning(name(),
+                     ": polar decomposition det(R) = ",
+                     det_R,
+                     " (expected 1) at QP ",
+                     _qp,
+                     " element ",
+                     _current_elem->id(),
+                     ". R is not a proper rotation.");
+
+      const RankTwoTensor ortho_err =
+          R * R.transpose() - RankTwoTensor(RankTwoTensor::initIdentity);
+      const Real ortho_norm = ortho_err.norm();
+      if (ortho_norm > 1e-6)
+        mooseWarning(name(),
+                     ": polar decomposition ||R*R^T - I|| = ",
+                     ortho_norm,
+                     " at QP ",
+                     _qp,
+                     " element ",
+                     _current_elem->id(),
+                     ". R is not orthogonal.");
+
+      const Real recon_norm = (R * U - Fnobar_real).norm();
+      if (recon_norm > 1e-6)
+        mooseWarning(name(),
+                     ": polar decomposition ||R*U - F|| = ",
+                     recon_norm,
+                     " at QP ",
+                     _qp,
+                     " element ",
+                     _current_elem->id(),
+                     ". Reconstruction error is large.");
+    }
+
     _rotation_tensor[_qp] = R;
     _stretch_tensor[_qp] = U;
   }
