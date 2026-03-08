@@ -47,6 +47,14 @@ ComputeDeformationGradient::validParams()
                         "Store R^(1/2) (rotation by theta/2) in the rotation_tensor output "
                         "instead of R. This halves the rotation angle seen by the remapping "
                         "algorithm's matrix logarithm, avoiding the singularity near theta=pi.");
+  params.addParam<bool>("use_iterative_polar_decomposition",
+                        false,
+                        "Use Higham's iterative algorithm for polar decomposition instead of the "
+                        "default eigendecomposition of C = F^T*F. Higham's method operates "
+                        "directly on F (condition number kappa(F) vs kappa(F)^2 for the eigen "
+                        "method), avoids inverting U, requires only 3x3 matrix inverses, and "
+                        "converges quadratically. More robust for large stretches and rotations "
+                        "near pi.");
   params.addParam<bool>("input_half_rotation_tensor",
                         false,
                         "Indicates that the rotation tensor in the recovery file contains R^(1/2) "
@@ -96,7 +104,8 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _stretch_tensor(declareADProperty<RankTwoTensor>(prependBaseName("stretch_tensor"))),
     _recover_from_polar(getParam<MooseEnum>("recover_mode") == "polar_decomposition"),
     _output_half_rotation(getParam<bool>("output_half_rotation_tensor")),
-    _input_half_rotation(getParam<bool>("input_half_rotation_tensor"))
+    _input_half_rotation(getParam<bool>("input_half_rotation_tensor")),
+    _use_iterative_polar(getParam<bool>("use_iterative_polar_decomposition"))
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &Material::getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
@@ -316,6 +325,39 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
   }
 }
 
+void
+ComputeDeformationGradient::polarDecompositionIterative(const RankTwoTensor & F,  // NOLINT
+                                                         RankTwoTensor & R,
+                                                         RankTwoTensor & U)
+{
+  // Higham's Newton iteration for the orthogonal polar factor:
+  //   X_{k+1} = (X_k + X_k^{-T}) / 2,  X_0 = F
+  // Converges quadratically to R.  Works directly on F (not C = F^T*F), so the
+  // effective condition number is kappa(F) rather than kappa(F)^2.  Requires only
+  // 3x3 matrix inverses — no LAPACK SVD needed.
+  const unsigned int max_iter = 50;
+  const Real tol = 1e-12;
+
+  RankTwoTensor X = F;
+  for (unsigned int iter = 0; iter < max_iter; ++iter)
+  {
+    const RankTwoTensor X_new = 0.5 * (X + X.inverse().transpose());
+    const Real delta = (X_new - X).norm();
+    X = X_new;
+    if (delta < tol * X.norm())
+      break;
+    if (iter == max_iter - 1)
+      mooseWarning("polarDecompositionIterative: failed to converge in ",
+                   max_iter,
+                   " iterations (residual = ",
+                   delta,
+                   "). Result may be inaccurate.");
+  }
+
+  R = X;
+  U = R.transpose() * F;
+}
+
 RankTwoTensor
 ComputeDeformationGradient::computeHalfRotation(const RankTwoTensor & R)
 {
@@ -462,11 +504,14 @@ ComputeDeformationGradient::computeProperties()
     RankTwoTensor Fnobar_real = MetaPhysicL::raw_value(_Fnobar[_qp]);
     RankTwoTensor R, U;
 
-    // Compute rotation tensor R from F = R*U decomposition
-    Fnobar_real.getRUDecompositionRotation(R);
-
-    // Compute right stretch tensor U = R^T * F
-    U = R.transpose() * Fnobar_real;
+    // Compute polar decomposition F = R*U
+    if (_use_iterative_polar)
+      polarDecompositionIterative(Fnobar_real, R, U);
+    else
+    {
+      Fnobar_real.getRUDecompositionRotation(R);
+      U = R.transpose() * Fnobar_real;
+    }
 
     // Verify polar decomposition quality
     {

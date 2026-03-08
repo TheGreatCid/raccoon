@@ -103,10 +103,20 @@ protected:
   /// Set this to match what output_half_rotation_tensor was in the run that produced the file.
   const bool _input_half_rotation;
 
+  /// Use Higham's iterative algorithm for polar decomposition instead of the default
+  /// eigendecomposition of C = F^T*F.  Higham operates directly on F (kappa(F) vs kappa(F)^2),
+  /// avoids inverting U, requires only 3x3 matrix inverses, and converges quadratically.
+  const bool _use_iterative_polar;
+
 private:
   const std::unordered_map<int, int> * _lookup;
 
   /// Compute the principal square root of a rotation matrix R in SO(3).
   /// Returns R_half such that R_half * R_half = R, with rotation angle theta/2.
   static RankTwoTensor computeHalfRotation(const RankTwoTensor & R);
+
+  /// Higham iterative polar decomposition: F = R * U where R in SO(3) and U is symmetric PD.
+  /// X_{k+1} = (X_k + X_k^{-T}) / 2, converges quadratically to R.
+  /// More numerically stable than getRUDecompositionRotation for ill-conditioned F.
+  void polarDecompositionIterative(const RankTwoTensor & F, RankTwoTensor & R, RankTwoTensor & U);
 };
