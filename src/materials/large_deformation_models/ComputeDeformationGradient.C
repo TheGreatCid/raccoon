@@ -101,6 +101,7 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _Frobenius(declareProperty<Real>(prependBaseName("Frobenius_norm"))),
     _Jacobian(declareProperty<Real>(prependBaseName("Jacobian"))),
     _rotation_tensor(declareADProperty<RankTwoTensor>(prependBaseName("rotation_tensor"))),
+    _rotation_tensor_old(getMaterialPropertyOld<RankTwoTensor>(prependBaseName("rotation_tensor"))),
     _stretch_tensor(declareADProperty<RankTwoTensor>(prependBaseName("stretch_tensor"))),
     _recover_from_polar(getParam<MooseEnum>("recover_mode") == "polar_decomposition"),
     _output_half_rotation(getParam<bool>("output_half_rotation_tensor")),
@@ -166,6 +167,7 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
   {
     _F[_qp].setToIdentity();
     _Fm[_qp].setToIdentity();
+    _rotation_tensor[_qp].setToIdentity();
   }
   unsigned int qp_max = _qpnum;
 
@@ -227,6 +229,9 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
                   "stretch_tensor_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
                   nullptr);
             }
+          // Save the raw value from the file before squaring (may be R^(1/2)).
+          // Used below to seed _rotation_tensor for axis-continuity at step 1.
+          const RankTwoTensor R_file = R;
           // Reconstruct F = R * U and convert to AD type.
           // If the recovery file stored R^(1/2), square it first to recover full R.
           if (_input_half_rotation)
@@ -235,6 +240,17 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
           for (int i_ind = 0; i_ind < 3; i_ind++)
             for (int j_ind = 0; j_ind < 3; j_ind++)
               _F_store_noFbar[_qp](i_ind, j_ind) = F_reconstructed(i_ind, j_ind);
+
+          // Seed _rotation_tensor so that axis-continuity tracking at the first
+          // computed step compares against the actual recovered axis, not identity.
+          // Use identity as R_half_old here — there is no prior state when seeding.
+          const RankTwoTensor I_seed(RankTwoTensor::initIdentity);
+          if (_output_half_rotation)
+            // If the file stored R^(1/2) already, use it directly; otherwise halve R.
+            _rotation_tensor[_qp] =
+                _input_half_rotation ? R_file : computeHalfRotation(R, I_seed);
+          else
+            _rotation_tensor[_qp] = R;
         }
         else
         {
@@ -293,6 +309,9 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
                   "stretch_tensor_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
                   nullptr);
             }
+          // Save the raw value from the file before squaring (may be R^(1/2)).
+          // Used below to seed _rotation_tensor for axis-continuity at step 1.
+          const RankTwoTensor R_file = R;
           // Reconstruct F = R * U and convert to AD type.
           // If the recovery file stored R^(1/2), square it first to recover full R.
           if (_input_half_rotation)
@@ -301,6 +320,15 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
           for (int i_ind = 0; i_ind < 3; i_ind++)
             for (int j_ind = 0; j_ind < 3; j_ind++)
               _F_store_noFbar[_qp](i_ind, j_ind) = F_reconstructed(i_ind, j_ind);
+
+          // Seed _rotation_tensor so that axis-continuity tracking at the first
+          // computed step compares against the actual recovered axis, not identity.
+          const RankTwoTensor I_seed(RankTwoTensor::initIdentity);
+          if (_output_half_rotation)
+            _rotation_tensor[_qp] =
+                _input_half_rotation ? R_file : computeHalfRotation(R, I_seed);
+          else
+            _rotation_tensor[_qp] = R;
         }
         else
         {
@@ -359,7 +387,8 @@ ComputeDeformationGradient::polarDecompositionIterative(const RankTwoTensor & F,
 }
 
 RankTwoTensor
-ComputeDeformationGradient::computeHalfRotation(const RankTwoTensor & R)
+ComputeDeformationGradient::computeHalfRotation(const RankTwoTensor & R,
+                                                  const RankTwoTensor & R_half_old)
 {
   // Extract rotation angle from the trace: cos(theta) = (tr(R) - 1) / 2
   const Real cos_theta = std::max(-1.0, std::min(1.0, (R.tr() - 1.0) / 2.0));
@@ -410,6 +439,29 @@ ComputeDeformationGradient::computeHalfRotation(const RankTwoTensor & R)
     K(0, 1) = -n[2]; K(0, 2) =  n[1];
     K(1, 0) =  n[2]; K(1, 2) = -n[0];
     K(2, 0) = -n[1]; K(2, 1) =  n[0];
+  }
+
+  // Axis-continuity tracking: when the physical rotation crosses pi, the polar
+  // decomposition wraps back and flips the rotation axis sign.  This causes a
+  // sudden jump in R^(1/2) components.  We detect the flip by comparing the new
+  // axis (encoded in K's skew entries) against the direction implied by the skew
+  // part of the previous-timestep R^(1/2).  If the dot product is negative the
+  // axis flipped; negate K to restore continuity.
+  //
+  // The skew part of R_half_old equals sin(theta_old/2)*K_old, so it carries
+  // the sign of the old axis without requiring normalisation.  At the first step
+  // R_half_old == I and the old skew part is zero — the correction is skipped.
+  const Real old_ax = (R_half_old(2, 1) - R_half_old(1, 2)) / 2.0; // ~ sin * n_x
+  const Real old_ay = (R_half_old(0, 2) - R_half_old(2, 0)) / 2.0; // ~ sin * n_y
+  const Real old_az = (R_half_old(1, 0) - R_half_old(0, 1)) / 2.0; // ~ sin * n_z
+  const Real old_mag = std::sqrt(old_ax * old_ax + old_ay * old_ay + old_az * old_az);
+
+  if (old_mag > 1e-10)
+  {
+    // K(2,1) = n_x, K(0,2) = n_y, K(1,0) = n_z  (from skew-symmetric convention)
+    const Real dot = K(2, 1) * old_ax + K(0, 2) * old_ay + K(1, 0) * old_az;
+    if (dot < 0.0)
+      K *= -1.0;
   }
 
   // Rodrigues formula for R^(1/2): same axis, half angle.
@@ -551,7 +603,9 @@ ComputeDeformationGradient::computeProperties()
                      ". Reconstruction error is large.");
     }
 
-    _rotation_tensor[_qp] = _output_half_rotation ? computeHalfRotation(R) : R;
+    _rotation_tensor[_qp] = _output_half_rotation
+                                 ? computeHalfRotation(R, _rotation_tensor_old[_qp])
+                                 : R;
     _stretch_tensor[_qp] = U;
   }
 }

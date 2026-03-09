@@ -88,6 +88,7 @@ protected:
 
   // Polar decomposition output (R and U from F = R*U)
   ADMaterialProperty<RankTwoTensor> & _rotation_tensor;
+  const MaterialProperty<RankTwoTensor> & _rotation_tensor_old;
   ADMaterialProperty<RankTwoTensor> & _stretch_tensor;
 
   // Recovery mode flag
@@ -112,8 +113,11 @@ private:
   const std::unordered_map<int, int> * _lookup;
 
   /// Compute the principal square root of a rotation matrix R in SO(3).
-  /// Returns R_half such that R_half * R_half = R, with rotation angle theta/2.
-  static RankTwoTensor computeHalfRotation(const RankTwoTensor & R);
+  /// R_half_old is the stored rotation_tensor from the previous timestep; its skew
+  /// part is used to detect and correct axis-sign flips that occur when the physical
+  /// rotation crosses π, maintaining component continuity across timesteps.
+  static RankTwoTensor computeHalfRotation(const RankTwoTensor & R,
+                                            const RankTwoTensor & R_half_old);
 
   /// Higham iterative polar decomposition: F = R * U where R in SO(3) and U is symmetric PD.
   /// X_{k+1} = (X_k + X_k^{-T}) / 2, converges quadratically to R.
