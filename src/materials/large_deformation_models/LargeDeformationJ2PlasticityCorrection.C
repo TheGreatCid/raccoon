@@ -150,6 +150,12 @@ LargeDeformationJ2PlasticityCorrection::initQpStatefulProperties()
       if (MetaPhysicL::raw_value(_psip_triax_raw[_qp]) < 0)
         _psip_triax_raw[_qp] = 0.0;
     }
+
+    // Re-enforce det(be_bar) = 1 on the mapped be_bar.
+    // Mesh-to-mesh interpolation preserves tensor components independently,
+    // breaking the isochoric constraint. This corrects tr(be_bar) without
+    // altering the deviatoric part (which carries the stress information).
+    computeCorrectionTerm(_bebar[_qp].deviatoric());
   }
 };
 
