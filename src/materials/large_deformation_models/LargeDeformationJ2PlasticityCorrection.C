@@ -152,10 +152,13 @@ LargeDeformationJ2PlasticityCorrection::initQpStatefulProperties()
     }
 
     // Re-enforce det(be_bar) = 1 on the mapped be_bar.
-    // Mesh-to-mesh interpolation preserves tensor components independently,
-    // breaking the isochoric constraint. This corrects tr(be_bar) without
-    // altering the deviatoric part (which carries the stress information).
-    computeCorrectionTerm(_bebar[_qp].deviatoric());
+    // Scaling by 1/cbrt(det) restores the isochoric constraint while preserving
+    // the trace and eigenvalue ratios (deviatoric shape). The deviatoric approach
+    // via computeCorrectionTerm sets tr = 3*Ie_bar, which does not preserve the
+    // physical trace and can inflate psie when the error has a volumetric component.
+    const Real det_bebar = MetaPhysicL::raw_value(_bebar[_qp].det());
+    if (std::abs(det_bebar - 1.0) > 1e-10)
+      _bebar[_qp] /= std::cbrt(det_bebar);
   }
 };
 
@@ -182,10 +185,8 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   // Compute fbar
   ADRankTwoTensor fbar = f / cbrt(f.det());
 
-  // Not sure if this actually helps
-  if (_t_step > 0 || _recover == false)
-    // Compute bebar_trial
-    _bebar[_qp] = fbar * _bebar_old[_qp] * fbar.transpose();
+  // Compute bebar_trial
+  _bebar[_qp] = fbar * _bebar_old[_qp] * fbar.transpose();
 
   // Compute trial stress
   // Will need to do a better implementation of this
