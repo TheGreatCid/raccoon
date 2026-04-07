@@ -355,7 +355,9 @@ LargeDeformationJ2PlasticityCorrection::computeDerivative(const ADReal & /*effec
 void
 LargeDeformationJ2PlasticityCorrection::computeCorrectionTerm(const ADRankTwoTensor & devbebar)
 {
+  using std::acos;
   using std::cbrt;
+  using std::cos;
   using std::sqrt;
 
   // Identity tensor
@@ -372,13 +374,40 @@ LargeDeformationJ2PlasticityCorrection::computeCorrectionTerm(const ADRankTwoTen
   ADReal B = a * b + a * c + b * c - d * d - e * e - h * h;
   ADReal C = a * b * c + 2.0 * d * e * h - a * d * d - b * e * e - c * h * h - 1.0;
 
-  ADReal D = cbrt(
-      -2 * A * A * A +
-      3 * sqrt(3) *
-          sqrt(4 * A * A * A * C - A * A * B * B - 18 * A * B * C + 4 * B * B * B + 27 * C * C) +
-      9 * A * B - 27 * C);
+  // Discriminant of the cubic. Positive → one real root (Cardano).
+  // Negative → three real roots (Cardano produces sqrt of a negative → NaN).
+  ADReal disc = 4 * A * A * A * C - A * A * B * B - 18 * A * B * C + 4 * B * B * B + 27 * C * C;
 
-  ADReal Ie_bar = D / 3 / cbrt(2) - cbrt(2) * (3 * B - A * A) / 3 / D - A / 3;
+  ADReal Ie_bar;
+  if (MetaPhysicL::raw_value(disc) >= 0)
+  {
+    // One real root — standard Cardano formula
+    ADReal D = cbrt(-2 * A * A * A + 3 * sqrt(3) * sqrt(disc) + 9 * A * B - 27 * C);
+    Ie_bar = D / 3 / cbrt(2) - cbrt(2) * (3 * B - A * A) / 3 / D - A / 3;
+  }
+  else
+  {
+    // Three real roots — trigonometric method on the depressed cubic t³ + p·t + q = 0,
+    // where t = Ie_bar + A/3. The largest root (k=0) is selected to maximise tr(be_bar)
+    // and ensure positive definiteness of the recovered tensor.
+    ADReal p = B - A * A / 3.0;
+    ADReal q = 2.0 * A * A * A / 27.0 - A * B / 3.0 + C;
+    // p < 0 is guaranteed when disc < 0
+    ADReal m = 2.0 * sqrt(-p / 3.0);
+    ADReal cos_arg = 3.0 * q / (p * m);
+    // Clamp raw value to [-1, 1] to guard against round-off pushing acos out of domain
+    ADReal cos_arg_clamped = cos_arg;
+    {
+      Real rv = MetaPhysicL::raw_value(cos_arg);
+      if (rv > 1.0)
+        cos_arg_clamped = ADReal(1.0);
+      else if (rv < -1.0)
+        cos_arg_clamped = ADReal(-1.0);
+    }
+    ADReal t = m * cos(acos(cos_arg_clamped) / 3.0);
+    Ie_bar = t - A / 3.0;
+  }
+
   _bebar[_qp] = devbebar + Ie_bar * I2;
 }
 
