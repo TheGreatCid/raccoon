@@ -72,6 +72,7 @@ protected:
   const Real _d1;
   const Real _d2;
   const Real _d3;
+  const Real _triax_gaussian_peak;
   QpMapping::Element _element;
   const bool _apply_strain_energy_split;
 

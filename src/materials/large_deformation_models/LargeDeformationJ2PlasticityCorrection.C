@@ -35,6 +35,12 @@ LargeDeformationJ2PlasticityCorrection::validParams()
   params.addParam<Real>("d1", 0.1, "d1 triax");
   params.addParam<Real>("d2", 3.8, "d2 triax");
   params.addParam<Real>("d3", -1.8, "d3 triax");
+  params.addParam<Real>("triax_gaussian_peak",
+                        2.0,
+                        "Peak value of the Gaussian triaxiality function f(η) at η=0. "
+                        "f(η) = 1 + (peak-1)*exp(-η²/(2σ²)), so the asymptotic value "
+                        "at |η|→∞ is always 1 and f(0)=peak. Default 2 recovers the "
+                        "original fixed-amplitude behavior.");
   params.addRequiredParam<MooseEnum>(
       "element", MooseEnum(QpMapping::ELEMENT_ENUM_DEFINITION), "The element type");
   params.addParam<bool>("apply_strain_energy_split",
@@ -88,6 +94,7 @@ LargeDeformationJ2PlasticityCorrection::LargeDeformationJ2PlasticityCorrection(
     _d1(getParam<Real>("d1")),
     _d2(getParam<Real>("d2")),
     _d3(getParam<Real>("d3")),
+    _triax_gaussian_peak(getParam<Real>("triax_gaussian_peak")),
     _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>()),
     _apply_strain_energy_split(getParam<bool>("apply_strain_energy_split")),
     _psip_active_ref(getADMaterialProperty<Real>(
@@ -304,8 +311,9 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   // Peak at η=0: f(0) = 2, minimum asymptotic value: f(±∞) = 1
   // Reaches ~1.1 at η = ±1
   ADReal eta = _triaxiality_cauchy[_qp];
-  ADReal sigma_sq = 0.1803; // σ² = 0.1803, so σ ≈ 0.4247
-  _triaxfunc[_qp] = 1.0 + std::exp(MetaPhysicL::raw_value(-eta * eta / (2.0 * sigma_sq)));
+  const Real sigma_sq = 0.1803; // σ² = 0.1803, so σ ≈ 0.4247
+  _triaxfunc[_qp] = 1.0 + (_triax_gaussian_peak - 1.0) *
+                               std::exp(MetaPhysicL::raw_value(-eta * eta / (2.0 * sigma_sq)));
 
   // Store determinant of bebar
   _bebar_det[_qp] = _bebar[_qp].det();
