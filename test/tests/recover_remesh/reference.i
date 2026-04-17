@@ -29,7 +29,7 @@ hht_alpha = -0.25
 newmark_beta = '${fparse (1-hht_alpha)^2/4}'
 newmark_gamma = '${fparse 1/2-hht_alpha}'
 
-end_time = 2
+end_time = 1.2
 dt = 0.1
 
 [GlobalParams]
