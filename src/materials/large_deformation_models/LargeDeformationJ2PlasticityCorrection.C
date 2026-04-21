@@ -215,7 +215,8 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
     returnMappingSolve(s_trial_norm, delta_ep, _console);
 
     // Update stress
-    ADRankTwoTensor s = s_trial - _ge[_qp] * _G[_qp] * delta_ep * _bebar[_qp].trace() * _Np[_qp];
+    ADRankTwoTensor s =
+        s_trial - (2.0 / 3.0) * _ge[_qp] * _G[_qp] * delta_ep * _bebar[_qp].trace() * _Np[_qp];
     _ep[_qp] = _ep_old[_qp] + delta_ep;
 
     // Updating Kirchoff stress
@@ -313,7 +314,7 @@ LargeDeformationJ2PlasticityCorrection::updateState(ADRankTwoTensor & stress,
   ADReal eta = _triaxiality_cauchy[_qp];
   const Real sigma_sq = 0.1803; // σ² = 0.1803, so σ ≈ 0.4247
   _triaxfunc[_qp] = 1.0 + (_triax_gaussian_peak - 1.0) *
-                               std::exp(MetaPhysicL::raw_value(-eta * eta / (2.0 * sigma_sq)));
+                              std::exp(MetaPhysicL::raw_value(-eta * eta / (2.0 * sigma_sq)));
 
   // Store determinant of bebar
   _bebar_det[_qp] = _bebar[_qp].det();
@@ -346,7 +347,7 @@ LargeDeformationJ2PlasticityCorrection::computeResidual(const ADReal & effective
   return effective_trial_stress -
          std::sqrt(2.0 / 3.0) * (_hardening_model->plasticEnergy(ep, 1) +
                                  _hardening_model->plasticDissipation(delta_ep, ep, 1)) -
-         std::sqrt(3.0 / 2.0) * _ge[_qp] * _G[_qp] * delta_ep * _bebar[_qp].trace();
+         std::sqrt(2.0 / 3.0) * _ge[_qp] * _G[_qp] * delta_ep * _bebar[_qp].trace();
 }
 
 ADReal
@@ -357,7 +358,7 @@ LargeDeformationJ2PlasticityCorrection::computeDerivative(const ADReal & /*effec
   ADReal ep = _ep_old[_qp] + delta_ep;
   return -std::sqrt(2.0 / 3.0) * (_hardening_model->plasticEnergy(ep, 2) +
                                   _hardening_model->plasticDissipation(delta_ep, ep, 2)) -
-         std::sqrt(3.0 / 2.0) * _ge[_qp] * _G[_qp] * _bebar[_qp].trace();
+         std::sqrt(2.0 / 3.0) * _ge[_qp] * _G[_qp] * _bebar[_qp].trace();
 }
 
 void
