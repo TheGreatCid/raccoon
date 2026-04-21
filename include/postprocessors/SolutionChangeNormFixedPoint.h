@@ -5,7 +5,7 @@
 #pragma once
 
 #include "ElementIntegralPostprocessor.h"
-#include "MooseVariableFE.h"
+#include "MooseVariableInterface.h"
 
 /**
  * Computes the L2 norm of the change in a variable between consecutive fixed-point
@@ -18,7 +18,8 @@
  * after the sub-app has solved and the damage field has been transferred back, but
  * before the convergence decision is made.
  */
-class SolutionChangeNormFixedPoint : public ElementIntegralPostprocessor
+class SolutionChangeNormFixedPoint : public ElementIntegralPostprocessor,
+                                     public MooseVariableInterface<Real>
 {
 public:
   static InputParameters validParams();
@@ -32,14 +33,14 @@ public:
 protected:
   virtual Real computeQpIntegral() override;
 
-  /// The FE variable being tracked across fixed-point iterations
+  // The FE variable being tracked across fixed-point iterations
   MooseVariableFE<Real> * _fp_var;
 
-  /// Localized copy of the current solution (post-transfer), indexed by global DOF.
-  /// Must use solution() directly — coupledValue() reads current_local_solution which is
-  /// not synced after a MultiAppCopyTransfer writes to solution().
+  // Localized copy of the current solution (post-transfer), indexed by global DOF.
+  // Must use solution() directly — coupledValue() reads current_local_solution which is
+  // not synced after a MultiAppCopyTransfer writes to solution().
   std::vector<Number> _current_local;
 
-  /// Localized copy of the previous fixed-point iteration solution, indexed by global DOF.
+  // Localized copy of the previous fixed-point iteration solution, indexed by global DOF.
   std::vector<Number> _fp_old_local;
 };
