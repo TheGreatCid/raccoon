@@ -334,7 +334,7 @@ Real
 LargeDeformationJ2PlasticityCorrection::computeReferenceResidual(
     const ADReal & effective_trial_stress, const ADReal & delta_ep)
 {
-  return MetaPhysicL::raw_value(effective_trial_stress - std::sqrt(3.0 / 2.0) * _ge[_qp] * _G[_qp] *
+  return MetaPhysicL::raw_value(effective_trial_stress - std::sqrt(2.0 / 3.0) * _ge[_qp] * _G[_qp] *
                                                              delta_ep * _bebar[_qp].trace());
 }
 
