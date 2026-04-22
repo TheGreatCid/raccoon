@@ -17,8 +17,7 @@ public:
 
   virtual void updateState(ADRankTwoTensor & stress, ADRankTwoTensor & Fe) override;
 
-  virtual void
-  setElasticityModel(LargeDeformationElasticityModel * elasticity_model) override;
+  virtual void setElasticityModel(LargeDeformationElasticityModel * elasticity_model) override;
 
 protected:
   virtual ADReal initialGuess(const ADReal & effective_trial_stress) override
