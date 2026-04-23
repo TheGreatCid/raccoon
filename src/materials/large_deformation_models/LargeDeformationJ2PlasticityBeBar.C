@@ -27,6 +27,20 @@ LargeDeformationJ2PlasticityBeBar::validParams()
                         "energy (psie_active). If true (default), only the positive part of the "
                         "energy is assigned to psie_active. If false, the full unsplit energy U + "
                         "W is used for psie_active.");
+  params.addParam<Real>("triax_gaussian_peak",
+                        2.0,
+                        "Peak value of the Gaussian triaxiality function f(η) at η=0. "
+                        "f(η) = 1 + (peak-1)*exp(-η²/(2σ²)), so the asymptotic value at "
+                        "|η|→∞ is 1 and f(0)=peak. Default 2 recovers the original behavior.");
+  params.addParam<MaterialPropertyName>(
+      "hardening_plastic_energy_density_active",
+      "psip_active",
+      "Name of the active plastic energy density declared by the hardening model "
+      "(used for psip_triax). Must match the hardening model's declared property name.");
+  params.addParam<Real>("psip_triax_threshold",
+                        200.0,
+                        "Activation threshold for psip_triax. psip_triax_raw must exceed "
+                        "this value before psip_triax becomes non-zero.");
   return params;
 }
 
@@ -45,7 +59,18 @@ LargeDeformationJ2PlasticityBeBar::LargeDeformationJ2PlasticityBeBar(
     _psie_active_corr(declareADProperty<Real>(_psie_name + "_active")),
     _dpsie_dd_corr(declareADProperty<Real>(derivativePropertyName(_psie_name, {_d_name}))),
     _psie_unsplit(declareADProperty<Real>(_psie_name + "_unsplit")),
-    _apply_strain_energy_split(getParam<bool>("apply_strain_energy_split"))
+    _apply_strain_energy_split(getParam<bool>("apply_strain_energy_split")),
+    _triaxfunc(declareADProperty<Real>(prependBaseName("triaxfunc"))),
+    _triaxiality_kirchhoff(declareADProperty<Real>(prependBaseName("triaxiality_kirchhoff"))),
+    _triaxiality_cauchy(declareADProperty<Real>(prependBaseName("triaxiality_cauchy"))),
+    _triax_gaussian_peak(getParam<Real>("triax_gaussian_peak")),
+    _psip_active_ref(getADMaterialProperty<Real>(
+        getParam<MaterialPropertyName>("hardening_plastic_energy_density_active"))),
+    _psip_triax_threshold(getParam<Real>("psip_triax_threshold")),
+    _psip_triax_raw(declareADProperty<Real>(prependBaseName("psip_triax_raw"))),
+    _psip_triax_raw_old(getMaterialPropertyOld<Real>(prependBaseName("psip_triax_raw"))),
+    _psip_triax(declareADProperty<Real>(prependBaseName("psip_triax"))),
+    _psip_triax_old(getMaterialPropertyOld<Real>(prependBaseName("psip_triax")))
 {
   _check_range = true;
 }
@@ -73,6 +98,8 @@ LargeDeformationJ2PlasticityBeBar::initQpStatefulProperties()
   _Fp[_qp].setToIdentity();
   _ep[_qp] = 0;
   _bebar[_qp].setToIdentity();
+  _psip_triax_raw[_qp] = 0.0;
+  _psip_triax[_qp] = 0.0;
 }
 
 void
@@ -140,6 +167,59 @@ LargeDeformationJ2PlasticityBeBar::updateState(ADRankTwoTensor & stress, ADRankT
   }
   else
     _heat[_qp] = 0;
+
+  // psip_triax_raw: irreversible triaxiality-weighted plastic energy (no threshold).
+  // Uses _triaxfunc from the previous NL iteration (lagged). On the first call it is
+  // 0 so new_value is gated by the psi_a >= 0.1 guard.
+  {
+    const Real psi_a = MetaPhysicL::raw_value(_psip_active_ref[_qp]);
+    const Real tf = MetaPhysicL::raw_value(_triaxfunc[_qp]);
+    const Real old_raw = _psip_triax_raw_old[_qp];
+    Real new_value = 0.0;
+    if (psi_a >= 0.1 && tf > 0.0)
+      new_value = psi_a / tf;
+    if (new_value >= old_raw && new_value > 0.0)
+      _psip_triax_raw[_qp] = _psip_active_ref[_qp] / _triaxfunc[_qp];
+    else
+      _psip_triax_raw[_qp] = ADReal(old_raw);
+  }
+
+  // psip_triax: threshold-gated version of psip_triax_raw.
+  {
+    const Real raw_value = MetaPhysicL::raw_value(_psip_triax_raw[_qp]);
+    _psip_triax[_qp] = raw_value >= _psip_triax_threshold ? _psip_triax_raw[_qp] : ADReal(0.0);
+  }
+
+  // Compute stress triaxialities (Kirchhoff and Cauchy).
+  {
+    using std::sqrt;
+    ADReal J = _F[_qp].det();
+    ADRankTwoTensor tau = J * stress;
+
+    ADReal tau_mean = tau.trace() / 3.0;
+    ADRankTwoTensor s_tau = tau.deviatoric();
+    ADReal s_tau_norm_sq = s_tau.doubleContraction(s_tau);
+    if (MooseUtils::absoluteFuzzyEqual(s_tau_norm_sq, 0))
+      s_tau_norm_sq.value() = libMesh::TOLERANCE * libMesh::TOLERANCE;
+    _triaxiality_kirchhoff[_qp] = tau_mean / sqrt(1.5 * s_tau_norm_sq);
+
+    ADReal sigma_mean = stress.trace() / 3.0;
+    ADRankTwoTensor s_sigma = stress.deviatoric();
+    ADReal s_sigma_norm_sq = s_sigma.doubleContraction(s_sigma);
+    if (MooseUtils::absoluteFuzzyEqual(s_sigma_norm_sq, 0))
+      s_sigma_norm_sq.value() = libMesh::TOLERANCE * libMesh::TOLERANCE;
+    _triaxiality_cauchy[_qp] = sigma_mean / sqrt(1.5 * s_sigma_norm_sq);
+  }
+
+  // Gaussian triaxiality function: f(η) = 1 + (peak-1)*exp(-η²/(2σ²))
+  // Peak at η=0, asymptotes to 1 at large |η|. σ² = 0.1803 gives σ ≈ 0.425.
+  {
+    ADReal eta = _triaxiality_cauchy[_qp];
+    constexpr Real sigma_sq = 0.1803;
+    _triaxfunc[_qp] =
+        1.0 + (_triax_gaussian_peak - 1.0) *
+                  std::exp(MetaPhysicL::raw_value(-eta * eta / (2.0 * sigma_sq)));
+  }
 
   _bebar_det[_qp] = _bebar[_qp].det();
 }

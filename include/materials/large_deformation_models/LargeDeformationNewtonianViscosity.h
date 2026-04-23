@@ -22,4 +22,6 @@ protected:
 
   /// The degradation function
   const ADMaterialProperty<Real> & _g;
+
+  ADMaterialProperty<RankTwoTensor> & _D;
 };
