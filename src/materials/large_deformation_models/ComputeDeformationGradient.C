@@ -65,8 +65,9 @@ ComputeDeformationGradient::validParams()
   params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
   params.addParam<Real>("num_qps", 8, "Number of QPs");
   params.addCoupledVar("F_ext_rec", "External F to recover with");
-  params.addParam<MooseEnum>(
-      "element", MooseEnum(QpMapping::ELEMENT_ENUM_DEFINITION), "Element type for QP remapping; required when recover = true");
+  params.addParam<MooseEnum>("element",
+                             MooseEnum(QpMapping::ELEMENT_ENUM_DEFINITION),
+                             "Element type for QP remapping; required when recover = true");
   return params;
 }
 
@@ -252,8 +253,7 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
           const RankTwoTensor I_seed(RankTwoTensor::initIdentity);
           if (_output_half_rotation)
             // If the file stored R^(1/2) already, use it directly; otherwise halve R.
-            _rotation_tensor[_qp] =
-                _input_half_rotation ? R_file : computeHalfRotation(R, I_seed);
+            _rotation_tensor[_qp] = _input_half_rotation ? R_file : computeHalfRotation(R, I_seed);
           else
             _rotation_tensor[_qp] = R;
         }
@@ -282,7 +282,7 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
       {
         _F_store_Fbar[_qp] *= cbrt(ave_F_det_init / _F_store_noFbar[_qp].det());
         // For getting the old value of F
-        _F[_qp] = _F_store_noFbar[_qp];
+        _F[_qp] = _F_store_Fbar[_qp];
       }
     }
 
@@ -330,8 +330,7 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
           // computed step compares against the actual recovered axis, not identity.
           const RankTwoTensor I_seed(RankTwoTensor::initIdentity);
           if (_output_half_rotation)
-            _rotation_tensor[_qp] =
-                _input_half_rotation ? R_file : computeHalfRotation(R, I_seed);
+            _rotation_tensor[_qp] = _input_half_rotation ? R_file : computeHalfRotation(R, I_seed);
           else
             _rotation_tensor[_qp] = R;
         }
@@ -359,9 +358,9 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
 }
 
 void
-ComputeDeformationGradient::polarDecompositionIterative(const RankTwoTensor & F,  // NOLINT
-                                                         RankTwoTensor & R,
-                                                         RankTwoTensor & U)
+ComputeDeformationGradient::polarDecompositionIterative(const RankTwoTensor & F, // NOLINT
+                                                        RankTwoTensor & R,
+                                                        RankTwoTensor & U)
 {
   // Higham's Newton iteration for the orthogonal polar factor:
   //   X_{k+1} = (X_k + X_k^{-T}) / 2,  X_0 = F
@@ -393,7 +392,7 @@ ComputeDeformationGradient::polarDecompositionIterative(const RankTwoTensor & F,
 
 RankTwoTensor
 ComputeDeformationGradient::computeHalfRotation(const RankTwoTensor & R,
-                                                  const RankTwoTensor & R_half_old)
+                                                const RankTwoTensor & R_half_old)
 {
   // Extract rotation angle from the trace: cos(theta) = (tr(R) - 1) / 2
   const Real cos_theta = std::max(-1.0, std::min(1.0, (R.tr() - 1.0) / 2.0));
@@ -441,9 +440,12 @@ ComputeDeformationGradient::computeHalfRotation(const RankTwoTensor & R,
     const Real len = std::sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
     for (const auto k : make_range(3))
       n[k] /= len;
-    K(0, 1) = -n[2]; K(0, 2) =  n[1];
-    K(1, 0) =  n[2]; K(1, 2) = -n[0];
-    K(2, 0) = -n[1]; K(2, 1) =  n[0];
+    K(0, 1) = -n[2];
+    K(0, 2) = n[1];
+    K(1, 0) = n[2];
+    K(1, 2) = -n[0];
+    K(2, 0) = -n[1];
+    K(2, 1) = n[0];
   }
 
   // Axis-continuity tracking: when the physical rotation crosses pi, the polar
@@ -608,9 +610,8 @@ ComputeDeformationGradient::computeProperties()
                      ". Reconstruction error is large.");
     }
 
-    _rotation_tensor[_qp] = _output_half_rotation
-                                 ? computeHalfRotation(R, _rotation_tensor_old[_qp])
-                                 : R;
+    _rotation_tensor[_qp] =
+        _output_half_rotation ? computeHalfRotation(R, _rotation_tensor_old[_qp]) : R;
     _stretch_tensor[_qp] = U;
   }
 }
