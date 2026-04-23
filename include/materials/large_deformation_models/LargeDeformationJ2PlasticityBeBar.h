@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "LargeDeformationPlasticityModel.h"
+#include "LargeDeformationJ2PlasticityBase.h"
 #include "DerivativeMaterialPropertyNameInterface.h"
 
-class LargeDeformationJ2PlasticityBeBar : public LargeDeformationPlasticityModel,
+class LargeDeformationJ2PlasticityBeBar : public LargeDeformationJ2PlasticityBase,
                                           public DerivativeMaterialPropertyNameInterface
 {
 public:

@@ -360,7 +360,7 @@ dt = 0.1
     decomposition = NONE
   []
   [J2]
-    type = LargeDeformationJ2PlasticityCorrection
+    type = LargeDeformationJ2PlasticityBeBar
     phase_field = d_corr
     hardening_model = JC
     relative_tolerance = 1e-08

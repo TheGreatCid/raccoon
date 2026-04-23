@@ -12,7 +12,7 @@ registerMooseObject("raccoonApp", LargeDeformationJ2PlasticityBeBar);
 InputParameters
 LargeDeformationJ2PlasticityBeBar::validParams()
 {
-  InputParameters params = LargeDeformationPlasticityModel::validParams();
+  InputParameters params = LargeDeformationJ2PlasticityBase::validParams();
   params.addClassDescription("Large deformation $J_2$ plasticity using the bebar (modified "
                              "left Cauchy-Green) update. Elastic parameters are sourced from "
                              "the associated CNHIsotropicElasticity model.");
@@ -46,7 +46,7 @@ LargeDeformationJ2PlasticityBeBar::validParams()
 
 LargeDeformationJ2PlasticityBeBar::LargeDeformationJ2PlasticityBeBar(
     const InputParameters & parameters)
-  : LargeDeformationPlasticityModel(parameters),
+  : LargeDeformationJ2PlasticityBase(parameters),
     DerivativeMaterialPropertyNameInterface(),
     _bebar(declareADProperty<RankTwoTensor>(prependBaseName("be_bar"))),
     _bebar_old(getMaterialPropertyOldByName<RankTwoTensor>(prependBaseName("be_bar"))),
@@ -89,7 +89,7 @@ LargeDeformationJ2PlasticityBeBar::setElasticityModel(
   _psie_cnh = &cnh->getPsie();
   _psie_active_cnh = &cnh->getPsieActive();
   _dpsie_dd_cnh = &cnh->getDpsieDD();
-  LargeDeformationPlasticityModel::setElasticityModel(elasticity_model);
+  LargeDeformationJ2PlasticityBase::setElasticityModel(elasticity_model);
 }
 
 void
@@ -100,6 +100,30 @@ LargeDeformationJ2PlasticityBeBar::initQpStatefulProperties()
   _bebar[_qp].setToIdentity();
   _psip_triax_raw[_qp] = 0.0;
   _psip_triax[_qp] = 0.0;
+
+  if (!_recover)
+    return;
+
+  const std::vector<std::string> indices = {"x", "y", "z"};
+  unsigned int qp_sel = QpMapping::getQP(_qp + 1, _lookup);
+
+  _ep[_qp] = _solution_object_ptr->pointValue(
+      _t, _current_elem->true_centroid(), "effective_plastic_strain_" + formatQP(qp_sel), nullptr);
+  if (_ep[_qp] < 0)
+    _ep[_qp] = 0;
+
+  for (int i_ind = 0; i_ind < 3; i_ind++)
+    for (int j_ind = 0; j_ind < 3; j_ind++)
+      _bebar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
+          _t,
+          _current_elem->true_centroid(),
+          "be_bar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
+          nullptr);
+
+  // Re-enforce det(be_bar) = 1 on the mapped be_bar.
+  const Real det_bebar = MetaPhysicL::raw_value(_bebar[_qp].det());
+  if (std::abs(det_bebar - 1.0) > 1e-10)
+    _bebar[_qp] /= std::cbrt(det_bebar);
 }
 
 void
@@ -216,9 +240,8 @@ LargeDeformationJ2PlasticityBeBar::updateState(ADRankTwoTensor & stress, ADRankT
   {
     ADReal eta = _triaxiality_cauchy[_qp];
     constexpr Real sigma_sq = 0.1803;
-    _triaxfunc[_qp] =
-        1.0 + (_triax_gaussian_peak - 1.0) *
-                  std::exp(MetaPhysicL::raw_value(-eta * eta / (2.0 * sigma_sq)));
+    _triaxfunc[_qp] = 1.0 + (_triax_gaussian_peak - 1.0) *
+                                std::exp(MetaPhysicL::raw_value(-eta * eta / (2.0 * sigma_sq)));
   }
 
   _bebar_det[_qp] = _bebar[_qp].det();
