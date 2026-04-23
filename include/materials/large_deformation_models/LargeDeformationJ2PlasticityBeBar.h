@@ -69,4 +69,16 @@ protected:
   ADMaterialProperty<Real> & _psie_unsplit;
 
   const bool _apply_strain_energy_split;
+
+  ADMaterialProperty<Real> & _triaxfunc;
+  ADMaterialProperty<Real> & _triaxiality_kirchhoff;
+  ADMaterialProperty<Real> & _triaxiality_cauchy;
+  const Real _triax_gaussian_peak;
+
+  const ADMaterialProperty<Real> & _psip_active_ref;
+  const Real _psip_triax_threshold;
+  ADMaterialProperty<Real> & _psip_triax_raw;
+  const MaterialProperty<Real> & _psip_triax_raw_old;
+  ADMaterialProperty<Real> & _psip_triax;
+  const MaterialProperty<Real> & _psip_triax_old;
 };
