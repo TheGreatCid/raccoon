@@ -81,4 +81,5 @@ protected:
   const MaterialProperty<Real> & _psip_triax_raw_old;
   ADMaterialProperty<Real> & _psip_triax;
   const MaterialProperty<Real> & _psip_triax_old;
+  const bool _recover_psip_triax;
 };
