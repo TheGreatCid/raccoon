@@ -41,6 +41,9 @@ LargeDeformationJ2PlasticityBeBar::validParams()
                         200.0,
                         "Activation threshold for psip_triax. psip_triax_raw must exceed "
                         "this value before psip_triax becomes non-zero.");
+  params.addParam<bool>("recover_psip_triax",
+                        false,
+                        "Whether to recover the psip_triax values from the solution object.");
   return params;
 }
 
@@ -70,7 +73,8 @@ LargeDeformationJ2PlasticityBeBar::LargeDeformationJ2PlasticityBeBar(
     _psip_triax_raw(declareADProperty<Real>(prependBaseName("psip_triax_raw"))),
     _psip_triax_raw_old(getMaterialPropertyOld<Real>(prependBaseName("psip_triax_raw"))),
     _psip_triax(declareADProperty<Real>(prependBaseName("psip_triax"))),
-    _psip_triax_old(getMaterialPropertyOld<Real>(prependBaseName("psip_triax")))
+    _psip_triax_old(getMaterialPropertyOld<Real>(prependBaseName("psip_triax"))),
+    _recover_psip_triax(getParam<bool>("recover_psip_triax"))
 {
   _check_range = true;
 }
@@ -124,6 +128,14 @@ LargeDeformationJ2PlasticityBeBar::initQpStatefulProperties()
   const Real det_bebar = MetaPhysicL::raw_value(_bebar[_qp].det());
   if (std::abs(det_bebar - 1.0) > 1e-10)
     _bebar[_qp] /= std::cbrt(det_bebar);
+
+  if (_recover_psip_triax)
+  {
+    _psip_triax_raw[_qp] = _solution_object_ptr->pointValue(
+        _t, _current_elem->true_centroid(), "psip_triax_raw_" + formatQP(qp_sel), nullptr);
+    if (MetaPhysicL::raw_value(_psip_triax_raw[_qp]) < 0)
+      _psip_triax_raw[_qp] = 0.0;
+  }
 }
 
 void
