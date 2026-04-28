@@ -104,6 +104,8 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _rotation_tensor(declareADProperty<RankTwoTensor>(prependBaseName("rotation_tensor"))),
     _rotation_tensor_old(getMaterialPropertyOld<RankTwoTensor>(prependBaseName("rotation_tensor"))),
     _stretch_tensor(declareADProperty<RankTwoTensor>(prependBaseName("stretch_tensor"))),
+    _stretch_tensor_fbar(
+        declareADProperty<RankTwoTensor>(prependBaseName("stretch_tensor_fbar"))),
     _recover_from_polar(getParam<MooseEnum>("recover_mode") == "polar_decomposition"),
     _output_half_rotation(getParam<bool>("output_half_rotation_tensor")),
     _input_half_rotation(getParam<bool>("input_half_rotation_tensor")),
@@ -208,19 +210,22 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
   {
     if (_recover == true && _volumetric_locking_correction == true)
     {
-      ADReal ave_F_det_init = 0;
-
+      // Read U_fbar directly from the recovery file and reconstruct F_fbar = R * U_fbar.
+      // No <J> averaging on the new mesh: the source's fbar correction is carried in
+      // U_fbar (SPD, on-manifold for Lie-algebra interpolation), so the runtime path's
+      // incremental fbar (applied to F_inc on the new mesh) composes cleanly via
+      // F_total = F_inc_fbar * F_fbar_recovered.  At step 1, F_inc ~ I, so F_total
+      // matches the source's last-step F_fbar — bit-exact on same-mesh restart and
+      // free of the spurious cbrt(<J^2>/<J>^2) factor at high-deformation QPs on remesh.
       std::vector<std::string> indices = {"x", "y", "z"};
-
-      // Get average
       for (_qp = 0; _qp < n_points; ++_qp)
       {
         unsigned int qp_sel = QpMapping::getQP(_qp + 1, _lookup);
 
         if (_recover_from_polar)
         {
-          // Recover from rotation and stretch tensors
-          RankTwoTensor R, U;
+          // Recover from rotation and stretch tensors (raw and fbar-corrected)
+          RankTwoTensor R, U, U_fbar;
           for (int i_ind = 0; i_ind < 3; i_ind++)
             for (int j_ind = 0; j_ind < 3; j_ind++)
             {
@@ -234,32 +239,37 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
                   _current_elem->true_centroid(),
                   "stretch_tensor_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
                   nullptr);
+              U_fbar(i_ind, j_ind) = _solution_object_ptr->pointValue(
+                  _t,
+                  _current_elem->true_centroid(),
+                  "stretch_tensor_fbar_" + indices[i_ind] + indices[j_ind] + "_" +
+                      formatQP(qp_sel),
+                  nullptr);
             }
-          // Save the raw value from the file before squaring (may be R^(1/2)).
-          // Used below to seed _rotation_tensor for axis-continuity at step 1.
           const RankTwoTensor R_file = R;
-          // Reconstruct F = R * U and convert to AD type.
-          // If the recovery file stored R^(1/2), square it first to recover full R.
           if (_input_half_rotation)
             R = R * R;
-          RankTwoTensor F_reconstructed = R * U;
+
+          // F_noFbar = R * U  (used by Fnobar composition for output post-processing).
+          // F_fbar  = R * U_fbar  (the source's fbar-corrected F — what the runtime needs).
+          const RankTwoTensor F_raw = R * U;
+          const RankTwoTensor F_fbar = R * U_fbar;
           for (int i_ind = 0; i_ind < 3; i_ind++)
             for (int j_ind = 0; j_ind < 3; j_ind++)
-              _F_store_noFbar[_qp](i_ind, j_ind) = F_reconstructed(i_ind, j_ind);
+            {
+              _F_store_noFbar[_qp](i_ind, j_ind) = F_raw(i_ind, j_ind);
+              _F_store_Fbar[_qp](i_ind, j_ind) = F_fbar(i_ind, j_ind);
+            }
 
-          // Seed _rotation_tensor so that axis-continuity tracking at the first
-          // computed step compares against the actual recovered axis, not identity.
-          // Use identity as R_half_old here — there is no prior state when seeding.
           const RankTwoTensor I_seed(RankTwoTensor::initIdentity);
           if (_output_half_rotation)
-            // If the file stored R^(1/2) already, use it directly; otherwise halve R.
             _rotation_tensor[_qp] = _input_half_rotation ? R_file : computeHalfRotation(R, I_seed);
           else
             _rotation_tensor[_qp] = R;
         }
         else
         {
-          // Populate tensor from solution object (traditional recovery from F)
+          // Traditional recovery from F: read F_noFbar and F_fbar separately.
           for (int i_ind = 0; i_ind < 3; i_ind++)
             for (int j_ind = 0; j_ind < 3; j_ind++)
             {
@@ -268,20 +278,14 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
                   _current_elem->true_centroid(),
                   "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
                   nullptr);
+              _F_store_Fbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
+                  _t,
+                  _current_elem->true_centroid(),
+                  "F_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
+                  nullptr);
             }
         }
-        _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
-
-        ave_F_det_init += _F_store_noFbar[_qp].det() * _JxW[_qp] * _coord[_qp];
-      }
-
-      ave_F_det_init /= _current_elem_volume;
-
-      for (_qp = 0; _qp < n_points; ++_qp)
-      // Store value
-      {
-        _F_store_Fbar[_qp] *= cbrt(ave_F_det_init / _F_store_noFbar[_qp].det());
-        // For getting the old value of F
+        // Seed _F with the recovered F_fbar; runtime composes with F_inc_fbar on the new mesh.
         _F[_qp] = _F_store_Fbar[_qp];
       }
     }
@@ -613,5 +617,17 @@ ComputeDeformationGradient::computeProperties()
     _rotation_tensor[_qp] =
         _output_half_rotation ? computeHalfRotation(R, _rotation_tensor_old[_qp]) : R;
     _stretch_tensor[_qp] = U;
+
+    // U_fbar = R^T * F_fbar.  R is from the polar decomposition of F_raw = Fnobar; the
+    // volumetric scalar that produces F_fbar from F_raw commutes with the rotation, so
+    // F_fbar = R * U_fbar with the same R.  U_fbar is SPD (det = <J>_elem) and on the
+    // same manifold as U, so a downstream Lie-algebra interpolator handles it the same
+    // way (log -> interp -> exp).  Restarts read U_fbar directly to seed _F_store_Fbar
+    // without re-averaging <J> on the new mesh's _JxW.
+    ADRankTwoTensor R_ad;
+    for (int i_ind = 0; i_ind < 3; ++i_ind)
+      for (int j_ind = 0; j_ind < 3; ++j_ind)
+        R_ad(i_ind, j_ind) = R(i_ind, j_ind);
+    _stretch_tensor_fbar[_qp] = R_ad.transpose() * _F[_qp];
   }
 }
