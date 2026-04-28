@@ -90,6 +90,11 @@ protected:
   ADMaterialProperty<RankTwoTensor> & _rotation_tensor;
   const MaterialProperty<RankTwoTensor> & _rotation_tensor_old;
   ADMaterialProperty<RankTwoTensor> & _stretch_tensor;
+  /// Volume-corrected stretch tensor: U_fbar = R^T * F_fbar = U * cbrt(<J>_elem / J_qp).
+  /// SPD with det = <J>_elem; stored so a downstream restart can recover F_fbar = R * U_fbar
+  /// directly (rather than reconstructing F_raw = R * U and re-applying fbar against the
+  /// new mesh's _JxW, which integrates over the wrong reference configuration).
+  ADMaterialProperty<RankTwoTensor> & _stretch_tensor_fbar;
 
   // Recovery mode flag
   const bool _recover_from_polar;
