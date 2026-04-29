@@ -14,6 +14,7 @@
 #include "SolutionUserObject.h"
 #include "metaphysicl/raw_type.h"
 #include "Qp_Mapping.h"
+#include "libmesh/dense_vector.h"
 
 registerADMooseObject("raccoonApp", ComputeDeformationGradient);
 
@@ -61,6 +62,16 @@ ComputeDeformationGradient::validParams()
                         "(i.e., the run that produced the file had output_half_rotation_tensor = "
                         "true). When set, R is reconstructed as R_half * R_half before F = R*U. "
                         "Set to false (default) when the recovery file stores the full R.");
+  MooseEnum recover_smoothing("none linear", "linear");
+  params.addParam<MooseEnum>(
+      "recover_smoothing",
+      recover_smoothing,
+      "Per-element manifold-aware smoothing applied to the recovered R/U/U_fbar fields at "
+      "INITIAL.  'none' uses the per-QP values directly from the solution UserObject; 'linear' "
+      "fits log(R), log(U), log(U_fbar) to a linear-in-position polynomial across the element's "
+      "QPs and exp's back, projecting onto the subspace the new mesh's grad(u) can match.  This "
+      "suppresses TET10 mid-edge oscillations on cross-mesh restart that arise from per-QP F "
+      "noise outside the disp-gradient subspace.  Active only when recover = true.");
   params.suppressParameter<bool>("use_displaced_mesh");
   params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
   params.addParam<Real>("num_qps", 8, "Number of QPs");
@@ -109,7 +120,8 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _recover_from_polar(getParam<MooseEnum>("recover_mode") == "polar_decomposition"),
     _output_half_rotation(getParam<bool>("output_half_rotation_tensor")),
     _input_half_rotation(getParam<bool>("input_half_rotation_tensor")),
-    _use_iterative_polar(getParam<bool>("use_iterative_polar_decomposition"))
+    _use_iterative_polar(getParam<bool>("use_iterative_polar_decomposition")),
+    _recover_smoothing_order(getParam<MooseEnum>("recover_smoothing") == "linear" ? 1u : 0u)
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &Material::getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
@@ -208,26 +220,30 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
   }
   else
   {
-    if (_recover == true && _volumetric_locking_correction == true)
+    if (_recover == true)
     {
-      // Read U_fbar directly from the recovery file and reconstruct F_fbar = R * U_fbar.
-      // No <J> averaging on the new mesh: the source's fbar correction is carried in
-      // U_fbar (SPD, on-manifold for Lie-algebra interpolation), so the runtime path's
-      // incremental fbar (applied to F_inc on the new mesh) composes cleanly via
-      // F_total = F_inc_fbar * F_fbar_recovered.  At step 1, F_inc ~ I, so F_total
-      // matches the source's last-step F_fbar — bit-exact on same-mesh restart and
-      // free of the spurious cbrt(<J^2>/<J>^2) factor at high-deformation QPs on remesh.
-      std::vector<std::string> indices = {"x", "y", "z"};
-      for (_qp = 0; _qp < n_points; ++_qp)
+      // Unified recovery pipeline:
+      //   (1) read R/U/U_fbar (or polar-decompose F/F_fbar) at every QP of the element,
+      //   (2) project log(R), log(U), log(U_fbar) onto a per-element low-order polynomial
+      //       (linear-in-position by default) — this collapses the recovered field onto
+      //       the subspace the new mesh's grad(u) can match, suppressing TET10 mid-edge
+      //       oscillations on cross-mesh restart,
+      //   (3) exp back, reconstruct F_raw = R * U and F_fbar = R * U_fbar, store.
+      const std::vector<std::string> indices = {"x", "y", "z"};
+      const bool have_fbar = _volumetric_locking_correction;
+
+      std::vector<RankTwoTensor> R_qp(n_points), U_qp(n_points), Ufb_qp(n_points);
+      std::vector<RankTwoTensor> R_file_qp(n_points); // raw R as read; may be R^(1/2)
+
+      for (unsigned int qp = 0; qp < n_points; ++qp)
       {
-        unsigned int qp_sel = QpMapping::getQP(_qp + 1, _lookup);
+        const unsigned int qp_sel = QpMapping::getQP(qp + 1, _lookup);
 
         if (_recover_from_polar)
         {
-          // Recover from rotation and stretch tensors (raw and fbar-corrected)
-          RankTwoTensor R, U, U_fbar;
-          for (int i_ind = 0; i_ind < 3; i_ind++)
-            for (int j_ind = 0; j_ind < 3; j_ind++)
+          RankTwoTensor R, U, Ufb;
+          for (int i_ind = 0; i_ind < 3; ++i_ind)
+            for (int j_ind = 0; j_ind < 3; ++j_ind)
             {
               R(i_ind, j_ind) = _solution_object_ptr->pointValue(
                   _t,
@@ -239,125 +255,303 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
                   _current_elem->true_centroid(),
                   "stretch_tensor_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
                   nullptr);
-              U_fbar(i_ind, j_ind) = _solution_object_ptr->pointValue(
-                  _t,
-                  _current_elem->true_centroid(),
-                  "stretch_tensor_fbar_" + indices[i_ind] + indices[j_ind] + "_" +
-                      formatQP(qp_sel),
-                  nullptr);
+              if (have_fbar)
+                Ufb(i_ind, j_ind) = _solution_object_ptr->pointValue(
+                    _t,
+                    _current_elem->true_centroid(),
+                    "stretch_tensor_fbar_" + indices[i_ind] + indices[j_ind] + "_" +
+                        formatQP(qp_sel),
+                    nullptr);
             }
-          const RankTwoTensor R_file = R;
+          R_file_qp[qp] = R;
           if (_input_half_rotation)
             R = R * R;
-
-          // F_noFbar = R * U  (used by Fnobar composition for output post-processing).
-          // F_fbar  = R * U_fbar  (the source's fbar-corrected F — what the runtime needs).
-          const RankTwoTensor F_raw = R * U;
-          const RankTwoTensor F_fbar = R * U_fbar;
-          for (int i_ind = 0; i_ind < 3; i_ind++)
-            for (int j_ind = 0; j_ind < 3; j_ind++)
-            {
-              _F_store_noFbar[_qp](i_ind, j_ind) = F_raw(i_ind, j_ind);
-              _F_store_Fbar[_qp](i_ind, j_ind) = F_fbar(i_ind, j_ind);
-            }
-
-          const RankTwoTensor I_seed(RankTwoTensor::initIdentity);
-          if (_output_half_rotation)
-            _rotation_tensor[_qp] = _input_half_rotation ? R_file : computeHalfRotation(R, I_seed);
-          else
-            _rotation_tensor[_qp] = R;
+          R_qp[qp] = R;
+          U_qp[qp] = U;
+          Ufb_qp[qp] = have_fbar ? Ufb : U;
         }
         else
         {
-          // Traditional recovery from F: read F_noFbar and F_fbar separately.
-          for (int i_ind = 0; i_ind < 3; i_ind++)
-            for (int j_ind = 0; j_ind < 3; j_ind++)
+          // Traditional recovery from F: read F_raw (and F_fbar) directly, then polar-decompose
+          // so we can smooth on the manifold uniformly with the polar mode.
+          RankTwoTensor F_raw, F_fbar;
+          for (int i_ind = 0; i_ind < 3; ++i_ind)
+            for (int j_ind = 0; j_ind < 3; ++j_ind)
             {
-              _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
+              F_raw(i_ind, j_ind) = _solution_object_ptr->pointValue(
                   _t,
                   _current_elem->true_centroid(),
                   "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
                   nullptr);
-              _F_store_Fbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
-                  _t,
-                  _current_elem->true_centroid(),
-                  "F_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
-                  nullptr);
+              if (have_fbar)
+                F_fbar(i_ind, j_ind) = _solution_object_ptr->pointValue(
+                    _t,
+                    _current_elem->true_centroid(),
+                    "F_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
+                    nullptr);
             }
-        }
-        // Seed _F with the recovered F_fbar; runtime composes with F_inc_fbar on the new mesh.
-        _F[_qp] = _F_store_Fbar[_qp];
-      }
-    }
-
-    // Recovering without fbar method
-    if (_recover == true && _volumetric_locking_correction == false)
-    {
-      std::vector<std::string> indices = {"x", "y", "z"};
-      for (_qp = 0; _qp < n_points; ++_qp)
-      {
-        unsigned int qp_sel = QpMapping::getQP(_qp + 1, _lookup);
-
-        _F_store_noFbar[_qp].setToIdentity();
-
-        if (_recover_from_polar)
-        {
-          // Recover from rotation and stretch tensors
           RankTwoTensor R, U;
-          for (int i_ind = 0; i_ind < 3; i_ind++)
-            for (int j_ind = 0; j_ind < 3; j_ind++)
-            {
-              R(i_ind, j_ind) = _solution_object_ptr->pointValue(
-                  _t,
-                  _current_elem->true_centroid(),
-                  "rotation_tensor_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
-                  nullptr);
-              U(i_ind, j_ind) = _solution_object_ptr->pointValue(
-                  _t,
-                  _current_elem->true_centroid(),
-                  "stretch_tensor_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
-                  nullptr);
-            }
-          // Save the raw value from the file before squaring (may be R^(1/2)).
-          // Used below to seed _rotation_tensor for axis-continuity at step 1.
-          const RankTwoTensor R_file = R;
-          // Reconstruct F = R * U and convert to AD type.
-          // If the recovery file stored R^(1/2), square it first to recover full R.
-          if (_input_half_rotation)
-            R = R * R;
-          RankTwoTensor F_reconstructed = R * U;
-          for (int i_ind = 0; i_ind < 3; i_ind++)
-            for (int j_ind = 0; j_ind < 3; j_ind++)
-              _F_store_noFbar[_qp](i_ind, j_ind) = F_reconstructed(i_ind, j_ind);
-
-          // Seed _rotation_tensor so that axis-continuity tracking at the first
-          // computed step compares against the actual recovered axis, not identity.
-          const RankTwoTensor I_seed(RankTwoTensor::initIdentity);
-          if (_output_half_rotation)
-            _rotation_tensor[_qp] = _input_half_rotation ? R_file : computeHalfRotation(R, I_seed);
-          else
-            _rotation_tensor[_qp] = R;
+          F_raw.getRUDecompositionRotation(R);
+          U = R.transpose() * F_raw;
+          R_file_qp[qp] = R;
+          R_qp[qp] = R;
+          U_qp[qp] = U;
+          // F_fbar = R * U_fbar with the same R since fbar is a scalar volumetric multiplier.
+          Ufb_qp[qp] = have_fbar ? R.transpose() * F_fbar : U;
         }
-        else
+      }
+
+      // Per-element manifold-aware smoothing: log -> linear-in-x fit -> exp.
+      // Skipped if disabled or the element has fewer QPs than the basis dimension.
+      const unsigned int nb_full = 1u + _ndisp;
+      if (_recover_smoothing_order > 0 && n_points >= nb_full)
+      {
+        const unsigned int nb = nb_full;
+        const auto x0 = _current_elem->true_centroid();
+        std::vector<std::vector<Real>> basis(n_points, std::vector<Real>(nb, 0.0));
+        for (unsigned int qp = 0; qp < n_points; ++qp)
         {
-          // Populate tensor from solution object (traditional recovery from F)
-          for (int i_ind = 0; i_ind < 3; i_ind++)
-            for (int j_ind = 0; j_ind < 3; j_ind++)
-            {
-              _F_store_noFbar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
-                  _t,
-                  _current_elem->true_centroid(),
-                  "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
-                  nullptr);
-            }
+          basis[qp][0] = 1.0;
+          for (unsigned int d = 0; d < _ndisp; ++d)
+            basis[qp][1 + d] = _q_point[qp](d) - x0(d);
         }
 
-        _F_store_Fbar[_qp] = _F_store_noFbar[_qp];
+        DenseMatrix<Real> Mn(nb, nb);
+        for (unsigned int qp = 0; qp < n_points; ++qp)
+          for (unsigned int a = 0; a < nb; ++a)
+            for (unsigned int b = 0; b < nb; ++b)
+              Mn(a, b) += basis[qp][a] * basis[qp][b];
 
-        // For getting the old value of F
-        _F[_qp] = _F_store_noFbar[_qp];
+        // Smooth log(R).  When the file stores R^(1/2), smoothing on R^(1/2) keeps the
+        // angle in [0, pi/2) and avoids the matrix-log singularity near pi.
+        std::vector<RankTwoTensor> logR(n_points);
+        for (unsigned int qp = 0; qp < n_points; ++qp)
+          logR[qp] = logSO3(_input_half_rotation ? R_file_qp[qp] : R_qp[qp]);
+        fitLogField(logR, basis, Mn, nb, LogProjection::Skew);
+
+        std::vector<RankTwoTensor> logU(n_points), logUfb(n_points);
+        for (unsigned int qp = 0; qp < n_points; ++qp)
+        {
+          logU[qp] = logSPD(U_qp[qp]);
+          logUfb[qp] = have_fbar ? logSPD(Ufb_qp[qp]) : logU[qp];
+        }
+        fitLogField(logU, basis, Mn, nb, LogProjection::Sym);
+        if (have_fbar)
+          fitLogField(logUfb, basis, Mn, nb, LogProjection::Sym);
+
+        for (unsigned int qp = 0; qp < n_points; ++qp)
+        {
+          const RankTwoTensor R_smooth = expSO3(logR[qp]);
+          if (_input_half_rotation)
+          {
+            R_file_qp[qp] = R_smooth;
+            R_qp[qp] = R_smooth * R_smooth;
+          }
+          else
+          {
+            R_file_qp[qp] = R_smooth;
+            R_qp[qp] = R_smooth;
+          }
+          U_qp[qp] = expSym(logU[qp]);
+          Ufb_qp[qp] = have_fbar ? expSym(logUfb[qp]) : U_qp[qp];
+        }
+      }
+
+      for (_qp = 0; _qp < n_points; ++_qp)
+      {
+        const RankTwoTensor F_raw = R_qp[_qp] * U_qp[_qp];
+        const RankTwoTensor F_fbar = have_fbar ? (R_qp[_qp] * Ufb_qp[_qp]) : F_raw;
+        for (int i_ind = 0; i_ind < 3; ++i_ind)
+          for (int j_ind = 0; j_ind < 3; ++j_ind)
+          {
+            _F_store_noFbar[_qp](i_ind, j_ind) = F_raw(i_ind, j_ind);
+            _F_store_Fbar[_qp](i_ind, j_ind) = F_fbar(i_ind, j_ind);
+          }
+
+        const RankTwoTensor I_seed(RankTwoTensor::initIdentity);
+        if (_output_half_rotation)
+          _rotation_tensor[_qp] =
+              _input_half_rotation ? R_file_qp[_qp] : computeHalfRotation(R_qp[_qp], I_seed);
+        else
+          _rotation_tensor[_qp] = R_qp[_qp];
+
+        _F[_qp] = have_fbar ? _F_store_Fbar[_qp] : _F_store_noFbar[_qp];
       }
     }
+  }
+}
+
+RankTwoTensor
+ComputeDeformationGradient::logSPD(const RankTwoTensor & M)
+{
+  std::vector<Real> evals;
+  RankTwoTensor evecs;
+  M.symmetricEigenvaluesEigenvectors(evals, evecs);
+  RankTwoTensor LogM;
+  LogM.zero();
+  for (int k = 0; k < 3; ++k)
+  {
+    if (evals[k] <= 0.0)
+      ::mooseError(
+          "ComputeDeformationGradient::logSPD: non-positive eigenvalue ",
+          evals[k],
+          " — input is not SPD; check the recovered stretch tensor for interpolation noise.");
+    const Real le = std::log(evals[k]);
+    for (int i = 0; i < 3; ++i)
+      for (int j = 0; j < 3; ++j)
+        LogM(i, j) += le * evecs(i, k) * evecs(j, k);
+  }
+  return LogM;
+}
+
+RankTwoTensor
+ComputeDeformationGradient::expSym(const RankTwoTensor & S)
+{
+  std::vector<Real> evals;
+  RankTwoTensor evecs;
+  S.symmetricEigenvaluesEigenvectors(evals, evecs);
+  RankTwoTensor ES;
+  ES.zero();
+  for (int k = 0; k < 3; ++k)
+  {
+    const Real ee = std::exp(evals[k]);
+    for (int i = 0; i < 3; ++i)
+      for (int j = 0; j < 3; ++j)
+        ES(i, j) += ee * evecs(i, k) * evecs(j, k);
+  }
+  return ES;
+}
+
+RankTwoTensor
+ComputeDeformationGradient::logSO3(const RankTwoTensor & R)
+{
+  const Real cos_theta = std::max(-1.0, std::min(1.0, (R.tr() - 1.0) / 2.0));
+  const Real theta = std::acos(cos_theta);
+
+  RankTwoTensor logR;
+  logR.zero();
+
+  if (theta < 1e-10)
+  {
+    // Small-angle: log(R) ≈ skew(R) (= (R - R^T)/2 to leading order).
+    for (int i = 0; i < 3; ++i)
+      for (int j = 0; j < 3; ++j)
+        logR(i, j) = 0.5 * (R(i, j) - R(j, i));
+    return logR;
+  }
+
+  if (std::abs(theta - M_PI) < 1e-4)
+  {
+    // Near pi the skew part of R vanishes; recover the axis from the symmetric part.
+    // R = -I + 2 n n^T, so (R + I)/2 = n n^T.
+    int idx = 0;
+    Real max_diag = (R(0, 0) + 1.0) / 2.0;
+    for (int k = 1; k < 3; ++k)
+    {
+      const Real d = (R(k, k) + 1.0) / 2.0;
+      if (d > max_diag)
+      {
+        max_diag = d;
+        idx = k;
+      }
+    }
+    Real n[3] = {0.0, 0.0, 0.0};
+    n[idx] = std::sqrt(std::max(0.0, max_diag));
+    for (int k = 0; k < 3; ++k)
+      if (k != idx)
+        n[k] = R(idx, k) / (2.0 * n[idx]);
+    const Real len = std::sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+    for (int k = 0; k < 3; ++k)
+      n[k] /= len;
+    logR(0, 1) = -theta * n[2];
+    logR(0, 2) = theta * n[1];
+    logR(1, 0) = theta * n[2];
+    logR(1, 2) = -theta * n[0];
+    logR(2, 0) = -theta * n[1];
+    logR(2, 1) = theta * n[0];
+    return logR;
+  }
+
+  // General case: log(R) = (theta / (2 sin theta)) (R - R^T).
+  const Real coef = theta / (2.0 * std::sin(theta));
+  for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j)
+      logR(i, j) = coef * (R(i, j) - R(j, i));
+  return logR;
+}
+
+RankTwoTensor
+ComputeDeformationGradient::expSO3(const RankTwoTensor & K)
+{
+  // K is skew with K = theta * skew(n); ||K||_F^2 = 2 theta^2.
+  const Real norm = K.L2norm();
+  const Real theta = norm / std::sqrt(2.0);
+  const RankTwoTensor I(RankTwoTensor::initIdentity);
+
+  if (theta < 1e-10)
+    return I + K + 0.5 * (K * K);
+
+  const Real s = std::sin(theta) / theta;
+  const Real c = (1.0 - std::cos(theta)) / (theta * theta);
+  return I + s * K + c * (K * K);
+}
+
+void
+ComputeDeformationGradient::fitLogField(std::vector<RankTwoTensor> & log_tensors,
+                                        const std::vector<std::vector<Real>> & qp_basis,
+                                        const DenseMatrix<Real> & normal_lu,
+                                        unsigned int nb,
+                                        LogProjection projection)
+{
+  const unsigned int nqp = log_tensors.size();
+  // Need a mutable copy of the LU-able matrix because libmesh's lu_solve factors in place
+  // on the passed matrix.  Reuse one factorised copy across all 9 components.
+  DenseMatrix<Real> M = normal_lu;
+
+  std::vector<RankTwoTensor> fit(nqp);
+  for (auto & t : fit)
+    t.zero();
+
+  for (int ii = 0; ii < 3; ++ii)
+    for (int jj = 0; jj < 3; ++jj)
+    {
+      DenseVector<Real> rhs(nb);
+      for (unsigned int qp = 0; qp < nqp; ++qp)
+        for (unsigned int a = 0; a < nb; ++a)
+          rhs(a) += qp_basis[qp][a] * log_tensors[qp](ii, jj);
+
+      DenseVector<Real> coeffs(nb);
+      M.lu_solve(rhs, coeffs);
+
+      for (unsigned int qp = 0; qp < nqp; ++qp)
+      {
+        Real val = 0.0;
+        for (unsigned int a = 0; a < nb; ++a)
+          val += qp_basis[qp][a] * coeffs(a);
+        fit[qp](ii, jj) = val;
+      }
+    }
+
+  for (unsigned int qp = 0; qp < nqp; ++qp)
+  {
+    if (projection == LogProjection::Skew)
+    {
+      RankTwoTensor proj;
+      for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j)
+          proj(i, j) = 0.5 * (fit[qp](i, j) - fit[qp](j, i));
+      log_tensors[qp] = proj;
+    }
+    else if (projection == LogProjection::Sym)
+    {
+      RankTwoTensor proj;
+      for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j)
+          proj(i, j) = 0.5 * (fit[qp](i, j) + fit[qp](j, i));
+      log_tensors[qp] = proj;
+    }
+    else
+      log_tensors[qp] = fit[qp];
   }
 }
 
