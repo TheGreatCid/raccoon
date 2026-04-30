@@ -62,16 +62,19 @@ ComputeDeformationGradient::validParams()
                         "(i.e., the run that produced the file had output_half_rotation_tensor = "
                         "true). When set, R is reconstructed as R_half * R_half before F = R*U. "
                         "Set to false (default) when the recovery file stores the full R.");
-  MooseEnum recover_smoothing("none linear", "linear");
+  MooseEnum recover_smoothing("none linear quadratic", "linear");
   params.addParam<MooseEnum>(
       "recover_smoothing",
       recover_smoothing,
       "Per-element manifold-aware smoothing applied to the recovered R/U/U_fbar fields at "
       "INITIAL.  'none' uses the per-QP values directly from the solution UserObject; 'linear' "
       "fits log(R), log(U), log(U_fbar) to a linear-in-position polynomial across the element's "
-      "QPs and exp's back, projecting onto the subspace the new mesh's grad(u) can match.  This "
-      "suppresses TET10 mid-edge oscillations on cross-mesh restart that arise from per-QP F "
-      "noise outside the disp-gradient subspace.  Active only when recover = true.");
+      "QPs and exp's back, projecting onto the subspace the new mesh's grad(u) can match; "
+      "'quadratic' adds the six cross/squared terms (xx, yy, zz, xy, xz, yz in 3D) to capture "
+      "the within-element quadratic shape that TET10 grad(u) supports.  This suppresses TET10 "
+      "mid-edge oscillations on cross-mesh restart that arise from per-QP F noise outside the "
+      "disp-gradient subspace.  Active only when recover = true.  Falls back to a lower order "
+      "if the element has fewer QPs than the basis dimension.");
   params.suppressParameter<bool>("use_displaced_mesh");
   params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
   params.addParam<Real>("num_qps", 8, "Number of QPs");
@@ -121,7 +124,10 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _output_half_rotation(getParam<bool>("output_half_rotation_tensor")),
     _input_half_rotation(getParam<bool>("input_half_rotation_tensor")),
     _use_iterative_polar(getParam<bool>("use_iterative_polar_decomposition")),
-    _recover_smoothing_order(getParam<MooseEnum>("recover_smoothing") == "linear" ? 1u : 0u)
+    _recover_smoothing_order(getParam<MooseEnum>("recover_smoothing") == "quadratic"
+                                  ? 2u
+                                  : (getParam<MooseEnum>("recover_smoothing") == "linear" ? 1u
+                                                                                          : 0u))
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &Material::getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
@@ -301,19 +307,38 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
         }
       }
 
-      // Per-element manifold-aware smoothing: log -> linear-in-x fit -> exp.
-      // Skipped if disabled or the element has fewer QPs than the basis dimension.
-      const unsigned int nb_full = 1u + _ndisp;
-      if (_recover_smoothing_order > 0 && n_points >= nb_full)
+      // Per-element manifold-aware smoothing: log -> polynomial-in-x fit -> exp.
+      // basis = [1] (constant) + [x_d] (linear, ndisp terms) + [x_a x_b] (quadratic, ndisp*(ndisp+1)/2 terms).
+      // Order is dropped if the element has fewer QPs than the next basis dimension would require.
+      const unsigned int n_lin = _ndisp;
+      const unsigned int n_quad = (_ndisp * (_ndisp + 1)) / 2;
+      unsigned int order = _recover_smoothing_order;
+      if (order >= 2 && n_points < 1u + n_lin + n_quad)
+        order = 1;
+      if (order >= 1 && n_points < 1u + n_lin)
+        order = 0;
+
+      if (order > 0)
       {
-        const unsigned int nb = nb_full;
+        const unsigned int nb = 1u + n_lin + (order >= 2 ? n_quad : 0u);
         const auto x0 = _current_elem->true_centroid();
         std::vector<std::vector<Real>> basis(n_points, std::vector<Real>(nb, 0.0));
         for (unsigned int qp = 0; qp < n_points; ++qp)
         {
           basis[qp][0] = 1.0;
+          std::vector<Real> dx(_ndisp, 0.0);
           for (unsigned int d = 0; d < _ndisp; ++d)
-            basis[qp][1 + d] = _q_point[qp](d) - x0(d);
+          {
+            dx[d] = _q_point[qp](d) - x0(d);
+            basis[qp][1 + d] = dx[d];
+          }
+          if (order >= 2)
+          {
+            unsigned int k = 1u + n_lin;
+            for (unsigned int a = 0; a < _ndisp; ++a)
+              for (unsigned int b = a; b < _ndisp; ++b)
+                basis[qp][k++] = dx[a] * dx[b];
+          }
         }
 
         DenseMatrix<Real> Mn(nb, nb);
