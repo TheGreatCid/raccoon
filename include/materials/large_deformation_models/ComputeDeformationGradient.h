@@ -116,14 +116,19 @@ protected:
   const bool _use_iterative_polar;
 
   /// Order of the per-element manifold-aware smoothing applied to the recovered R/U/U_fbar
-  /// fields at INITIAL.  0 = none (per-QP from solution UO), 1 = linear-in-position fit
-  /// across the element's QPs.  The fit is performed in the log space of each tensor's
-  /// natural manifold (so(3) for R, sym(3) for U / U_fbar) and exp'd back.  The motivation
-  /// is that on cross-mesh restart the per-QP recovered F field generally does not lie in
-  /// the range of "I + grad(u)" for any disp field representable by the new mesh's element
-  /// type; on TET10_4th especially this manifests as oscillations on the mid-edge dofs at
-  /// step 1 as Newton tries to absorb the per-QP F noise.  Linear fitting collapses
-  /// F_recovered onto the subspace the new mesh's grad(u) can match.
+  /// fields at INITIAL.  0 = none (per-QP from solution UO), 1 = linear-in-position fit,
+  /// 2 = full quadratic-in-position fit (constant + linear + xx, yy, zz, xy, xz, yz in 3D).
+  /// The fit is performed in the log space of each tensor's natural manifold (so(3) for R,
+  /// sym(3) for U / U_fbar) and exp'd back.  The motivation is that on cross-mesh restart
+  /// the per-QP recovered F field generally does not lie in the range of "I + grad(u)" for
+  /// any disp field representable by the new mesh's element type; on TET10_4th especially
+  /// this manifests as oscillations on the mid-edge dofs at step 1 as Newton tries to absorb
+  /// the per-QP F noise.  Polynomial fitting collapses F_recovered onto the subspace the new
+  /// mesh's grad(u) can match.  Quadratic order targets TET10's quadratic disp shape
+  /// functions (which yield linear-in-x grad(u) and therefore can match linear-in-x F);
+  /// linear-in-x F corresponds to a quadratic-in-x log-tensor field after the polar
+  /// decomposition's nonlinearity is unwrapped, hence the quadratic basis on log-space.
+  /// The pipeline gracefully drops the order if the element has fewer QPs than the basis.
   unsigned int _recover_smoothing_order;
 
 private:
