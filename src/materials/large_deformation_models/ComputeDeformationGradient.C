@@ -62,6 +62,17 @@ ComputeDeformationGradient::validParams()
                         "(i.e., the run that produced the file had output_half_rotation_tensor = "
                         "true). When set, R is reconstructed as R_half * R_half before F = R*U. "
                         "Set to false (default) when the recovery file stores the full R.");
+  params.addParam<bool>(
+      "recover_apply_fbar_to_U",
+      false,
+      "When recovering with volumetric_locking_correction = true, rebuild F_bar on the new mesh "
+      "by applying the original F-bar volumetric-averaging operator to the recovered raw U "
+      "(F_raw = R*U; J_avg = <det F_raw>; F_bar = F_raw * cbrt(J_avg/det F_raw)) -- approach B "
+      "from the cfb539fe1-era recovery method.  When false (default), F_bar is read directly "
+      "from the recovery file's `stretch_tensor_fbar` (approach A: recover U_bar already "
+      "averaged on the reference side).  Use approach B when the recovery file does not carry "
+      "stretch_tensor_fbar and the F-bar correction must be re-derived on the new mesh.  "
+      "Active only when `recover = true` and `volumetric_locking_correction = true`.");
   MooseEnum recover_smoothing("none linear quadratic", "linear");
   params.addParam<MooseEnum>(
       "recover_smoothing",
@@ -127,7 +138,8 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _recover_smoothing_order(getParam<MooseEnum>("recover_smoothing") == "quadratic"
                                   ? 2u
                                   : (getParam<MooseEnum>("recover_smoothing") == "linear" ? 1u
-                                                                                          : 0u))
+                                                                                          : 0u)),
+    _recover_apply_fbar_to_U(getParam<bool>("recover_apply_fbar_to_U"))
 {
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &Material::getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
@@ -237,6 +249,11 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
       //   (3) exp back, reconstruct F_raw = R * U and F_fbar = R * U_fbar, store.
       const std::vector<std::string> indices = {"x", "y", "z"};
       const bool have_fbar = _volumetric_locking_correction;
+      // Approach B (recover_apply_fbar_to_U) rebuilds F_bar from the raw recovered U on
+      // the new mesh -- it doesn't need U_fbar from the recovery file, so don't try to
+      // read it.  This lets the same restart input work against reference dumps that lack
+      // `stretch_tensor_fbar` (or `F`) entirely.
+      const bool need_U_fbar_from_file = have_fbar && !_recover_apply_fbar_to_U;
 
       std::vector<RankTwoTensor> R_qp(n_points), U_qp(n_points), Ufb_qp(n_points);
       std::vector<RankTwoTensor> R_file_qp(n_points); // raw R as read; may be R^(1/2)
@@ -261,7 +278,7 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
                   _current_elem->true_centroid(),
                   "stretch_tensor_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
                   nullptr);
-              if (have_fbar)
+              if (need_U_fbar_from_file)
                 Ufb(i_ind, j_ind) = _solution_object_ptr->pointValue(
                     _t,
                     _current_elem->true_centroid(),
@@ -274,7 +291,10 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
             R = R * R;
           R_qp[qp] = R;
           U_qp[qp] = U;
-          Ufb_qp[qp] = have_fbar ? Ufb : U;
+          // When U_fbar is not read (approach B or no F-bar), seed Ufb_qp with U so
+          // downstream code paths that touch Ufb_qp see a sane placeholder.  Approach B
+          // overrides _F_store_Fbar after the smoothing loop using its own averaging.
+          Ufb_qp[qp] = need_U_fbar_from_file ? Ufb : U;
         }
         else
         {
@@ -289,7 +309,7 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
                   _current_elem->true_centroid(),
                   "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
                   nullptr);
-              if (have_fbar)
+              if (need_U_fbar_from_file)
                 F_fbar(i_ind, j_ind) = _solution_object_ptr->pointValue(
                     _t,
                     _current_elem->true_centroid(),
@@ -303,7 +323,7 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
           R_qp[qp] = R;
           U_qp[qp] = U;
           // F_fbar = R * U_fbar with the same R since fbar is a scalar volumetric multiplier.
-          Ufb_qp[qp] = have_fbar ? R.transpose() * F_fbar : U;
+          Ufb_qp[qp] = need_U_fbar_from_file ? R.transpose() * F_fbar : U;
         }
       }
 
@@ -358,10 +378,10 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
         for (unsigned int qp = 0; qp < n_points; ++qp)
         {
           logU[qp] = logSPD(U_qp[qp]);
-          logUfb[qp] = have_fbar ? logSPD(Ufb_qp[qp]) : logU[qp];
+          logUfb[qp] = need_U_fbar_from_file ? logSPD(Ufb_qp[qp]) : logU[qp];
         }
         fitLogField(logU, basis, Mn, nb, LogProjection::Sym);
-        if (have_fbar)
+        if (need_U_fbar_from_file)
           fitLogField(logUfb, basis, Mn, nb, LogProjection::Sym);
 
         for (unsigned int qp = 0; qp < n_points; ++qp)
@@ -378,14 +398,42 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
             R_qp[qp] = R_smooth;
           }
           U_qp[qp] = expSym(logU[qp]);
-          Ufb_qp[qp] = have_fbar ? expSym(logUfb[qp]) : U_qp[qp];
+          Ufb_qp[qp] = need_U_fbar_from_file ? expSym(logUfb[qp]) : U_qp[qp];
         }
+      }
+
+      // Approach B (recover_apply_fbar_to_U = true, F-bar active): rebuild F_bar on the
+      // new mesh by applying the original cfb539fe1-era F-bar averaging operator to the
+      // recovered raw U.  Pre-pass over QPs computes the element-volume-weighted average
+      // det(F_raw); the per-QP F_fbar in the next loop is then scaled to enforce that
+      // det(F_bar) = J_avg per element.
+      Real J_avg_init = 0.0;
+      const bool fbar_from_raw_U = have_fbar && _recover_apply_fbar_to_U;
+      if (fbar_from_raw_U)
+      {
+        for (unsigned int qp = 0; qp < n_points; ++qp)
+        {
+          const RankTwoTensor F_raw_qp = R_qp[qp] * U_qp[qp];
+          J_avg_init += F_raw_qp.det() * _JxW[qp] * _coord[qp];
+        }
+        J_avg_init /= _current_elem_volume;
       }
 
       for (_qp = 0; _qp < n_points; ++_qp)
       {
         const RankTwoTensor F_raw = R_qp[_qp] * U_qp[_qp];
-        const RankTwoTensor F_fbar = have_fbar ? (R_qp[_qp] * Ufb_qp[_qp]) : F_raw;
+        // Three branches:
+        //   no F-bar           -> F_fbar = F_raw
+        //   approach A (default) -> F_fbar = R * U_fbar from the recovery file
+        //   approach B           -> F_fbar = F_raw * cbrt(J_avg / det F_raw)  (cfb539fe1)
+        RankTwoTensor F_fbar;
+        if (!have_fbar)
+          F_fbar = F_raw;
+        else if (fbar_from_raw_U)
+          F_fbar = F_raw * cbrt(J_avg_init / F_raw.det());
+        else
+          F_fbar = R_qp[_qp] * Ufb_qp[_qp];
+
         for (int i_ind = 0; i_ind < 3; ++i_ind)
           for (int j_ind = 0; j_ind < 3; ++j_ind)
           {
