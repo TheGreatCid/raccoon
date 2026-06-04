@@ -11,7 +11,6 @@
 #include "MooseArray.h"
 #include "SolutionUserObject.h"
 #include "Qp_Mapping.h"
-#include "libmesh/dense_matrix.h"
 /**
  * This class computes the deformation gradient
  */
@@ -115,22 +114,6 @@ protected:
   /// avoids inverting U, requires only 3x3 matrix inverses, and converges quadratically.
   const bool _use_iterative_polar;
 
-  /// Order of the per-element manifold-aware smoothing applied to the recovered R/U/U_fbar
-  /// fields at INITIAL.  0 = none (per-QP from solution UO), 1 = linear-in-position fit,
-  /// 2 = full quadratic-in-position fit (constant + linear + xx, yy, zz, xy, xz, yz in 3D).
-  /// The fit is performed in the log space of each tensor's natural manifold (so(3) for R,
-  /// sym(3) for U / U_fbar) and exp'd back.  The motivation is that on cross-mesh restart
-  /// the per-QP recovered F field generally does not lie in the range of "I + grad(u)" for
-  /// any disp field representable by the new mesh's element type; on TET10_4th especially
-  /// this manifests as oscillations on the mid-edge dofs at step 1 as Newton tries to absorb
-  /// the per-QP F noise.  Polynomial fitting collapses F_recovered onto the subspace the new
-  /// mesh's grad(u) can match.  Quadratic order targets TET10's quadratic disp shape
-  /// functions (which yield linear-in-x grad(u) and therefore can match linear-in-x F);
-  /// linear-in-x F corresponds to a quadratic-in-x log-tensor field after the polar
-  /// decomposition's nonlinearity is unwrapped, hence the quadratic basis on log-space.
-  /// The pipeline gracefully drops the order if the element has fewer QPs than the basis.
-  unsigned int _recover_smoothing_order;
-
   /// When recovering with volumetric-locking correction active, controls how F_bar is
   /// constructed on the restart side from the recovered fields:
   ///   false (default): F_bar = R * U_fbar, where U_fbar is the per-QP F-bar-corrected
@@ -163,33 +146,4 @@ private:
   /// X_{k+1} = (X_k + X_k^{-T}) / 2, converges quadratically to R.
   /// More numerically stable than getRUDecompositionRotation for ill-conditioned F.
   void polarDecompositionIterative(const RankTwoTensor & F, RankTwoTensor & R, RankTwoTensor & U);
-
-  /// Matrix log of an SPD 3x3 tensor M, via symmetric eigendecomposition:
-  /// log(M) = sum_k log(lambda_k) v_k v_k^T.  Errors out if any eigenvalue is non-positive.
-  static RankTwoTensor logSPD(const RankTwoTensor & M);
-
-  /// Matrix exp of a symmetric 3x3 tensor S, via symmetric eigendecomposition:
-  /// exp(S) = sum_k exp(lambda_k) v_k v_k^T.
-  static RankTwoTensor expSym(const RankTwoTensor & S);
-
-  /// Matrix log of a rotation R in SO(3); returns the skew-symmetric log in so(3).
-  /// Uses Rodrigues' inverse for general theta and the symmetric-part axis trick near theta = pi.
-  static RankTwoTensor logSO3(const RankTwoTensor & R);
-
-  /// Matrix exp of a skew-symmetric 3x3 tensor K; returns the rotation in SO(3).
-  /// Uses Rodrigues with theta = ||K|| / sqrt(2); falls back to Taylor for small theta.
-  static RankTwoTensor expSO3(const RankTwoTensor & K);
-
-  /// Fit each (i, j) component of `log_tensors[qp]` against a linear-in-position
-  /// polynomial (constant + ndisp linear terms) over the element's QPs and overwrite
-  /// the inputs with the fit values.  `qp_basis[qp]` is the precomputed basis vector
-  /// at QP `qp` of size `nb`.  `lu` is the precomputed LU of the normal-equations
-  /// matrix sum_qp basis_qp basis_qp^T.  If `enforce` is "skew" or "sym", each
-  /// fit tensor is projected onto the corresponding subspace before returning.
-  enum class LogProjection { None, Skew, Sym };
-  static void fitLogField(std::vector<RankTwoTensor> & log_tensors,
-                          const std::vector<std::vector<Real>> & qp_basis,
-                          const DenseMatrix<Real> & normal_lu,
-                          unsigned int nb,
-                          LogProjection projection);
 };
