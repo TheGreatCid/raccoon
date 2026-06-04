@@ -131,6 +131,24 @@ protected:
   /// The pipeline gracefully drops the order if the element has fewer QPs than the basis.
   unsigned int _recover_smoothing_order;
 
+  /// When recovering with volumetric-locking correction active, controls how F_bar is
+  /// constructed on the restart side from the recovered fields:
+  ///   false (default): F_bar = R * U_fbar, where U_fbar is the per-QP F-bar-corrected
+  ///                    stretch tensor read directly from the recovery file (approach A).
+  ///                    This is what the rest of the current pipeline does and is the
+  ///                    behaviour you get if the recovery file already contains
+  ///                    `stretch_tensor_fbar`.
+  ///   true           : F_bar is rebuilt on the new mesh by applying the original
+  ///                    cfb539fe1-era F-bar averaging operator to the recovered raw U:
+  ///                       F_raw[qp] = R[qp] * U[qp]
+  ///                       J_avg     = (1/V) * sum_qp det(F_raw[qp]) * JxW * coord
+  ///                       F_bar[qp] = F_raw[qp] * cbrt(J_avg / det(F_raw[qp]))
+  ///                    (approach B).  Useful when the recovery file does NOT carry
+  ///                    `stretch_tensor_fbar` and the F-bar correction has to be
+  ///                    re-derived from the raw stretch tensor.
+  /// Active only when both `recover = true` and `volumetric_locking_correction = true`.
+  const bool _recover_apply_fbar_to_U;
+
 private:
   const std::unordered_map<int, int> * _lookup;
 
