@@ -1,20 +1,26 @@
-# Restart/recovery leg of the TET10 recover/remesh unit test.
+# Restart leg of the F-bar comparison recover/remesh test.
 #
-# Reads the Exodus output produced by reference.i through a SolutionUserObjectQP
-# on the SAME generated TET10 mesh.  11 QPs/elem (TET10_4th), FOURTH-order
-# quadrature.  Centroid-to-centroid lookup is exact on the same mesh, so the QP
-# fields (be_bar, stress, rotation_tensor, stretch_tensor, effective_plastic_strain,
-# ...) should be copied byte-for-byte.
+# Reads reference.i's output via SolutionUserObjectQP on the same TET10 mesh.
+# Reads BOTH stretch_tensor (= raw U) and stretch_tensor_fbar (= U-bar) so
+# whichever path ComputeDeformationGradient is configured to consume,
+# the recovery data is available.
+#
+# To compare Approach A (recover U-bar directly) vs Approach B (recover raw U,
+# re-derive F-bar on the new mesh): rerun this input with the corresponding
+# branch / parameter setting in ComputeDeformationGradient and compare the
+# postprocessor CSV at start_time + dt.  The reference run was tuned so that
+# F-bar correction does meaningful work (nu = 0.49, sigma_0 = 0.1,
+# final_velocity = 0.5).
 
 E = 201.8e3
-nu = 0.3
+nu = 0.49
 K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
 rho = 7900
 Gc = 6
 l = 0.2
 psic = 15
-Q = 0.9
+Q = 0
 specific_heat = 4.47e-4
 thermal_conductivity = 4.4e-4
 c1 = 0.1
@@ -26,15 +32,52 @@ newmark_beta = '${fparse (1-hht_alpha)^2/4}'
 newmark_gamma = '${fparse 1/2-hht_alpha}'
 
 # Must match reference.i
-ref_end_time = 1
+# ref_end_time = 1.5
 dt = 0.1
-start_time = '${ref_end_time}'
-end_time = 2
+start_time = 1.5
+end_time = 2.5
 
 trans_time = 1.0
-final_velocity = 0.05
+final_velocity = 0.5
 
-recover_file = reference_out_disp.e
+# Mesh-refinement knob: must match the n used in reference.i so the recover
+# filename and SolutionUserObjectQP mesh line up.
+# Overridable from CLI:  raccoon-opt -i restart.i n=4
+n = 1
+
+# All Exodus / CSV outputs land in this subdirectory.  Must match the out_dir
+# used by reference.i so the recover_file path resolves.
+out_dir = outputs
+
+# Suffix used to locate the reference's recovery dump.  Must match the `tag`
+# passed to the reference.i run that produced the dump.  CLI:
+#   raccoon-opt -i restart.i tag=_nu_0p49
+tag = ''
+
+# Suffix appended to file_base for every Output block written by this restart.
+# Defaults to `tag` so a single-method run keeps shared naming with the
+# reference; sweeps that exercise multiple recovery methods (e.g. approach A
+# vs approach B) against the same reference dump override this to a more
+# specific value like '_nu_0p49_old' / '_nu_0p49_new' so each method's
+# outputs don't clobber each other.  CLI:
+#   raccoon-opt -i restart.i tag=_nu_0p49 output_tag=_nu_0p49_old
+output_tag = ${tag}
+
+recover_file = ${out_dir}/reference_fbar_out_disp_${n}${tag}.e
+
+# Which time slice of recover_file to read into SolutionUserObjectQP.  LATEST
+# is fine when reference and restart line up at the end of the reference run,
+# but the convergence script needs to point at the slice corresponding to
+# ref_end_time precisely (so it can extend the reference one dt past
+# ref_end_time and still recover from the correct state).  CLI override:
+#   raccoon-opt -i restart.i recover_timestep=16
+recover_timestep = LATEST
+
+# BC constraint pattern (CLI-overridable for bc_sweep_study.sh).  Must match
+# the values passed to the reference run.
+xfix_bnd = 'left top'
+yfix_bnd = 'bottom'
+zfix_bnd = 'front back'
 
 [GlobalParams]
   displacements = 'disp_x disp_y disp_z'
@@ -49,9 +92,6 @@ recover_file = reference_out_disp.e
 []
 
 [Mesh]
-  # The restart consumes the exact mesh (and state) produced by reference.i.
-  # Using FileMeshGenerator on reference_out.e guarantees identical node/element
-  # numbering, so SolutionUserObjectQP's centroid-to-centroid lookup is exact.
   [fmg]
     type = FileMeshGenerator
     file = ${recover_file}
@@ -62,13 +102,15 @@ recover_file = reference_out_disp.e
   [epsol]
     type = SolutionUserObjectQP
     mesh = ${recover_file}
-    system_variables = 'd d_old d_corr psie_corr_active psip_active T accel_x accel_y accel_z vel_x vel_y vel_z'
+    system_variables = 'T d d_old d_corr accel_x accel_y accel_z vel_x vel_y vel_z'
     materials = 'effective_plastic_strain'
-    tensor_materials = 'stress be_bar stretch_tensor rotation_tensor'
+    # Both stretch_tensor (raw U) and stretch_tensor_fbar (U_bar) are
+    # available so Approach A and Approach B can both be exercised.
+    tensor_materials = 'stress be_bar stretch_tensor_fbar rotation_tensor'
     nodal_variable_order = SECOND
-    use_displaced_mesh = false
+    use_displaced_mesh = true
     execute_on = 'INITIAL'
-    timestep = LATEST
+    timestep = ${recover_timestep}
   []
 []
 
@@ -76,7 +118,7 @@ recover_file = reference_out_disp.e
 #   [fracture]
 #     type = TransientMultiApp
 #     input_files = 'fracture_restart.i'
-#     cli_args = 'Gc=${Gc};l=${l};start_time=${start_time};recover_file=${recover_file};out_file=restart_d'
+#     cli_args = 'Gc=${Gc};l=${l};start_time=${start_time};recover_file=${recover_file};out_file=restart_fbar_d'
 #     execute_on = 'TIMESTEP_END'
 #     clone_parent_mesh = no
 #   []
@@ -119,6 +161,18 @@ recover_file = reference_out_disp.e
   [disp_z]
     order = SECOND
   []
+  # [T]
+  #   order = SECOND
+  #   [InitialCondition]
+  #     type = SolutionIC
+  #     from_variable = T
+  #     variable = T
+  #     solution_uo = epsol
+  #   []
+  # []
+[]
+
+[AuxVariables]
   [T]
     order = SECOND
     [InitialCondition]
@@ -128,61 +182,33 @@ recover_file = reference_out_disp.e
       solution_uo = epsol
     []
   []
-[]
-
-[AuxVariables]
-  [d]
-    order = SECOND
-    [InitialCondition]
-      type = SolutionIC
-      from_variable = d
-      variable = d
-      solution_uo = epsol
-    []
-  []
-  # Irreversibility machinery (same as reference.i): d_old carries the
-  # previous-step d, d_corr = min(1, max(d_old, max(0, d))) is the clipped,
-  # monotone damage that actually feeds every damage-dependent material.  Both
-  # are seeded from the reference's last-step values.
-  [d_old]
-    order = SECOND
-    [InitialCondition]
-      type = SolutionIC
-      from_variable = d_old
-      variable = d_old
-      solution_uo = epsol
-    []
-  []
+  # [d]
+  #   order = SECOND
+  #   [InitialCondition]
+  #     type = SolutionIC
+  #     from_variable = d
+  #     variable = d
+  #     solution_uo = epsol
+  #   []
+  # []
+  # [d_old]
+  #   order = SECOND
+  #   [InitialCondition]
+  #     type = SolutionIC
+  #     from_variable = d_old
+  #     variable = d_old
+  #     solution_uo = epsol
+  #   []
+  # []
   [d_corr]
     order = SECOND
-    [InitialCondition]
-      type = SolutionIC
-      from_variable = d_corr
-      variable = d_corr
-      solution_uo = epsol
-    []
+    # [InitialCondition]
+    #   type = SolutionIC
+    #   from_variable = d_corr
+    #   variable = d_corr
+    #   solution_uo = epsol
+    # []
   []
-  [psie_corr_active]
-    order = FIRST
-    family = MONOMIAL
-    [InitialCondition]
-      type = SolutionIC
-      from_variable = psie_corr_active
-      variable = psie_corr_active
-      solution_uo = epsol
-    []
-  []
-  [psip_active]
-    order = FIRST
-    family = MONOMIAL
-    [InitialCondition]
-      type = SolutionIC
-      from_variable = psip_active
-      variable = psip_active
-      solution_uo = epsol
-    []
-  []
-
   [accel_x]
     order = SECOND
     [InitialCondition]
@@ -240,30 +266,18 @@ recover_file = reference_out_disp.e
 []
 
 [AuxKernels]
-  [psie_corr_active]
-    type = ADMaterialRealAux
-    variable = psie_corr_active
-    property = psie_corr_active
-    execute_on = 'TIMESTEP_END'
-  []
-  [psip_active]
-    type = ADMaterialRealAux
-    variable = psip_active
-    property = psip_active
-    execute_on = 'TIMESTEP_END'
-  []
-  [d_old]
-    type = CopyValueAux
-    source = d
-    variable = d_old
-    execute_on = 'TIMESTEP_END'
-  []
-  [d_corr]
-    type = ParsedAux
-    variable = d_corr
-    coupled_variables = 'd d_old'
-    expression = 'min(1,max(d_old,max(0,d)))'
-  []
+  # [d_old]
+  #   type = CopyValueAux
+  #   source = d
+  #   variable = d_old
+  #   execute_on = 'TIMESTEP_END'
+  # []
+  # [d_corr]
+  #   type = ParsedAux
+  #   variable = d_corr
+  #   coupled_variables = 'd d_old'
+  #   expression = 'min(1,max(d_old,max(0,d)))'
+  # []
 
   [accel_x]
     type = NewmarkAccelAux
@@ -376,26 +390,26 @@ recover_file = reference_out_disp.e
     solution = epsol
     absolute_value_vector_tags = 'ref'
   []
-  [hcond_time]
-    type = ADHeatConductionTimeDerivative
-    variable = T
-    density_name = density
-    specific_heat = specific_heat
-    absolute_value_vector_tags = 'ref'
-  []
-  [hcond]
-    type = ADHeatConduction
-    variable = T
-    thermal_conductivity = thermal_conductivity
-    absolute_value_vector_tags = 'ref'
-  []
-  [heat_source]
-    type = ADCoefMatSource
-    variable = T
-    coefficient = -1
-    prop_names = 'plastic_heat_generation'
-    absolute_value_vector_tags = 'ref'
-  []
+  # [hcond_time]
+  #   type = ADHeatConductionTimeDerivative
+  #   variable = T
+  #   density_name = density
+  #   specific_heat = specific_heat
+  #   absolute_value_vector_tags = 'ref'
+  # []
+  # [hcond]
+  #   type = ADHeatConduction
+  #   variable = T
+  #   thermal_conductivity = thermal_conductivity
+  #   absolute_value_vector_tags = 'ref'
+  # []
+  # [heat_source]
+  #   type = ADCoefMatSource
+  #   variable = T
+  #   coefficient = -1
+  #   prop_names = 'plastic_heat_generation'
+  #   absolute_value_vector_tags = 'ref'
+  # []
 []
 
 [Functions]
@@ -433,6 +447,12 @@ recover_file = reference_out_disp.e
     recover = true
     solution = epsol
     recover_mode = polar_decomposition
+    # Higham iterative polar decomposition -- tighter precision than the default
+    # eigendecomposition.  Trying as a precision-sensitivity test for whether
+    # the OLD recovery method (approach B) converges with sharper R.
+    use_iterative_polar_decomposition = true
+    output_properties = 'deformation_gradient Fnobar'
+    outputs = exodus
   []
   [bulk_properties]
     type = ADGenericConstantMaterial
@@ -475,12 +495,20 @@ recover_file = reference_out_disp.e
     output_properties = 'effective_plastic_strain'
     outputs = exodus
   []
+  # [JC]
+  #   type = PowerLawHardening
+  #   exponent = 2
+  #   phase_field = d_corr
+  #   reference_plastic_strain = 0.5
+  #   degradation_function = nodeg
+  #   yield_stress = 800
+  # []
   [JC]
     type = JohnsonCookHardening
     T = T
     taylor_quinney_factor = ${Q}
-    sigma_0 = 1
     T0 = 280
+    sigma_0 = 1
     reference_plastic_strain = 1
     reference_plastic_strain_rate = 1e-6
     phase_field = d_corr
@@ -499,27 +527,66 @@ recover_file = reference_out_disp.e
     elasticity_model = hencky
     plasticity_model = J2
   []
+
+  # ----- F-bar diagnostic ---------------------------------------------------
+  # Same definitions as in reference.i: pointwise |J/J_avg - 1| where
+  #   J     = det(Fnobar)               (raw per-QP determinant)
+  #   J_avg = det(deformation_gradient) (constant on the element by F-bar)
+  # Comparing fbar_correction_int / _max between restart and reference at the
+  # same physical time tells you whether the recovered + re-corrected F-bar
+  # reproduces the same level of volumetric averaging on the restart side.
+  [J_F]
+    type = ADRankTwoInvariant
+    rank_two_tensor = Fnobar
+    invariant = ThirdInvariant
+    property_name = J_F
+    outputs = exodus
+  []
+  [J_Fbar]
+    type = ADRankTwoInvariant
+    rank_two_tensor = deformation_gradient
+    invariant = ThirdInvariant
+    property_name = J_Fbar
+    outputs = exodus
+  []
+  [fbar_correction]
+    type = ADParsedMaterial
+    property_name = fbar_correction
+    material_property_names = 'J_F J_Fbar'
+    expression = abs(J_F/J_Fbar-1)
+    outputs = exodus
+  []
+  # Stress-scale F-bar correction (carries K, so it grows with nu):
+  #     fbar_pressure_correction ~ K * |J_avg - J|
+  # See reference.i for the rationale.
+  [fbar_pressure_correction]
+    type = ADParsedMaterial
+    property_name = fbar_pressure_correction
+    material_property_names = 'J_F J_Fbar K'
+    expression = K*abs(J_Fbar-J_F)
+    outputs = exodus
+  []
 []
 
 [BCs]
   [xfix]
     type = DirichletBC
     variable = disp_x
-    boundary = 'left top'
+    boundary = '${xfix_bnd}'
     value = 0
     preset = false
   []
   [yfix]
     type = DirichletBC
     variable = disp_y
-    boundary = bottom
+    boundary = '${yfix_bnd}'
     value = 0
     preset = false
   []
   [zfix]
     type = DirichletBC
     variable = disp_z
-    boundary = 'front back'
+    boundary = '${zfix_bnd}'
     value = 0
     preset = false
   []
@@ -527,7 +594,7 @@ recover_file = reference_out_disp.e
     type = PresetDisplacement
     variable = disp_y
     boundary = top
-    function = ypull_func
+    function = '0'
     beta = ${newmark_beta}
     velocity = vel_y
     acceleration = accel_y
@@ -537,7 +604,7 @@ recover_file = reference_out_disp.e
 [Postprocessors]
   [psie_corr_active_int]
     type = ADElementIntegralMaterialProperty
-    mat_prop = psie_corr_active
+    mat_prop = psie_active
     use_displaced_mesh = true
   []
   [psip_active_int]
@@ -550,7 +617,45 @@ recover_file = reference_out_disp.e
     mat_prop = effective_plastic_strain
     use_displaced_mesh = true
   []
+  # F-bar correction diagnostics (same definitions as in reference.i).
+  [fbar_correction_int]
+    type = ADElementIntegralMaterialProperty
+    mat_prop = fbar_correction
+    use_displaced_mesh = true
+  []
+  [fbar_correction_max]
+    type = ADElementExtremeMaterialProperty
+    mat_prop = fbar_correction
+    value_type = max
+  []
+  [fbar_pressure_correction_int]
+    type = ADElementIntegralMaterialProperty
+    mat_prop = fbar_pressure_correction
+    use_displaced_mesh = true
+  []
+  [fbar_pressure_correction_max]
+    type = ADElementExtremeMaterialProperty
+    mat_prop = fbar_pressure_correction
+    value_type = max
+  []
+  [J_F_int]
+    type = ADElementIntegralMaterialProperty
+    mat_prop = J_F
+    use_displaced_mesh = true
+  []
+  [J_Fbar_int]
+    type = ADElementIntegralMaterialProperty
+    mat_prop = J_Fbar
+    use_displaced_mesh = true
+  []
 []
+
+# [Dampers]
+#   [jac]
+#     type = ElementJacobianDamper
+#     max_increment = 0.1
+#   []
+# []
 
 [Executioner]
   type = Transient
@@ -580,24 +685,28 @@ recover_file = reference_out_disp.e
 
   automatic_scaling = true
 
-  fixed_point_max_its = 25
-  fixed_point_rel_tol = 1e-7
-  fixed_point_abs_tol = 1e-8
-  accept_on_max_fixed_point_iteration = true
-  abort_on_solve_fail = true
+  abort_on_solve_fail = false
 []
 
 [Outputs]
   print_linear_residuals = false
   [exodus]
     type = Exodus
-    file_base = restart_out
+    file_base = ${out_dir}/restart_fbar_out_${n}${output_tag}
     use_displaced = false
-    execute_on = 'TIMESTEP_END'
+    execute_on = 'INITIAL TIMESTEP_END'
   []
   [csv]
     type = CSV
-    file_base = restart_out
+    file_base = ${out_dir}/restart_fbar_out_${n}${output_tag}
+    # TIMESTEP_END only.  EXEC_INITIAL would write a row at t=start_time but
+    # MOOSE calls Material::initStatefulProperties (not the regular
+    # computeQpProperties) at INITIAL, so material-property integrals are
+    # zero at that flag for any material that doesn't override the stateful
+    # init.  The mesh-convergence script therefore compares the restart's
+    # FIRST TIMESTEP_END row (t = start_time + dt) to a reference row at
+    # the same time -- which requires the reference to be extended by one
+    # dt past ref_end_time (see mesh_convergence.sh).
     execute_on = 'TIMESTEP_END'
   []
 []

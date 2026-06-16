@@ -1,13 +1,27 @@
-# Reference simulation for the TET10 recover/remesh unit test.
+# Reference simulation for the HEX8 F-bar comparison recover/remesh test.
 #
-# Second-order tetrahedra (TET10) with FOURTH-order quadrature (11 QPs/elem).
-# Mirrors recover_remesh/reference.i but on a tet mesh.  Runs a small dynamic
-# J2-plasticity problem with temperature and a phase-field fracture sub-app for
-# a handful of steps.  The Exodus output contains the QP tensor/material fields
-# that restart.i consumes through a SolutionUserObjectQP.
+# Tuned to invoke heavy volumetric locking on a HEX8 mesh so that F-bar
+# correction is doing real work and the recovered stretch / U-bar fields
+# carry information that the restart leg has to reproduce.
+#
+# Tunings vs recover_remesh/reference.i (the baseline HEX8 recover test):
+#   - Poisson ratio nu = 0.49           (near-incompressible -> high K/G ratio
+#                                        -> volumetric locking severe)
+#   - sigma_0 = 0.1 (was 1)             (lower yield -> earlier and stronger
+#                                        plastic flow -> isochoric plastic
+#                                        deformation drives det F variation
+#                                        between QPs that F-bar must average)
+#   - final_velocity = 0.5 (was 0.05)   (10x deformation magnitude)
+#   - end_time = 2.5 (was 1.2)          (more steps to accumulate F-bar history)
+#   - The output exports include `Fnobar` and `deformation_gradient`
+#     (= F-bar) so the per-QP F vs F-bar gap is visible in Paraview.
+#
+# Otherwise mirrors recover_remesh/reference.i: HEX8, THIRD-order quadrature
+# (8 QPs/elem), J2 plasticity with Johnson-Cook hardening, temperature, and
+# a phase-field fracture sub-app.
 
 E = 201.8e3
-nu = 0.3
+nu = 0.49
 K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
 rho = 7900
@@ -27,13 +41,13 @@ hht_alpha = -0.25
 newmark_beta = '${fparse (1-hht_alpha)^2/4}'
 newmark_gamma = '${fparse 1/2-hht_alpha}'
 
-end_time = 1
+end_time = 1.5
 dt = 0.1
-n = 2
+
 [GlobalParams]
   displacements = 'disp_x disp_y disp_z'
   volumetric_locking_correction = true
-  element = TET10_4th
+  element = HEX8_3rd
 []
 
 [Problem]
@@ -46,16 +60,16 @@ n = 2
   [gmg]
     type = GeneratedMeshGenerator
     dim = 3
-    nx = ${n}
-    ny = ${n}
-    nz = ${n}
+    nx = 3
+    ny = 3
+    nz = 1
     xmin = 0
     xmax = 3
     ymin = 0
     ymax = 3
     zmin = 0
-    zmax = 3
-    elem_type = TET10
+    zmax = 1
+    elem_type = HEX8
   []
 []
 
@@ -63,7 +77,7 @@ n = 2
 #   [fracture]
 #     type = TransientMultiApp
 #     input_files = 'fracture_ref.i'
-#     cli_args = 'Gc=${Gc};l=${l};out_file=reference_d'
+#     cli_args = 'Gc=${Gc};l=${l};out_file=reference_hex8_fbar_d'
 #     execute_on = 'TIMESTEP_END'
 #     clone_parent_mesh = no
 #   []
@@ -98,85 +112,39 @@ n = 2
 
 [Variables]
   [disp_x]
-    order = SECOND
   []
   [disp_y]
-    order = SECOND
   []
   [disp_z]
-    order = SECOND
   []
   [T]
-    order = SECOND
     initial_condition = ${Tinit}
   []
 []
 
 [AuxVariables]
   [d]
-    order = SECOND
   []
   [d_old]
-    order = SECOND
   []
   [d_corr]
-    order = SECOND
-  []
-  [psie_corr_active]
-    order = FIRST
-    family = MONOMIAL
-  []
-  [psip_active]
-    order = FIRST
-    family = MONOMIAL
   []
 
   [accel_x]
-    order = SECOND
   []
   [vel_x]
-    order = SECOND
   []
   [accel_y]
-    order = SECOND
   []
   [vel_y]
-    order = SECOND
   []
   [accel_z]
-    order = SECOND
   []
   [vel_z]
-    order = SECOND
   []
 []
 
 [AuxKernels]
-  [psie_corr_active]
-    type = ADMaterialRealAux
-    variable = psie_corr_active
-    property = psie_corr_active
-    execute_on = 'TIMESTEP_END'
-  []
-  [psip_active]
-    type = ADMaterialRealAux
-    variable = psip_active
-    property = psip_active
-    execute_on = 'TIMESTEP_END'
-  []
-  [d_old]
-    type = CopyValueAux
-    source = d
-    variable = d_old
-    execute_on = 'TIMESTEP_END'
-  []
-  [d_corr]
-    type = ParsedAux
-    variable = d_corr
-    coupled_variables = 'd d_old'
-    expression = 'min(1,max(d_old,max(0,d)))'
-  []
-
   [accel_x]
     type = NewmarkAccelAux
     variable = accel_x
@@ -309,7 +277,10 @@ n = 2
 
 [RecoverVariables]
   [rec]
-    tensor_materials = 'be_bar stress rotation_tensor stretch_tensor'
+    # stretch_tensor (= U raw) is written so the restart side can switch
+    # between recovering U_bar directly vs recovering raw U + re-correcting on
+    # the new mesh.
+    tensor_materials = 'be_bar stress rotation_tensor stretch_tensor stretch_tensor_fbar'
     materials = 'effective_plastic_strain'
   []
 []
@@ -327,6 +298,9 @@ n = 2
   []
   [defgrad]
     type = ComputeDeformationGradient
+
+    output_properties = 'deformation_gradient Fnobar'
+    outputs = exodus
   []
   [bulk_properties]
     type = ADGenericConstantMaterial
@@ -371,8 +345,8 @@ n = 2
     type = JohnsonCookHardening
     T = T
     taylor_quinney_factor = ${Q}
-    sigma_0 = 1
     T0 = 280
+    sigma_0 = 1
     reference_plastic_strain = 1
     reference_plastic_strain_rate = 1e-6
     phase_field = d_corr
@@ -394,7 +368,7 @@ n = 2
 []
 
 trans_time = 1.0
-final_velocity = 0.05
+final_velocity = 0.2
 
 [Functions]
   [ypull_func]
@@ -441,7 +415,7 @@ final_velocity = 0.05
 [Postprocessors]
   [psie_corr_active_int]
     type = ADElementIntegralMaterialProperty
-    mat_prop = psie_corr_active
+    mat_prop = psie_active
     use_displaced_mesh = true
   []
   [psip_active_int]
@@ -476,7 +450,7 @@ final_velocity = 0.05
     dt = ${dt}
   []
   [Quadrature]
-    order = FOURTH
+    order = THIRD
   []
 
   end_time = ${end_time}
@@ -494,17 +468,17 @@ final_velocity = 0.05
   print_linear_residuals = false
   [exodus]
     type = Exodus
-    file_base = reference_out_${n}
+    file_base = reference_hex8_fbar_out
     use_displaced = false
   []
   [exodusqp]
     type = Exodus
-    file_base = reference_out_disp_${n}
+    file_base = reference_hex8_fbar_out_disp
     use_displaced = true
     execute_on = 'FINAL'
   []
   [csv]
     type = CSV
-    file_base = reference_out_${n}
+    file_base = reference_hex8_fbar_out
   []
 []

@@ -1,13 +1,18 @@
-# Reference simulation for the TET10 recover/remesh unit test.
+# Restart leg of the HEX8 F-bar comparison recover/remesh test.
 #
-# Second-order tetrahedra (TET10) with FOURTH-order quadrature (11 QPs/elem).
-# Mirrors recover_remesh/reference.i but on a tet mesh.  Runs a small dynamic
-# J2-plasticity problem with temperature and a phase-field fracture sub-app for
-# a handful of steps.  The Exodus output contains the QP tensor/material fields
-# that restart.i consumes through a SolutionUserObjectQP.
+# Reads reference.i's output via SolutionUserObjectQP on the same HEX8 mesh.
+# Reads stretch_tensor (= raw U) so the restart path can rebuild U-bar on the
+# new mesh through ComputeDeformationGradient(recover = true,
+# recover_mode = polar_decomposition).
+#
+# The reference run was tuned so that F-bar correction does meaningful work
+# (nu = 0.49, sigma_0 = 0.1, final_velocity = 0.5).  The point of this test
+# is that, on the SAME mesh, the recovered + re-corrected state has to match
+# the reference's last row to recovery tolerance even when volumetric locking
+# is active and F-bar is doing heavy lifting.
 
 E = 201.8e3
-nu = 0.3
+nu = 0.49
 K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
 rho = 7900
@@ -21,19 +26,25 @@ c1 = 0.1
 c2 = 0.9
 c3 = 0.1
 
-Tinit = 293
-
 hht_alpha = -0.25
 newmark_beta = '${fparse (1-hht_alpha)^2/4}'
 newmark_gamma = '${fparse 1/2-hht_alpha}'
 
-end_time = 1
+# Must match reference.i
+ref_end_time = 1.5
 dt = 0.1
-n = 2
+start_time = '${ref_end_time}'
+end_time = 2.5
+
+trans_time = 1.0
+final_velocity = 0.5
+
+recover_file = reference_hex8_fbar_out_disp.e
+
 [GlobalParams]
   displacements = 'disp_x disp_y disp_z'
   volumetric_locking_correction = true
-  element = TET10_4th
+  element = HEX8_3rd
 []
 
 [Problem]
@@ -43,27 +54,30 @@ n = 2
 []
 
 [Mesh]
-  [gmg]
-    type = GeneratedMeshGenerator
-    dim = 3
-    nx = ${n}
-    ny = ${n}
-    nz = ${n}
-    xmin = 0
-    xmax = 3
-    ymin = 0
-    ymax = 3
-    zmin = 0
-    zmax = 3
-    elem_type = TET10
+  [fmg]
+    type = FileMeshGenerator
+    file = ${recover_file}
+  []
+[]
+
+[UserObjects]
+  [epsol]
+    type = SolutionUserObjectQP
+    mesh = ${recover_file}
+    system_variables = 'd d_old d_corr T accel_x accel_y accel_z vel_x vel_y vel_z'
+    materials = 'effective_plastic_strain'
+    tensor_materials = 'stress be_bar stretch_tensor rotation_tensor stretch_tensor_fbar'
+    use_displaced_mesh = false
+    execute_on = 'INITIAL'
+    timestep = LATEST
   []
 []
 
 # [MultiApps]
 #   [fracture]
 #     type = TransientMultiApp
-#     input_files = 'fracture_ref.i'
-#     cli_args = 'Gc=${Gc};l=${l};out_file=reference_d'
+#     input_files = 'fracture_restart.i'
+#     cli_args = 'Gc=${Gc};l=${l};start_time=${start_time};recover_file=${recover_file};out_file=restart_hex8_fbar_d'
 #     execute_on = 'TIMESTEP_END'
 #     clone_parent_mesh = no
 #   []
@@ -98,85 +112,75 @@ n = 2
 
 [Variables]
   [disp_x]
-    order = SECOND
   []
   [disp_y]
-    order = SECOND
   []
   [disp_z]
-    order = SECOND
   []
   [T]
-    order = SECOND
-    initial_condition = ${Tinit}
+    [InitialCondition]
+      type = SolutionIC
+      from_variable = T
+      variable = T
+      solution_uo = epsol
+    []
   []
 []
 
 [AuxVariables]
-  [d]
-    order = SECOND
-  []
-  [d_old]
-    order = SECOND
-  []
   [d_corr]
-    order = SECOND
   []
-  [psie_corr_active]
-    order = FIRST
-    family = MONOMIAL
-  []
-  [psip_active]
-    order = FIRST
-    family = MONOMIAL
-  []
-
   [accel_x]
-    order = SECOND
+    [InitialCondition]
+      type = SolutionIC
+      from_variable = accel_x
+      variable = accel_x
+      solution_uo = epsol
+    []
   []
   [vel_x]
-    order = SECOND
+    [InitialCondition]
+      type = SolutionIC
+      from_variable = vel_x
+      variable = vel_x
+      solution_uo = epsol
+    []
   []
   [accel_y]
-    order = SECOND
+    [InitialCondition]
+      type = SolutionIC
+      from_variable = accel_y
+      variable = accel_y
+      solution_uo = epsol
+    []
   []
   [vel_y]
-    order = SECOND
+    [InitialCondition]
+      type = SolutionIC
+      from_variable = vel_y
+      variable = vel_y
+      solution_uo = epsol
+    []
   []
   [accel_z]
-    order = SECOND
+    [InitialCondition]
+      type = SolutionIC
+      from_variable = accel_z
+      variable = accel_z
+      solution_uo = epsol
+    []
   []
   [vel_z]
-    order = SECOND
+    [InitialCondition]
+      type = SolutionIC
+      from_variable = vel_z
+      variable = vel_z
+      solution_uo = epsol
+    []
   []
 []
 
 [AuxKernels]
-  [psie_corr_active]
-    type = ADMaterialRealAux
-    variable = psie_corr_active
-    property = psie_corr_active
-    execute_on = 'TIMESTEP_END'
-  []
-  [psip_active]
-    type = ADMaterialRealAux
-    variable = psip_active
-    property = psip_active
-    execute_on = 'TIMESTEP_END'
-  []
-  [d_old]
-    type = CopyValueAux
-    source = d
-    variable = d_old
-    execute_on = 'TIMESTEP_END'
-  []
-  [d_corr]
-    type = ParsedAux
-    variable = d_corr
-    coupled_variables = 'd d_old'
-    expression = 'min(1,max(d_old,max(0,d)))'
-  []
-
   [accel_x]
     type = NewmarkAccelAux
     variable = accel_x
@@ -228,7 +232,7 @@ n = 2
   [inertia_x]
     type = ADInertialForce
     variable = disp_x
-    density = density
+    density = adj_density
     use_displaced_mesh = false
     beta = ${newmark_beta}
     gamma = ${newmark_gamma}
@@ -240,7 +244,7 @@ n = 2
   [inertia_y]
     type = ADInertialForce
     variable = disp_y
-    density = density
+    density = adj_density
     use_displaced_mesh = false
     beta = ${newmark_beta}
     gamma = ${newmark_gamma}
@@ -252,7 +256,7 @@ n = 2
   [inertia_z]
     type = ADInertialForce
     variable = disp_z
-    density = density
+    density = adj_density
     use_displaced_mesh = false
     beta = ${newmark_beta}
     gamma = ${newmark_gamma}
@@ -262,27 +266,30 @@ n = 2
     absolute_value_vector_tags = 'ref'
   []
   [x]
-    type = ADDynamicStressDivergenceTensors
+    type = ADDynamicStressDivergenceTensorsRecover
     variable = disp_x
     component = 0
     use_displaced_mesh = true
     alpha = ${hht_alpha}
+    solution = epsol
     absolute_value_vector_tags = 'ref'
   []
   [y]
-    type = ADDynamicStressDivergenceTensors
+    type = ADDynamicStressDivergenceTensorsRecover
     variable = disp_y
     component = 1
     use_displaced_mesh = true
     alpha = ${hht_alpha}
+    solution = epsol
     absolute_value_vector_tags = 'ref'
   []
   [z]
-    type = ADDynamicStressDivergenceTensors
+    type = ADDynamicStressDivergenceTensorsRecover
     variable = disp_z
     component = 2
     use_displaced_mesh = true
     alpha = ${hht_alpha}
+    solution = epsol
     absolute_value_vector_tags = 'ref'
   []
   [hcond_time]
@@ -307,14 +314,26 @@ n = 2
   []
 []
 
-[RecoverVariables]
-  [rec]
-    tensor_materials = 'be_bar stress rotation_tensor stretch_tensor'
-    materials = 'effective_plastic_strain'
+[Functions]
+  [ypull_func]
+    type = ParsedFunction
+    expression = 'if(t<=trans,v/(2*trans)*t*t,v*t-v*trans/2)'
+    symbol_names = 'trans v'
+    symbol_values = '${trans_time} ${final_velocity}'
   []
 []
 
 [Materials]
+  [stress_sol]
+    type = SolutionTensor
+    solution = epsol
+    tensor_name = stress
+  []
+  [stress_old_sol]
+    type = ADGenericConstantRankTwoTensor
+    tensor_name = stress_old_store_sol
+    tensor_values = '1 0 0 0 1 0 0 0 1'
+  []
   [coalescence]
     type = ADParsedMaterial
     property_name = coal
@@ -327,16 +346,21 @@ n = 2
   []
   [defgrad]
     type = ComputeDeformationGradient
+    recover = true
+    solution = epsol
+    recover_mode = polar_decomposition
+    output_properties = 'deformation_gradient Fnobar'
+    outputs = exodus
   []
   [bulk_properties]
     type = ADGenericConstantMaterial
     prop_names = 'K G l Gc psic density thermal_conductivity specific_heat'
     prop_values = '${K} ${G} ${l} ${Gc} ${psic} ${rho} ${thermal_conductivity} ${specific_heat}'
   []
-  [reg_density]
-    type = MaterialADConverter
-    ad_props_in = 'density'
-    reg_props_out = 'reg_density'
+  [dens]
+    type = ADStrainAdjustedDensityCustom
+    strain_free_density = density
+    base_name = 'adj'
   []
   [nodeg]
     type = NoDegradation
@@ -364,6 +388,8 @@ n = 2
     phase_field = d_corr
     hardening_model = JC
     relative_tolerance = 1e-08
+    recover = true
+    solution = epsol
     output_properties = 'effective_plastic_strain'
     outputs = exodus
   []
@@ -371,8 +397,8 @@ n = 2
     type = JohnsonCookHardening
     T = T
     taylor_quinney_factor = ${Q}
-    sigma_0 = 1
     T0 = 280
+    sigma_0 = 1
     reference_plastic_strain = 1
     reference_plastic_strain_rate = 1e-6
     phase_field = d_corr
@@ -390,18 +416,6 @@ n = 2
     type = ComputeLargeDeformationStress
     elasticity_model = hencky
     plasticity_model = J2
-  []
-[]
-
-trans_time = 1.0
-final_velocity = 0.05
-
-[Functions]
-  [ypull_func]
-    type = ParsedFunction
-    expression = 'if(t<=trans,v/(2*trans)*t*t,v*t-v*trans/2)'
-    symbol_names = 'trans v'
-    symbol_values = '${trans_time} ${final_velocity}'
   []
 []
 
@@ -431,7 +445,7 @@ final_velocity = 0.05
     type = PresetDisplacement
     variable = disp_y
     boundary = top
-    function = ypull_func
+    function = '0'
     beta = ${newmark_beta}
     velocity = vel_y
     acceleration = accel_y
@@ -441,7 +455,7 @@ final_velocity = 0.05
 [Postprocessors]
   [psie_corr_active_int]
     type = ADElementIntegralMaterialProperty
-    mat_prop = psie_corr_active
+    mat_prop = psie_active
     use_displaced_mesh = true
   []
   [psip_active_int]
@@ -469,16 +483,17 @@ final_velocity = 0.05
 
   nl_rel_tol = 1e-8
   nl_abs_tol = 1e-10
-  nl_max_its = 50
+  nl_max_its = 100
 
   [TimeStepper]
     type = ConstantDT
     dt = ${dt}
   []
   [Quadrature]
-    order = FOURTH
+    order = THIRD
   []
 
+  start_time = ${start_time}
   end_time = ${end_time}
 
   automatic_scaling = true
@@ -494,17 +509,13 @@ final_velocity = 0.05
   print_linear_residuals = false
   [exodus]
     type = Exodus
-    file_base = reference_out_${n}
+    file_base = restart_hex8_fbar_out
     use_displaced = false
-  []
-  [exodusqp]
-    type = Exodus
-    file_base = reference_out_disp_${n}
-    use_displaced = true
-    execute_on = 'FINAL'
+    execute_on = 'TIMESTEP_END'
   []
   [csv]
     type = CSV
-    file_base = reference_out_${n}
+    file_base = restart_hex8_fbar_out
+    execute_on = 'TIMESTEP_END'
   []
 []
