@@ -262,17 +262,18 @@ zfix_bnd = 'front back'
   # Recover-aware HHT stress divergence: at the first restart step the regular
   # MOOSE _stress_old is zero (no prior state on the restart side), which drops
   # the -alpha * sigma_old * grad_test term from the HHT-alpha residual and
-  # produces a 25% missing force on step 1.  The *Recover variant reads
-  # sigma_old from the SolutionUserObject (= recovered reference stress at
-  # dump_time) for t_step=1, then transitions to MOOSE-tracked _stress_old at
-  # t_step >= 2.  Requires the two SolutionTensor materials below.
+  # produces a 25% missing force on step 1.  The *Recover variant with
+  # recompute_old_stress=true (default) pulls sigma_old from MOOSE's
+  # _stress_old, which is populated at INITIAL by the constitutive's
+  # evaluation on F = F_recovered, so the HHT-alpha cancellation is clean
+  # at every step without needing any SolutionTensor materials.
   [x]
     type = ADDynamicStressDivergenceTensorsRecover
     variable = disp_x
     component = 0
     use_displaced_mesh = true
     alpha = ${hht_alpha}
-    solution = epsol
+    recompute_old_stress = true
   []
   [y]
     type = ADDynamicStressDivergenceTensorsRecover
@@ -280,7 +281,7 @@ zfix_bnd = 'front back'
     component = 1
     use_displaced_mesh = true
     alpha = ${hht_alpha}
-    solution = epsol
+    recompute_old_stress = true
   []
   [z]
     type = ADDynamicStressDivergenceTensorsRecover
@@ -288,7 +289,7 @@ zfix_bnd = 'front back'
     component = 2
     use_displaced_mesh = true
     alpha = ${hht_alpha}
-    solution = epsol
+    recompute_old_stress = true
   []
 
   # ----- Inertia (recovered velocity/acceleration carry through) ------------
@@ -419,20 +420,18 @@ zfix_bnd = 'front back'
 
 [Materials]
   # ----- HHT recover-side stress history --------------------------------------
-  # ADDynamicStressDivergenceTensorsRecover requires `stress_sol` (the recovered
-  # reference stress at dump_time, seeded via the SolutionUserObject) and a
-  # `stress_old_store_sol` placeholder (only used multiplied by zeta, which is
-  # 0 here, so the identity default is harmless).
-  [stress_sol]
-    type = SolutionTensor
-    solution = epsol
-    tensor_name = stress
-  []
-  [stress_old_sol]
-    type = ADGenericConstantRankTwoTensor
-    tensor_name = stress_old_store_sol
-    tensor_values = '1 0 0 0 1 0 0 0 1'
-  []
+  # NOTE: the `stress_sol` (SolutionTensor) and `stress_old_store_sol`
+  # (identity placeholder) materials that the legacy
+  # ADDynamicStressDivergenceTensorsRecover path needed are no longer
+  # required -- the kernel is now driven in recompute_old_stress=true mode,
+  # which reads sigma_old / sigma_older from MOOSE's stateful-material-
+  # tracked _stress_old / _stress_older.  At t_step=1 _stress_old is the
+  # constitutive's INITIAL evaluation on F = F_recovered (seeded by
+  # ComputeDeformationGradient(recover=true) below), so sigma_old shares
+  # the same per-QP roundoff fingerprint as sigma_curr and the HHT-alpha
+  # cancellation tightens cleanly.  Set
+  # `Kernels/x/recompute_old_stress=false` (and re-add the two materials)
+  # to A/B the legacy SolutionTensor-fed path.
   [defgrad]
     type = ComputeDeformationGradient
     recover = true
