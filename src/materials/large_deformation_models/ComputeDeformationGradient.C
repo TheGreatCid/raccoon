@@ -231,9 +231,15 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
       const bool have_fbar = _volumetric_locking_correction;
       // Approach B (recover_apply_fbar_to_U) rebuilds F_bar from the raw recovered U on
       // the new mesh -- it doesn't need U_fbar from the recovery file, so don't try to
-      // read it.  This lets the same restart input work against reference dumps that lack
-      // `stretch_tensor_fbar` (or `F`) entirely.
+      // read it.  Approach A (recover_apply_fbar_to_U = false, F-bar active) consumes
+      // U_fbar directly and doesn't need the raw U either -- F_noFbar gets aliased to
+      // F_Fbar at INITIAL in that case.  Reading only what's needed lets the same
+      // restart input work against reference dumps that contain only one of the two
+      // stretch-tensor variants (libmesh's exodus reader silently shadows
+      // `stretch_tensor_*` whenever `stretch_tensor_fbar_*` is also present in the same
+      // file due to a name-prefix collision, so the reference can dump only one).
       const bool need_U_fbar_from_file = have_fbar && !_recover_apply_fbar_to_U;
+      const bool need_U_raw_from_file = !have_fbar || _recover_apply_fbar_to_U;
 
       std::vector<RankTwoTensor> R_qp(n_points), U_qp(n_points), Ufb_qp(n_points);
       std::vector<RankTwoTensor> R_file_qp(n_points); // raw R as read; may be R^(1/2)
@@ -253,11 +259,12 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
                   _current_elem->true_centroid(),
                   "rotation_tensor_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
                   nullptr);
-              U(i_ind, j_ind) = _solution_object_ptr->pointValue(
-                  _t,
-                  _current_elem->true_centroid(),
-                  "stretch_tensor_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
-                  nullptr);
+              if (need_U_raw_from_file)
+                U(i_ind, j_ind) = _solution_object_ptr->pointValue(
+                    _t,
+                    _current_elem->true_centroid(),
+                    "stretch_tensor_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
+                    nullptr);
               if (need_U_fbar_from_file)
                 Ufb(i_ind, j_ind) = _solution_object_ptr->pointValue(
                     _t,
@@ -270,11 +277,12 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
           if (_input_half_rotation)
             R = R * R;
           R_qp[qp] = R;
-          U_qp[qp] = U;
-          // When U_fbar is not read (approach B or no F-bar), seed Ufb_qp with U so
-          // downstream code paths that touch Ufb_qp see a sane placeholder.  Approach B
-          // overrides _F_store_Fbar below using its own averaging.
-          Ufb_qp[qp] = need_U_fbar_from_file ? Ufb : U;
+          // Approach A skips reading raw U; alias U <- U_fbar so F_raw = R*U downstream
+          // collapses to F_fbar (i.e., _F_store_noFbar = _F_store_Fbar at INITIAL).
+          U_qp[qp] = need_U_raw_from_file ? U : Ufb;
+          // Approach B / no-fbar skip U_fbar; alias Ufb <- U so the F_fbar pathway has
+          // a sane placeholder.  Approach B overrides _F_store_Fbar below via averaging.
+          Ufb_qp[qp] = need_U_fbar_from_file ? Ufb : U_qp[qp];
         }
         else
         {
@@ -284,11 +292,12 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
           for (int i_ind = 0; i_ind < 3; ++i_ind)
             for (int j_ind = 0; j_ind < 3; ++j_ind)
             {
-              F_raw(i_ind, j_ind) = _solution_object_ptr->pointValue(
-                  _t,
-                  _current_elem->true_centroid(),
-                  "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
-                  nullptr);
+              if (need_U_raw_from_file)
+                F_raw(i_ind, j_ind) = _solution_object_ptr->pointValue(
+                    _t,
+                    _current_elem->true_centroid(),
+                    "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
+                    nullptr);
               if (need_U_fbar_from_file)
                 F_fbar(i_ind, j_ind) = _solution_object_ptr->pointValue(
                     _t,
@@ -296,9 +305,12 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
                     "F_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
                     nullptr);
             }
+          // For approach A (need_U_raw=false but need_U_fbar=true) we alias F_raw <- F_fbar
+          // so the polar decomposition still has a valid input.
+          const RankTwoTensor & F_for_RU = need_U_raw_from_file ? F_raw : F_fbar;
           RankTwoTensor R, U;
-          F_raw.getRUDecompositionRotation(R);
-          U = R.transpose() * F_raw;
+          F_for_RU.getRUDecompositionRotation(R);
+          U = R.transpose() * F_for_RU;
           R_file_qp[qp] = R;
           R_qp[qp] = R;
           U_qp[qp] = U;

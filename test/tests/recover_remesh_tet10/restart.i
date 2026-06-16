@@ -29,7 +29,7 @@ newmark_gamma = '${fparse 1/2-hht_alpha}'
 ref_end_time = 1
 dt = 0.1
 start_time = '${ref_end_time}'
-end_time = 1.5
+end_time = 2
 
 trans_time = 1.0
 final_velocity = 0.05
@@ -72,42 +72,42 @@ recover_file = reference_out_disp.e
   []
 []
 
-[MultiApps]
-  [fracture]
-    type = TransientMultiApp
-    input_files = 'fracture_restart.i'
-    cli_args = 'Gc=${Gc};l=${l};start_time=${start_time};recover_file=${recover_file};out_file=restart_d'
-    execute_on = 'TIMESTEP_END'
-    clone_parent_mesh = no
-  []
-[]
+# [MultiApps]
+#   [fracture]
+#     type = TransientMultiApp
+#     input_files = 'fracture_restart.i'
+#     cli_args = 'Gc=${Gc};l=${l};start_time=${start_time};recover_file=${recover_file};out_file=restart_d'
+#     execute_on = 'TIMESTEP_END'
+#     clone_parent_mesh = no
+#   []
+# []
 
-[Transfers]
-  [to_coal]
-    type = MultiAppCopyTransfer
-    variable = coal
-    source_variable = coal
-    to_multi_app = fracture
-  []
-  [from_d]
-    type = MultiAppCopyTransfer
-    variable = d
-    source_variable = d
-    from_multi_app = fracture
-  []
-  [to_psie]
-    type = MultiAppCopyTransfer
-    variable = psie_corr_active
-    source_variable = psie_corr_active
-    to_multi_app = fracture
-  []
-  [to_psip]
-    type = MultiAppCopyTransfer
-    variable = psip_active
-    source_variable = psip_active
-    to_multi_app = fracture
-  []
-[]
+# [Transfers]
+#   [to_coal]
+#     type = MultiAppCopyTransfer
+#     variable = coal
+#     source_variable = coal
+#     to_multi_app = fracture
+#   []
+#   [from_d]
+#     type = MultiAppCopyTransfer
+#     variable = d
+#     source_variable = d
+#     from_multi_app = fracture
+#   []
+#   [to_psie]
+#     type = MultiAppCopyTransfer
+#     variable = psie_corr_active
+#     source_variable = psie_corr_active
+#     to_multi_app = fracture
+#   []
+#   [to_psip]
+#     type = MultiAppCopyTransfer
+#     variable = psip_active
+#     source_variable = psip_active
+#     to_multi_app = fracture
+#   []
+# []
 
 [Variables]
   [disp_x]

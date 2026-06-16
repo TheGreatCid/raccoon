@@ -1,0 +1,47 @@
+[Tests]
+  issues = '#0'
+  design = 'ComputeDeformationGradient.md'
+
+  # --------------------------------------------------------------------------
+  # Heavy-F-bar reference / restart pair on HEX8 elements for stressing the
+  # volumetric-locking correction path (B-bar / F-bar) through recovery.
+  #
+  # Tunings vs recover_remesh (the baseline HEX8 recover test):
+  #   nu = 0.49             (near-incompressible -> volumetric locking severe)
+  #   sigma_0 = 0.1         (lower yield -> more plastic flow -> isochoric
+  #                          deformation forces F-bar to do real work)
+  #   final_velocity = 0.5  (10x deformation magnitude)
+  #   end_time = 2.5
+  #
+  # The restart leg's [defgrad] is configured the same way as the recover
+  # baseline; the volumetric_locking_correction = true global flag combined
+  # with recover_mode = polar_decomposition exercises F-bar reconstruction on
+  # the recovered raw stretch tensor.  The CSV diff at the first step after
+  # restart_time is the comparison metric.
+  # --------------------------------------------------------------------------
+
+  [reference]
+    type = CSVDiff
+    input = 'reference.i'
+    csvdiff = 'reference_hex8_fbar_out.csv'
+    abs_zero = 1e-10
+    rel_err = 1e-6
+    requirement = 'The system shall run a near-incompressible J2 dynamic '
+                  'plasticity problem on HEX8 elements with significant '
+                  'F-bar correction work and emit the QP fields needed for '
+                  'recovery comparison.'
+  []
+
+  [restart_matches_reference]
+    type = CSVDiff
+    input = 'restart.i'
+    csvdiff = 'restart_hex8_fbar_out.csv'
+    prereq = 'reference'
+    abs_zero = 1e-10
+    rel_err = 1e-6
+    requirement = 'The system shall continue the F-bar-heavy HEX8 reference '
+                  'run through SolutionUserObjectQP recovery on the same mesh '
+                  'and reproduce the trajectory with volumetric-locking '
+                  'correction active.'
+  []
+[]

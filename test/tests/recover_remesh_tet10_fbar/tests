@@ -1,0 +1,47 @@
+[Tests]
+  issues = '#0'
+  design = 'ComputeDeformationGradient.md'
+
+  # --------------------------------------------------------------------------
+  # Heavy-F-bar reference / restart pair for comparing
+  #   Approach A: recover U_bar directly (current code)
+  #   Approach B: recover raw U + re-derive F-bar on the new mesh
+  #
+  # Tunings vs recover_remesh_tet10:
+  #   nu = 0.45 (near-incompressible -> volumetric locking matters)
+  #   sigma_0 = 0.5 (lower yield -> more plastic flow)
+  #   final_velocity = 0.2 (4x deformation magnitude)
+  #   end_time = 1.5
+  #
+  # The restart leg's [defgrad] is configured the same way as the recover
+  # baseline; switching between Approach A and B is done through whatever
+  # ComputeDeformationGradient parameter (or branch) the user has in place.
+  # The CSV diff between A and B at the first step after restart_time is the
+  # comparison metric.
+  # --------------------------------------------------------------------------
+
+  [reference]
+    type = CSVDiff
+    input = 'reference.i'
+    csvdiff = 'reference_fbar_out.csv'
+    abs_zero = 1e-10
+    rel_err = 1e-6
+    requirement = 'The system shall run a near-incompressible J2 dynamic '
+                  'plasticity problem on TET10 elements with significant '
+                  'F-bar correction work and emit the QP fields needed for '
+                  'recovery comparison.'
+  []
+
+  [restart_matches_reference]
+    type = CSVDiff
+    input = 'restart.i'
+    csvdiff = 'restart_fbar_out.csv'
+    prereq = 'reference'
+    abs_zero = 1e-10
+    rel_err = 1e-6
+    requirement = 'The system shall continue the F-bar-heavy reference run '
+                  'through SolutionUserObjectQP recovery on the same TET10 '
+                  'mesh and reproduce the trajectory under whichever F-bar '
+                  'recovery approach (U_bar or raw U) is configured.'
+  []
+[]
