@@ -273,6 +273,7 @@ zfix_bnd = 'front back'
     use_displaced_mesh = true
     alpha = ${hht_alpha}
     solution = epsol
+    recompute_old_stress = true
   []
   [y]
     type = ADDynamicStressDivergenceTensorsRecover
@@ -281,6 +282,7 @@ zfix_bnd = 'front back'
     use_displaced_mesh = true
     alpha = ${hht_alpha}
     solution = epsol
+    recompute_old_stress = true
   []
   [z]
     type = ADDynamicStressDivergenceTensorsRecover
@@ -289,6 +291,7 @@ zfix_bnd = 'front back'
     use_displaced_mesh = true
     alpha = ${hht_alpha}
     solution = epsol
+    recompute_old_stress = true
   []
 
   # ----- Inertia (recovered velocity/acceleration carry through) ------------
@@ -423,6 +426,7 @@ zfix_bnd = 'front back'
   # reference stress at dump_time, seeded via the SolutionUserObject) and a
   # `stress_old_store_sol` placeholder (only used multiplied by zeta, which is
   # 0 here, so the identity default is harmless).
+
   [stress_sol]
     type = SolutionTensor
     solution = epsol
