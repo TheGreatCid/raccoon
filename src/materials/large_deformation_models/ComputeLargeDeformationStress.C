@@ -70,7 +70,22 @@ ComputeLargeDeformationStress::initialSetup()
 void
 ComputeLargeDeformationStress::initQpStatefulProperties()
 {
-  _stress[_qp].zero();
+  // Populate _stress at INITIAL by running the elasticity model on _Fm.
+  // For the recover/restart pattern, ComputeDeformationGradient seeds
+  // _Fm = Fg^-1 * F_recovered at INITIAL, so _stress comes out as
+  // sigma_recovered.  When MOOSE then copies _stress -> _stress_old for
+  // t_step=1, downstream kernels (e.g. ADDynamicStressDivergenceTensorsRecover
+  // with recompute_old_stress=true) see the correct sigma_old without
+  // needing a parallel SolutionTensor pipeline.
+  //
+  // For non-recover runs _Fm = I at INITIAL, so updateState produces
+  // sigma = constitutive(I) = 0 for standard hyperelastic models -- same
+  // as the previous _stress[_qp].zero() behaviour.  Plastic / viscoelastic
+  // configurations also need their internal state seeded at INITIAL
+  // before this call is meaningful for them; for now the recover-side
+  // benefit is elastic-only.
+  _elasticity_model->setQp(_qp);
+  _elasticity_model->updateState(_Fm[_qp], _stress[_qp]);
 }
 
 void

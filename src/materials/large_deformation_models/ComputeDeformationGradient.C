@@ -366,6 +366,17 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
           _rotation_tensor[_qp] = R_qp[_qp];
 
         _F[_qp] = have_fbar ? _F_store_Fbar[_qp] : _F_store_noFbar[_qp];
+
+        // Seed _Fm at INITIAL so downstream stateful seeders (e.g.
+        // ComputeLargeDeformationStress::initQpStatefulProperties) see
+        // F_m = Fg^-1 * F_recovered rather than identity.  Without this,
+        // _stress at INITIAL gets seeded from the constitutive on F = I,
+        // making _stress_old = 0 at t_step=1 and breaking the HHT-alpha
+        // residual on the first restart step.
+        ADRankTwoTensor Fg(ADRankTwoTensor::initIdentity);
+        for (auto Fgi : _Fgs)
+          Fg *= (*Fgi)[_qp];
+        _Fm[_qp] = Fg.inverse() * _F[_qp];
       }
     }
   }

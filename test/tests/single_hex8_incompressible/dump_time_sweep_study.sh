@@ -50,7 +50,7 @@ cd "$(dirname "$0")"
 
 RACCOON="${RACCOON:-/home/det12/projects/raccoon/raccoon-opt}"
 MODE="${MODE:-elastic_qs}"
-NU="${NU:-0.4}"
+NU="${NU:-0.499}"
 END_TIME_FOR_RAMP="${END_TIME_FOR_RAMP:-1.0}"
 
 # Three ways to set the dump-time grid (in priority order):

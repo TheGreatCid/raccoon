@@ -20,7 +20,13 @@ ADDynamicStressDivergenceTensorsRecover::validParams()
 {
   InputParameters params = ADStressDivergenceTensors::validParams();
   params.addClassDescription(
-      "Residual due to stress related Rayleigh damping and HHT time integration terms");
+      "Residual due to stress related Rayleigh damping and HHT time integration terms.  "
+      "When recompute_old_stress=true, sigma_old / sigma_older come from MOOSE's "
+      "stateful-property tracked _stress_old / _stress_older everywhere -- which "
+      "requires that ComputeLargeDeformationStress::initQpStatefulProperties is "
+      "patched to evaluate the elasticity model on _Fm at INITIAL.  When false "
+      "(default), sigma_old / sigma_older at t_step=1,2 are read from the legacy "
+      "AD material properties `stress_sol` / `stress_old_store_sol`.");
   params.addParam<MaterialPropertyName>("zeta",
                                         0.0,
                                         "Name of material property or a constant real "
@@ -33,8 +39,25 @@ ADDynamicStressDivergenceTensorsRecover::validParams()
                         "equilibrium under gravity by running a "
                         "quasi-static analysis (by solving Ku = F) "
                         "in the first time step");
-  params.addRequiredParam<UserObjectName>("solution",
-                                          "The SolutionUserObject to extract data from.");
+  params.addParam<bool>(
+      "recompute_old_stress",
+      false,
+      "When true, sigma_old / sigma_older come from MOOSE's stateful-material "
+      "_stress_old / _stress_older everywhere.  At t_step=1 _stress_old is the "
+      "constitutive evaluated on F_recovered (via the patched "
+      "ComputeLargeDeformationStress::initQpStatefulProperties), so sigma_old "
+      "and sigma_curr share the same per-QP roundoff fingerprint and the HHT-alpha "
+      "(1+alpha)*sigma - alpha*sigma_old cancellation is clean.  Requires the "
+      "matching patches in ComputeLargeDeformationStress and ComputeDeformationGradient.  "
+      "When false (default), reads sigma_old / sigma_older at t_step=1,2 from the "
+      "legacy AD material properties `stress_sol` / `stress_old_store_sol`.");
+  // `solution` is required by the legacy path but never used in the residual
+  // itself; keep it optional so recompute-mode input files don't need it.
+  params.addParam<UserObjectName>(
+      "solution",
+      "",
+      "Optional SolutionUserObject.  Unused by the kernel itself; supported for "
+      "input-file backwards compatibility with the legacy SolutionTensor pattern.");
 
   return params;
 }
@@ -42,84 +65,112 @@ ADDynamicStressDivergenceTensorsRecover::validParams()
 ADDynamicStressDivergenceTensorsRecover::ADDynamicStressDivergenceTensorsRecover(
     const InputParameters & parameters)
   : ADStressDivergenceTensors(parameters),
+    _recompute_old_stress(getParam<bool>("recompute_old_stress")),
     _stress_older(getMaterialPropertyOlder<RankTwoTensor>(_base_name + "stress")),
     _stress_old(getMaterialPropertyOld<RankTwoTensor>(_base_name + "stress")),
-    _stress_older_sol(getADMaterialProperty<RankTwoTensor>("stress_old_store_sol")),
-    _stress_old_sol(getADMaterialProperty<RankTwoTensor>("stress_sol")),
+    _stress_older_sol(nullptr),
+    _stress_old_sol(nullptr),
     _zeta(getMaterialProperty<Real>("zeta")),
     _alpha(getParam<Real>("alpha")),
     _static_initialization(getParam<bool>("static_initialization")),
-    _solution_object_ptr(NULL),
+    _solution_object_ptr(nullptr),
     _assembly_undisplaced(_fe_problem.assembly(_tid, this->_sys.number())),
     _q_point_undisplaced(_assembly_undisplaced.qPoints())
-
 {
-  _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
+  if (!_recompute_old_stress)
+  {
+    _stress_old_sol = &getADMaterialProperty<RankTwoTensor>("stress_sol");
+    _stress_older_sol = &getADMaterialProperty<RankTwoTensor>("stress_old_store_sol");
+  }
+
+  // getUserObject takes the PARAM NAME (not the resolved value) and looks up
+  // the user object via that param.  Skip when the param value is empty so
+  // recompute-mode inputs don't need to declare a SolutionUserObject.
+  if (!getParam<UserObjectName>("solution").empty())
+    _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
 }
 
 ADReal
 ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
 {
   /**
-   *This kernel needs to be used only if either Rayleigh damping or numerical damping through HHT
-   *time integration scheme needs to be added to the problem through the stiffness dependent damping
-   * parameter _zeta or HHT parameter _alpha, respectively.
-   *
-   * The residual of _zeta*K*[(1+_alpha)vel-_alpha vel_old]+ alpha K [ u - uold] + K u is required
-   * = _zeta*[(1+_alpha)d/dt (Div sigma)-alpha d/dt(Div sigma_old)] +alpha [Div sigma - Div
-   *sigma_old]+ Div sigma
-   * = _zeta*[(1+alpha)(Div sigma - Div sigma_old)/dt - alpha (Div sigma_old - Div sigma_older)/dt]
-   *   + alpha [Div sigma - Div sigma_old] +Div sigma
-   * = [(1+_alpha)*_zeta/dt +_alpha+1]* Div sigma - [(1+2_alpha)*_zeta/dt + _alpha] Div sigma_old +
-   *_alpha*_zeta/dt Div sigma_older
+   * HHT-alpha + Rayleigh stress-divergence residual:
+   *   R = [(1+alpha)*(1 + zeta/dt)] * Div sigma
+   *     - [alpha + (1+2*alpha)*zeta/dt] * Div sigma_old
+   *     + [alpha * zeta/dt]            * Div sigma_older
    */
-
   ADReal residual;
+
   if (_static_initialization && _t == _dt)
   {
-    // If static initialization is true, then in the first step residual is only Ku which is
-    // stress.grad(test).
     residual = _stress[_qp].row(_component) * _grad_test[_i][_qp];
 
     if (_volumetric_locking_correction)
       residual +=
           _stress[_qp].trace() / 3.0 * (_avg_grad_test[_i] - _grad_test[_i][_qp](_component));
   }
+  else if (_recompute_old_stress)
+  {
+    // RECOMPUTE PATH.  At t_step=1, _stress_old has been populated at INITIAL
+    // by ComputeLargeDeformationStress::initQpStatefulProperties evaluating
+    // the elasticity model on _Fm = F_recovered.  _stress_older at t_step=1
+    // is zero (no prior state); its only coefficient is alpha*zeta/dt, which
+    // vanishes for the zeta=0 (no Rayleigh) case.
+    if (_dt > 0)
+    {
+      residual =
+          _stress[_qp].row(_component) * _grad_test[_i][_qp] *
+              (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
+          (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * _stress_old[_qp].row(_component) *
+              _grad_test[_i][_qp] +
+          (_alpha * _zeta[_qp] / _dt) * _stress_older[_qp].row(_component) * _grad_test[_i][_qp];
+
+      if (_volumetric_locking_correction)
+        residual += (_stress[_qp].trace() * (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
+                     (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * _stress_old[_qp].trace() +
+                     (_alpha * _zeta[_qp] / _dt) * _stress_older[_qp].trace()) /
+                    3.0 * (_avg_grad_test[_i] - _grad_test[_i][_qp](_component));
+    }
+    else
+      residual = 0.0;
+  }
   else if (_dt > 0 && _t_step == 1)
   {
-
+    // LEGACY PATH t_step=1: sigma_old from SolutionTensor (dumped sigma);
+    // sigma_older is the identity placeholder, only contributes when zeta != 0.
     residual =
         _stress[_qp].row(_component) * _grad_test[_i][_qp] *
             (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
-        (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * _stress_old_sol[_qp].row(_component) *
+        (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * (*_stress_old_sol)[_qp].row(_component) *
             _grad_test[_i][_qp] +
-        (_alpha * _zeta[_qp] / _dt) * _stress_older_sol[_qp].row(_component) * _grad_test[_i][_qp];
+        (_alpha * _zeta[_qp] / _dt) * (*_stress_older_sol)[_qp].row(_component) * _grad_test[_i][_qp];
 
     if (_volumetric_locking_correction)
       residual +=
           (_stress[_qp].trace() * (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
-           (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * _stress_old_sol[_qp].trace() +
-           (_alpha * _zeta[_qp] / _dt) * _stress_older_sol[_qp].trace()) /
+           (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * (*_stress_old_sol)[_qp].trace() +
+           (_alpha * _zeta[_qp] / _dt) * (*_stress_older_sol)[_qp].trace()) /
           3.0 * (_avg_grad_test[_i] - _grad_test[_i][_qp](_component));
   }
-  else if (_dt > 0 && _t_step == 2) // Need to user stored stress as older stress
+  else if (_dt > 0 && _t_step == 2)
   {
-
+    // LEGACY PATH t_step=2: sigma_old MOOSE-tracked, sigma_older from SolutionTensor.
     residual =
         _stress[_qp].row(_component) * _grad_test[_i][_qp] *
             (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
         (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * _stress_old[_qp].row(_component) *
             _grad_test[_i][_qp] +
-        (_alpha * _zeta[_qp] / _dt) * _stress_old_sol[_qp].row(_component) * _grad_test[_i][_qp];
+        (_alpha * _zeta[_qp] / _dt) * (*_stress_old_sol)[_qp].row(_component) * _grad_test[_i][_qp];
 
     if (_volumetric_locking_correction)
       residual += (_stress[_qp].trace() * (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
                    (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * _stress_old[_qp].trace() +
-                   (_alpha * _zeta[_qp] / _dt) * _stress_old_sol[_qp].trace()) /
+                   (_alpha * _zeta[_qp] / _dt) * (*_stress_old_sol)[_qp].trace()) /
                   3.0 * (_avg_grad_test[_i] - _grad_test[_i][_qp](_component));
   }
   else if (_dt > 0)
   {
+    // LEGACY PATH t_step >= 3: fully MOOSE-tracked.
     residual =
         _stress[_qp].row(_component) * _grad_test[_i][_qp] *
             (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
