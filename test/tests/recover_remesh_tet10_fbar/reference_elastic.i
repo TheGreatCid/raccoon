@@ -349,7 +349,11 @@ zfix_bnd = 'front back'
     # dropped (no plasticity).  stretch_tensor / stretch_tensor_fbar both written
     # so the restart side can exercise Approach A and Approach B.
     tensor_materials = 'stress rotation_tensor stretch_tensor stretch_tensor_fbar'
-    materials = ''
+    # Jacobian: per-QP J_raw at dump time, consumed by the restart's
+    # adj_density_rec material so the inertia kernel's per-QP mass
+    # distribution matches the reference exactly.  See
+    # single_hex8_incompressible/dynamic_recovery_fix.pdf.
+    materials = 'Jacobian'
   []
 []
 

@@ -1,0 +1,244 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage[hidelinks]{hyperref}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+}
+
+\title{Dynamic Recovery in Raccoon's F-bar Restart\\
+       \large Failure modes of the legacy path and the fix that recovers bit-identical psie}
+\author{Branch: \texttt{recover\_recompute\_stress}}
+\date{\today}
+
+\newcommand{\F}{\mathbf{F}}
+\newcommand{\sig}{\boldsymbol{\sigma}}
+\newcommand{\Fbar}{\overline{\F}}
+
+\begin{document}
+\maketitle
+
+\section{Problem}
+
+The raccoon test \texttt{single\_hex8\_incompressible/pull\_test\_dynamic*} simulates a near-incompressible Compressible Neo-Hookean (CNH) block in HHT-$\alpha$ Newmark dynamics with $F$-bar volumetric-locking correction. A \emph{reference} run integrates from $t=0$ through some $t = t_{\text{dump}}$ and dumps the full mechanical state to exodus. A \emph{restart} run loads that exodus, seeds its deformation gradient, stress history, velocity, and acceleration from the dump, and continues integrating.
+
+If the recovery is bit-exact, restarting at $t_{\text{dump}}$ and integrating one step should give a $\psi_e$ (elastic strain energy density integral) at $t_{\text{dump}}+\Delta t$ that matches the reference's $\psi_e$ at the same physical time, to floating-point precision.
+
+Until this branch, that was not the case. With material parameters $E=1$, $\nu=0.499$ (so $K \approx 167$), $\Delta t = 0.0025$, NY=2 multi-element mesh, and HHT $\alpha = -0.1$, \texttt{abs\_err\_first} $= |\psi_e^{\text{rest}}(t_{\text{dump}}+\Delta t) - \psi_e^{\text{ref}}(t_{\text{dump}}+\Delta t)|$ was on the order of $10^{-2}$ to $10^0$ when the legacy SolutionTensor path was used; this branch's intermediate state had it at $1.9 \times 10^{-6}$; the final state has it at $\mathbf{0}$ (bit-identical to all 17 digits).
+
+This document summarizes \emph{why} the error was present, and what was changed to drive it to zero.
+
+\section{Test parameters used throughout}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+$E$ & $1.0$ \\
+$\nu$ & $0.499$ (so $K \approx 167$, $G \approx 0.334$) \\
+$\rho$ & $1.0$ \\
+HHT $\alpha$ & $-0.1$ \\
+Newmark $\beta, \gamma$ & derived from $\alpha$ \\
+$\Delta t$ & $0.0025$ \\
+Mesh & $1 \times \text{NY} \times 1$ HEX8\_3rd, NY $\in \{1, 2\}$ \\
+$F$-bar & on (\texttt{volumetric\_locking\_correction = true}) \\
+Recovery method & approach A: dump \& consume $\Fbar$ directly \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Original behavior of the legacy path}
+
+The legacy \texttt{ADDynamicStressDivergenceTensorsRecover} kernel uses a HHT-$\alpha$ residual that needs $\sig_{\text{old}}$ on the first restart step (when MOOSE's stateful \texttt{\_stress\_old} has not yet been populated). The legacy approach:
+
+\begin{enumerate}
+\item Reference output writes per-QP $\sig_{ij}$ values to exodus.
+\item Restart side declares a \texttt{[stress\_sol]} \texttt{SolutionTensor} material that reads those values via a \texttt{SolutionUserObjectQP}.
+\item At \texttt{t\_step=1}, the kernel uses \texttt{(*\_stress\_old\_sol)[\_qp]} (the SolutionTensor value) as $\sig_{\text{old}}$.
+\end{enumerate}
+
+The kernel's HHT-$\alpha$ residual is
+\begin{equation}
+R \;=\; (1+\alpha)\,\sig_{\text{curr}}\,\nabla v \;-\; \alpha\,\sig_{\text{old}}\,\nabla v \;+\; \text{(Rayleigh terms)} \;+\; \text{(inertia)}.
+\label{eq:residual}
+\end{equation}
+
+This had two distinct problems, which we discovered in sequence.
+
+\subsection{Problem 1: $\sig_{\text{old}}$ and $\sig_{\text{curr}}$ went through different code paths}
+
+In the legacy path:
+\begin{align*}
+\sig_{\text{old}} &\;=\; \text{SolutionTensor reading dumped } \sig_{ij} \text{ from exodus,} \\
+\sig_{\text{curr}} &\;=\; \text{constitutive evaluation on } \F_{\text{recovered}} = R \cdot \overline{U} \text{ (also from exodus)}.
+\end{align*}
+
+Both ultimately encode the same physical state at $t_{\text{dump}}$, but they ride two independent floating-point pipelines: the $\sig$ pipeline projects $\sig$ at QPs $\to$ nodes $\to$ QPs (exodus storage), while the $(R, \overline{U})$ pipeline does the same on the polar-decomposition outputs which then run through the constitutive code on the restart side. The per-QP round-off fingerprints don't match.
+
+In the high-$\nu$ regime, the constitutive's volumetric branch carries a $K \log J$ factor with $K \sim 167$, so per-QP round-off in $J$ is K-amplified into $\sig$. The mismatched fingerprints between $\sig_{\text{old}}$ and $\sig_{\text{curr}}$ leak K-amplified noise through the $(1+\alpha)\sig_{\text{curr}} - \alpha \sig_{\text{old}}$ telescoping in equation~\eqref{eq:residual}. In the original static near-incompressible single-element test at $\nu = 0.4999$, this produced 23--66\% relative error in $\psi_e$ at the first restart step.
+
+\subsection{Fix 1: \texttt{recompute\_old\_stress} flag + material chain patches}
+
+We added a flag \texttt{recompute\_old\_stress} to the kernel. When true, the kernel reads $\sig_{\text{old}}$ from MOOSE's stateful-property tracked \texttt{\_stress\_old} \emph{everywhere}, instead of the SolutionTensor path. This is meaningful only if MOOSE's \texttt{\_stress\_old} at \texttt{t\_step=1} actually equals $\text{constitutive}(\F_{\text{recovered}})$ --- i.e., if the constitutive's INITIAL evaluation populates \texttt{\_stress} before MOOSE rolls it over to \texttt{\_stress\_old}.
+
+The pre-existing \texttt{ComputeLargeDeformationStress::initQpStatefulProperties} simply zeroed \texttt{\_stress}. We changed it to run the elasticity model:
+
+\begin{lstlisting}[language=C++]
+void ComputeLargeDeformationStress::initQpStatefulProperties()
+{
+  _elasticity_model->setQp(_qp);
+  _elasticity_model->updateState(_Fm[_qp], _stress[_qp]);
+}
+\end{lstlisting}
+
+For this to do the right thing on the restart side, \texttt{\_Fm} must be populated at INITIAL with $\F_{\text{recovered}}$, not the identity. We patched \texttt{ComputeDeformationGradient::initStatefulProperties} to do that, in the recover branch:
+
+\begin{lstlisting}[language=C++]
+_F[_qp] = have_fbar ? _F_store_Fbar[_qp] : _F_store_noFbar[_qp];
+ADRankTwoTensor Fg(ADRankTwoTensor::initIdentity);
+for (auto Fgi : _Fgs) Fg *= (*Fgi)[_qp];
+_Fm[_qp] = Fg.inverse() * _F[_qp];     // newly added
+\end{lstlisting}
+
+Now MOOSE's evaluation order at INITIAL is:
+\begin{enumerate}
+\item \texttt{ComputeDeformationGradient::initStatefulProperties} seeds \texttt{\_F} and \texttt{\_Fm} from the dumped $(R, \overline{U})$.
+\item \texttt{ComputeLargeDeformationStress::initQpStatefulProperties} runs the elasticity model on \texttt{\_Fm}, producing \texttt{\_stress} $= \text{constitutive}(\F_{\text{recovered}})$.
+\item MOOSE rolls \texttt{\_stress} into \texttt{\_stress\_old} for \texttt{t\_step=1}.
+\end{enumerate}
+
+In the kernel residual, $\sig_{\text{curr}}$ at \texttt{t\_step=1} iter 1 with $\Delta u = 0$ also evaluates to $\text{constitutive}(\F_{\text{recovered}})$ through the \emph{same} code path. The per-QP fingerprints now match, and the $(1+\alpha) - \alpha$ telescoping cancels cleanly. The 23--66\% static error drops to \textbf{bit-zero} (NY=1 single-element near-incompressible static).
+
+\subsection{Problem 2: residual $1.9 \times 10^{-6}$ error at NY=2 dynamic}
+
+After Fix~1, the NY=1 single-element case was bit-zero, but the NY=2 dynamic case still showed \texttt{abs\_err\_first} $\approx 1.9 \times 10^{-6}$. We ran a series of diagnostic tests to isolate the source.
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Test & What we changed & abs\_err\_first \\
+\midrule
+Baseline & --- & $1.9 \times 10^{-6}$ \\
+A & HHT $\alpha = 0$ & $1.6 \times 10^{-6}$ \\
+B & $\rho = 10^{-6}$ (kill inertia) & $\mathbf{1 \times 10^{-14}}$ \\
+C & $\psi_e$ at INITIAL of restart vs $\psi_e^{\text{ref}}(t_{\text{dump}})$ & bit-identical match \\
+D & $\nu = 0.3$ (so $K \approx 0.83$, baseline w/ F-bar) & $1.4 \times 10^{-9}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The picture from these:
+\begin{itemize}
+\item Test~A: removing HHT-$\alpha$ barely moves the error $\Rightarrow$ the HHT term is not the dominant source.
+\item Test~B: scaling $\rho$ to $10^{-6}$ collapses the error to solver-tolerance floor $\Rightarrow$ \textbf{inertia is the source.}
+\item Test~C: the recovered kinematic + constitutive state at $t = t_{\text{dump}}$ is bit-perfect $\Rightarrow$ the error appears during the first-step dynamics integration, not in the recovery itself.
+\item Test~D: holding everything else fixed, $K$ scales 200$\times$ and the error scales $\sim 1357\times$ $\Rightarrow$ the source is K-amplified, $O(K^{1.36})$.
+\end{itemize}
+
+\subsection{Root cause: \texttt{adj\_density} uses element-constant $J$ instead of per-QP $J$}
+
+The inertia kernels use \texttt{use\_displaced\_mesh = false}, so they integrate over the restart's undisplaced mesh --- which is the \emph{dump-deformed} mesh, not the original undeformed mesh that the reference integrates over. To keep the total integrated mass equivalent to the reference's continuous run, the restart input uses a strain-adjusted density material:
+
+\begin{lstlisting}
+[dens]
+  type = ADStrainAdjustedDensityCustom
+  strain_free_density = density   # = constant rho
+  base_name = 'adj'
+[]
+\end{lstlisting}
+
+\texttt{ADStrainAdjustedDensityCustom} sets per-QP density to
+\begin{equation}
+\rho_{\text{adj}} \;=\; \frac{\rho}{\det(\F_{\text{noFbar}})}
+\label{eq:adjdens}
+\end{equation}
+where \texttt{deformation\_gradient\_NoFbar} is, in approach A, \emph{aliased} to $\F_{\text{Fbar}}$ at INITIAL (the recover file only stores $\overline{U}$, not the raw $U$). So at iter~1 of \texttt{t\_step=1} with $\Delta u = 0$:
+\begin{equation*}
+\det(\F_{\text{noFbar}}) \;=\; \det(R \cdot \overline{U}) \;=\; \det(\Fbar) \;=\; \overline{J} \quad (\text{element-constant, per-element average}).
+\end{equation*}
+
+But the reference's \emph{actual} $J$ at $t_{\text{dump}}$ is $J_{\text{raw}} = \det(\F_{\text{raw}}(t_{\text{dump}}))$, which varies per QP within an element. By definition, $\overline{J} = \langle J_{\text{raw}} \rangle_{\text{element}}$, so:
+\begin{itemize}
+\item Element-integrated mass matches: $\int \rho \, dV_{\text{undef}} = \int \frac{\rho}{\overline{J}} \, dV_{\text{dump-def}}$ (since $dV_{\text{dump-def}} = \overline{J} \, dV_{\text{undef}}$ at element scale).
+\item Per-QP mass distribution does \emph{not} match: $\rho/\overline{J}$ is element-constant, but the physically correct per-QP value is $\rho/J_{\text{raw,QP}}$.
+\end{itemize}
+
+The per-QP mass discrepancy is $O(|J_{\text{raw}}/\overline{J} - 1|) = O(\text{fbar\_correction}) \approx 10^{-2}$ in this test.
+
+\paragraph{Why NY=1 is bit-zero but NY=2 isn't.} The HEX8 single-element has all 8 nodes on the Dirichlet boundary (top + bottom). Newton has no free DOF to iterate, so the per-QP residual imbalance is irrelevant --- disp is BC-prescribed and the kernel residuals never need to drive a Newton update. At NY=2, the mid-row at $y = 0.5$ has free $\text{disp}_y$ DOFs. Newton solves the inertia + stress-div residual at those nodes; the per-QP inertia residual error from the wrong $\rho_{\text{adj}}$ has to be balanced against the K-amplified stress divergence. The resulting tiny disp error at the interior DOF gets K-amplified into the visible $\psi_e$ error.
+
+\subsection{Fix 2: dump and recover per-QP $J$ directly}
+
+\begin{enumerate}
+\item Convert \texttt{\_Jacobian} in \texttt{ComputeDeformationGradient} from non-AD to AD, so the \texttt{RecoverVariables}/\texttt{ADMaterialRealAux} dump pipeline accepts it.
+\item Reference input: add \texttt{materials = 'Jacobian'} to \texttt{[RecoverVariables/rec]} so each QP's $J = \det(\F_{\text{raw}})$ is dumped to exodus as scalar variables \texttt{Jacobian\_0 \dots Jacobian\_7}.
+\item Restart input: add \texttt{materials = 'Jacobian'} to \texttt{[UserObjects/epsol]} so the SolutionUserObjectQP reads them back.
+\item Restart input: declare a \texttt{SolutionReal} material that exposes \texttt{Jacobian\_sol} as an AD material property per QP, and a parallel \texttt{ADParsedMaterial}:
+\begin{lstlisting}
+[recovered_J]
+  type = SolutionReal
+  solution = epsol
+  mat_name = Jacobian
+  element = HEX8_3rd
+[]
+[adj_density_rec]
+  type = ADParsedMaterial
+  property_name = adj_density_rec
+  material_property_names = 'Jacobian_sol'
+  constant_names = 'rho'
+  constant_expressions = '${rho}'
+  expression = 'rho / Jacobian_sol'
+[]
+\end{lstlisting}
+\item Repoint the inertia kernels: \texttt{density = adj\_density\_rec} (replacing \texttt{adj\_density}).
+\end{enumerate}
+
+The restart now uses $\rho / J_{\text{raw,QP}}^{\text{ref}}$ directly per QP, exactly matching the reference's per-QP mass distribution.
+
+\section{Result}
+
+NY=2 dynamic, $\nu = 0.499$, $\Delta t = 0.0025$, single dump time at $t = 0.4$:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+ & abs\_err\_first & rel\_err\_first \\
+\midrule
+Legacy SolutionTensor + element-$J$ in adj\_density & $3.9 \times 10^{-3}$ & $2.4 \times 10^{-3}$ \\
+\texttt{recompute\_old\_stress=true} + element-$J$ in adj\_density & $1.9 \times 10^{-6}$ & $1.2 \times 10^{-6}$ \\
+\texttt{recompute\_old\_stress=true} + per-QP $J$ in adj\_density & $\mathbf{0}$ & $\mathbf{0}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+For the third row, $\psi_e^{\text{ref}}(t_{\text{dump}}+\Delta t) = \psi_e^{\text{rest}}(t_{\text{dump}}+\Delta t) = 1.6099268803185001$ to all 17 displayed digits.
+
+\section{Summary of files changed}
+
+\begin{itemize}
+\item \texttt{include/materials/large\_deformation\_models/ComputeDeformationGradient.h} --- \texttt{\_Jacobian} declared AD instead of non-AD.
+\item \texttt{src/materials/large\_deformation\_models/ComputeDeformationGradient.C} --- \texttt{\_Jacobian} declared AD; \texttt{\_Jacobian[\_qp] = \_F[\_qp].det()} (no \texttt{raw\_value}); recover branch of \texttt{initStatefulProperties} also seeds \texttt{\_Fm = Fg\textsuperscript{-1}\,F\_recovered}.
+\item \texttt{src/materials/large\_deformation\_models/ComputeLargeDeformationStress.C} --- \texttt{initQpStatefulProperties} runs the elasticity model on \texttt{\_Fm}, instead of zeroing \texttt{\_stress}.
+\item \texttt{include/kernels/ADDynamicStressDivergenceTensorsRecover.h} and \texttt{src/kernels/ADDynamicStressDivergenceTensorsRecover.C} --- \texttt{recompute\_old\_stress} flag; \texttt{\_stress\_old\_sol}/\texttt{\_stress\_older\_sol} as nullable pointers; \texttt{solution} param made optional.
+\item \texttt{test/tests/single\_hex8\_incompressible/pull\_test\_dynamic.i} --- \texttt{RecoverVariables/rec/materials = 'Jacobian'}.
+\item \texttt{test/tests/single\_hex8\_incompressible/pull\_test\_dynamic\_restart.i} --- \texttt{epsol/materials = 'Jacobian'}; new \texttt{[recovered\_J]} and \texttt{[adj\_density\_rec]} materials; \texttt{recompute\_old\_stress = true} on the three kernels; inertia kernels use \texttt{density = adj\_density\_rec}.
+\end{itemize}
+
+\section{Open follow-ups (out of scope of this fix)}
+
+\begin{itemize}
+\item Propagate the same \texttt{recompute\_old\_stress = true} + per-QP $J$ pattern to the plastic restart inputs (\texttt{pull\_test\_plastic\_restart.i}, \texttt{pull\_test\_plastic\_qs\_restart.i}). Plastic requires the plasticity model's internal stateful variables (\texttt{plastic\_strain}, \texttt{equiv\_plastic\_strain}) to also be populated at INITIAL from the dump, otherwise the elasticity model's \texttt{updateState} sees uninitialized state.
+\item Promote \texttt{ADStrainAdjustedDensityCustom} itself to accept an optional coupled material name (e.g.\ \texttt{external\_J\_name = Jacobian\_sol}) instead of the input file wiring a separate \texttt{ADParsedMaterial}. This is a clean follow-up and would let restart inputs flip a single param to switch between the existing $\det(\F)$ path and the recovered-$J$ path.
+\item Propagate per-QP $J$ recovery to the cross-mesh path (\texttt{recover\_remesh\_tet10\_fbar} test), where the dump's QP locations do not match the restart's QP locations. There the SolutionUserObject's per-QP lookup is approximate; whether the same approach still drops the error to bit-zero is not yet tested.
+\end{itemize}
+
+\end{document}

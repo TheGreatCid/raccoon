@@ -94,7 +94,11 @@ pull_amount = 0.2
 # BC ramp denominator and Gaussian pulse params (see pull_test_dynamic.i in
 # single_hex8_incompressible for the rationale).
 end_time_for_ramp = ${end_time}
-pulse_amplitude = 0.01
+pulse_amplitude_bend = 0.01
+pulse_amplitude_compress = 0.01
+# Quadratic-then-linear startup window so f''(t) is continuous at t=0,
+# required by PresetDisplacementSpatial.
+ramp_time = 0.1
 pulse_center = 0.05
 pulse_width = 0.025
 
@@ -224,14 +228,15 @@ zfix_bnd = 'front back'
 
 [AuxKernels]
   [compute_target_uy]
+    # Diagnostic AuxVariable (BC now consumes pull_func directly via
+    # PresetDisplacementSpatial).
     type = ParsedAux
     variable = target_uy
     coupled_variables = 'X0'
-    constant_names       = 'pull_amount end_time'
-    constant_expressions = '${pull_amount} ${end_time}'
-    expression = 'pull_amount * (t/end_time) * X0'
+    constant_names       = 'pull_amount end_time_for_ramp ramp_time pulse_amplitude_bend pulse_amplitude_compress pulse_center pulse_width'
+    constant_expressions = '${pull_amount} ${end_time_for_ramp} ${ramp_time} ${pulse_amplitude_bend} ${pulse_amplitude_compress} ${pulse_center} ${pulse_width}'
+    expression = 'if(t <= ramp_time, pull_amount / (2*end_time_for_ramp*ramp_time) * t*t * X0, pull_amount / end_time_for_ramp * (t - ramp_time/2) * X0) + (pulse_amplitude_bend * X0 + pulse_amplitude_compress) * exp(-(t-pulse_center)*(t-pulse_center)/(pulse_width*pulse_width))'
     use_xyzt = true
-    # Run before the solve so the BC sees the correct target each step.
     execute_on = 'INITIAL TIMESTEP_BEGIN LINEAR'
   []
 
@@ -344,11 +349,12 @@ zfix_bnd = 'front back'
 
 [Functions]
   [pull_func]
-    # Bookkeeping function (not used by the BC).  See hex8/pull_test_dynamic.i.
+    # Piecewise quadratic-then-linear ramp + Gaussian pulse, consumed by the
+    # PresetDisplacementSpatial BC.  See hex8/pull_test_dynamic.i.
     type = ParsedFunction
-    expression = 'pull_amount * (t/end_time_for_ramp) * x + pulse_amplitude * exp(-(t-pulse_center)*(t-pulse_center)/(pulse_width*pulse_width))'
-    symbol_names = 'pull_amount end_time_for_ramp pulse_amplitude pulse_center pulse_width'
-    symbol_values = '${pull_amount} ${end_time_for_ramp} ${pulse_amplitude} ${pulse_center} ${pulse_width}'
+    expression = 'if(t <= ramp_time, pull_amount / (2*end_time_for_ramp*ramp_time) * t*t * x, pull_amount / end_time_for_ramp * (t - ramp_time/2) * x) + (pulse_amplitude_bend * x + pulse_amplitude_compress) * exp(-(t-pulse_center)*(t-pulse_center)/(pulse_width*pulse_width))'
+    symbol_names = 'pull_amount end_time_for_ramp ramp_time pulse_amplitude_bend pulse_amplitude_compress pulse_center pulse_width'
+    symbol_values = '${pull_amount} ${end_time_for_ramp} ${ramp_time} ${pulse_amplitude_bend} ${pulse_amplitude_compress} ${pulse_center} ${pulse_width}'
   []
 []
 
@@ -377,10 +383,13 @@ zfix_bnd = 'front back'
   [ypull]
     # ADMatchedValueBC: see hex8/pull_test_dynamic.i for why PresetDisplacement
     # was reverted.
-    type = ADMatchedValueBC
+    type = PresetDisplacementSpatial
     variable = disp_y
     boundary = top
-    v = target_uy
+    function = pull_func
+    beta = ${newmark_beta}
+    velocity = vel_y
+    acceleration = accel_y
   []
 []
 
@@ -565,7 +574,9 @@ zfix_bnd = 'front back'
     # stretch tensors is written per recovery file (libmesh's exodus reader
     # shadows the shorter name when both are present).
     tensor_materials = 'be_bar stress rotation_tensor stretch_tensor stretch_tensor_fbar'
-    materials = 'effective_plastic_strain'
+    # Jacobian: per-QP J_raw for adj_density_rec on the restart side.
+    # See single_hex8_incompressible/dynamic_recovery_fix.pdf.
+    materials = 'effective_plastic_strain Jacobian'
   []
 []
 

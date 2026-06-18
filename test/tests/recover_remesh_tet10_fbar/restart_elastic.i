@@ -118,7 +118,8 @@ zfix_bnd = 'front back'
     system_variables = 'd d_old d_corr accel_x accel_y accel_z vel_x vel_y vel_z'
     # Elastic variant: `materials = 'effective_plastic_strain'` removed
     # (no plasticity) and `be_bar` dropped from `tensor_materials`.
-    materials = ''
+    # Jacobian: per-QP J_raw for adj_density_rec (see dynamic_recovery_fix.pdf).
+    materials = 'Jacobian'
     tensor_materials = 'stress stretch_tensor_fbar rotation_tensor'
     nodal_variable_order = SECOND
     use_displaced_mesh = true
@@ -335,7 +336,7 @@ zfix_bnd = 'front back'
   [inertia_x]
     type = ADInertialForce
     variable = disp_x
-    density = adj_density
+    density = adj_density_rec
     use_displaced_mesh = false
     beta = ${newmark_beta}
     gamma = ${newmark_gamma}
@@ -347,7 +348,7 @@ zfix_bnd = 'front back'
   [inertia_y]
     type = ADInertialForce
     variable = disp_y
-    density = adj_density
+    density = adj_density_rec
     use_displaced_mesh = false
     beta = ${newmark_beta}
     gamma = ${newmark_gamma}
@@ -359,7 +360,7 @@ zfix_bnd = 'front back'
   [inertia_z]
     type = ADInertialForce
     variable = disp_z
-    density = adj_density
+    density = adj_density_rec
     use_displaced_mesh = false
     beta = ${newmark_beta}
     gamma = ${newmark_gamma}
@@ -456,9 +457,27 @@ zfix_bnd = 'front back'
     prop_values = '${K} ${G} ${l} ${Gc} ${psic} ${rho} ${thermal_conductivity} ${specific_heat}'
   []
   [dens]
+    # Kept for diagnostics (det(_F_NoFbar) which in approach A is element-
+    # constant J_bar).  Inertia consumes adj_density_rec below, which uses
+    # the per-QP J_raw recovered from the reference's dump.
     type = ADStrainAdjustedDensityCustom
     strain_free_density = density
     base_name = 'adj'
+  []
+  # ---- Per-QP J_raw recovery for exact inertia mass matching ----
+  [recovered_J]
+    type = SolutionReal
+    solution = epsol
+    mat_name = Jacobian
+    element = TET10_4th
+  []
+  [adj_density_rec]
+    type = ADParsedMaterial
+    property_name = adj_density_rec
+    material_property_names = 'Jacobian_sol'
+    constant_names = 'rho'
+    constant_expressions = '${rho}'
+    expression = 'rho / Jacobian_sol'
   []
   [nodeg]
     type = NoDegradation

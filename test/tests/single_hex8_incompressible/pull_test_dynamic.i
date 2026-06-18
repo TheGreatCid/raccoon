@@ -40,7 +40,7 @@
 #   - With volumetric_locking_correction = true (F-bar ON), the body bends
 #     freely, J stays close to 1 by construction, and fbar_correction shows
 #     measurable per-QP J spread because the kinematics are heterogeneous.
-#   - With volumetric_locking_correction = false (CLI override), the same
+#   - With volumetric_locking_correction = true (CLI override), the same
 #     bending kinematics drive a much higher psie because the formulation
 #     overstiffens (volumetric locking) when J variation has to be honored
 #     point-by-point.  Comparing the two runs is the standard locking demo.
@@ -603,7 +603,10 @@ zfix_bnd = 'front back'
     # stretch tensors is written per recovery file (libmesh's exodus reader
     # shadows the shorter name when both are present).
     tensor_materials = 'stress rotation_tensor stretch_tensor stretch_tensor_fbar'
-    materials = ''
+    # Dump per-QP Jacobian so the restart can reconstruct the reference's
+    # per-QP J_raw at t=dump_time (needed to make adj_density per-QP exact,
+    # rather than relying on det(F_bar) which is element-constant).
+    materials = 'Jacobian'
   []
 []
 

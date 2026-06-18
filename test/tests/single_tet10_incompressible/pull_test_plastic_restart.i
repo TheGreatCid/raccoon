@@ -65,6 +65,13 @@ pull_amount = 0.2
 # legs.  Always the original reference's end_time (= 1.0 by default).
 end_time_for_ramp = 1.0
 
+# Pulse + ramp_time (must match the reference's values).
+pulse_amplitude_bend = 0.01
+pulse_amplitude_compress = 0.01
+pulse_center = 0.05
+pulse_width = 0.025
+ramp_time = 0.1
+
 # Output / recovery wiring.
 out_dir = outputs
 tag = ''
@@ -105,7 +112,8 @@ zfix_bnd = 'front back'
     # only the stretch tensor variant the reference dumped (libmesh's exodus
     # reader shadows the shorter name when both prefixes are present).
     tensor_materials = 'stress be_bar stretch_tensor_fbar rotation_tensor'
-    materials = 'effective_plastic_strain'
+    # Jacobian: per-QP J_raw for adj_density_rec.
+    materials = 'effective_plastic_strain Jacobian'
     # Recover X0 (frozen undeformed nodal x-coords) so the BC can use the
     # ORIGINAL x rather than the deformed-mesh coordx, and d_corr (phase
     # field stub).
@@ -165,7 +173,14 @@ zfix_bnd = 'front back'
   []
 
   # ----- Newmark / HHT dynamic state (recovered from dump) ------------------
+  # CRITICAL: order = SECOND must match the reference's accel_*/vel_*
+  # AuxVariable order on TET10.  Without this, SolutionIC reads from a
+  # SECOND-order source into a default FIRST-order target, dropping mid-edge
+  # node values and breaking the recovery (mid-edge accel/vel contribute the
+  # majority of the inertia residual on TET10).
   [accel_x]
+    order = SECOND
+    family = LAGRANGE
     [InitialCondition]
       type = SolutionIC
       from_variable = accel_x
@@ -174,6 +189,8 @@ zfix_bnd = 'front back'
     []
   []
   [vel_x]
+    order = SECOND
+    family = LAGRANGE
     [InitialCondition]
       type = SolutionIC
       from_variable = vel_x
@@ -182,6 +199,8 @@ zfix_bnd = 'front back'
     []
   []
   [accel_y]
+    order = SECOND
+    family = LAGRANGE
     [InitialCondition]
       type = SolutionIC
       from_variable = accel_y
@@ -190,6 +209,8 @@ zfix_bnd = 'front back'
     []
   []
   [vel_y]
+    order = SECOND
+    family = LAGRANGE
     [InitialCondition]
       type = SolutionIC
       from_variable = vel_y
@@ -198,6 +219,8 @@ zfix_bnd = 'front back'
     []
   []
   [accel_z]
+    order = SECOND
+    family = LAGRANGE
     [InitialCondition]
       type = SolutionIC
       from_variable = accel_z
@@ -206,6 +229,8 @@ zfix_bnd = 'front back'
     []
   []
   [vel_z]
+    order = SECOND
+    family = LAGRANGE
     [InitialCondition]
       type = SolutionIC
       from_variable = vel_z
@@ -217,12 +242,13 @@ zfix_bnd = 'front back'
 
 [AuxKernels]
   [compute_target_uy]
+    # Diagnostic AuxVariable (BC now consumes ypull_func_restart directly).
     type = ParsedAux
     variable = target_uy
     coupled_variables = 'X0'
-    constant_names       = 'pull_amount start_time end_time_for_ramp'
-    constant_expressions = '${pull_amount} ${start_time} ${end_time_for_ramp}'
-    expression = 'pull_amount * X0 * (t - start_time) / end_time_for_ramp'
+    constant_names       = 'pull_amount start_time end_time_for_ramp pulse_amplitude_bend pulse_amplitude_compress pulse_center pulse_width'
+    constant_expressions = '${pull_amount} ${start_time} ${end_time_for_ramp} ${pulse_amplitude_bend} ${pulse_amplitude_compress} ${pulse_center} ${pulse_width}'
+    expression = 'pull_amount * X0 * (t - start_time) / end_time_for_ramp + (pulse_amplitude_bend * X0 + pulse_amplitude_compress) * (exp(-(t-pulse_center)*(t-pulse_center)/(pulse_width*pulse_width)) - exp(-(start_time-pulse_center)*(start_time-pulse_center)/(pulse_width*pulse_width)))'
     use_xyzt = true
     execute_on = 'INITIAL TIMESTEP_BEGIN LINEAR'
   []
@@ -312,7 +338,7 @@ zfix_bnd = 'front back'
   [inertia_x]
     type = ADInertialForce
     variable = disp_x
-    density = adj_density
+    density = adj_density_rec
     use_displaced_mesh = false
     beta = ${newmark_beta}
     gamma = ${newmark_gamma}
@@ -323,7 +349,7 @@ zfix_bnd = 'front back'
   [inertia_y]
     type = ADInertialForce
     variable = disp_y
-    density = adj_density
+    density = adj_density_rec
     use_displaced_mesh = false
     beta = ${newmark_beta}
     gamma = ${newmark_gamma}
@@ -334,7 +360,7 @@ zfix_bnd = 'front back'
   [inertia_z]
     type = ADInertialForce
     variable = disp_z
-    density = adj_density
+    density = adj_density_rec
     use_displaced_mesh = false
     beta = ${newmark_beta}
     gamma = ${newmark_gamma}
@@ -354,15 +380,13 @@ zfix_bnd = 'front back'
     symbol_values = '${pull_amount} ${end_time_for_ramp}'
   []
   [ypull_func_restart]
-    # INCREMENTAL top-y displacement on the restart's deformed-config mesh.
-    # The mesh's top nodes already sit at the reference's positions at
-    # start_time, so the BC has to apply ypull_func(t) - ypull_func(start_time).
-    # Without this the QS restart would freeze at start_time while the
-    # reference keeps ramping past it.
+    # INCREMENTAL top-y displacement.  Assumes start_time > ramp_time so the
+    # ramp_time/2 offset cancels.  Pulse term subtracts the pulse value at
+    # start_time so the BC stays continuous across the recovery boundary.
     type = ParsedFunction
-    expression = 'pull_amount * x * ((t - start_time) / end_time_for_ramp)'
-    symbol_names = 'pull_amount start_time end_time_for_ramp'
-    symbol_values = '${pull_amount} ${start_time} ${end_time_for_ramp}'
+    expression = 'pull_amount * ((t - start_time)/end_time_for_ramp) * x + (pulse_amplitude_bend * x + pulse_amplitude_compress) * (exp(-(t-pulse_center)*(t-pulse_center)/(pulse_width*pulse_width)) - exp(-(start_time-pulse_center)*(start_time-pulse_center)/(pulse_width*pulse_width)))'
+    symbol_names = 'pull_amount start_time end_time_for_ramp pulse_amplitude_bend pulse_amplitude_compress pulse_center pulse_width'
+    symbol_values = '${pull_amount} ${start_time} ${end_time_for_ramp} ${pulse_amplitude_bend} ${pulse_amplitude_compress} ${pulse_center} ${pulse_width}'
   []
 []
 
@@ -394,10 +418,14 @@ zfix_bnd = 'front back'
     # undeformed x of each node, which equals the reference's BC spatial
     # argument.  This is the X0 fix: without it the BC used the deformed
     # mesh's coordx and the top-right shortfell by ~1% of the increment.
-    type = ADMatchedValueBC
+    type = PresetDisplacementSpatial
     variable = disp_y
     boundary = top
-    v = target_uy
+    function = ypull_func_restart
+    coupled_x = X0
+    beta = ${newmark_beta}
+    velocity = vel_y
+    acceleration = accel_y
   []
 []
 
@@ -434,12 +462,26 @@ zfix_bnd = 'front back'
     prop_values = '${K} ${G} ${rho}'
   []
   [dens]
-    # Strain-adjusted density: rho / J on the recovered configuration so the
-    # inertia kernel uses mass-consistent density.  Inertia kernels above
-    # consume adj_density.  Mirrors restart.i in the recover_remesh tet10 test.
+    # Kept for diagnostics (det(_F_NoFbar) which in approach A is element-
+    # constant J_bar).  Inertia kernels consume adj_density_rec below.
     type = ADStrainAdjustedDensityCustom
     strain_free_density = density
     base_name = 'adj'
+  []
+  # ---- Per-QP J_raw recovery for exact inertia mass matching ----
+  [recovered_J]
+    type = SolutionReal
+    solution = epsol
+    mat_name = Jacobian
+    element = TET10_4th
+  []
+  [adj_density_rec]
+    type = ADParsedMaterial
+    property_name = adj_density_rec
+    material_property_names = 'Jacobian_sol'
+    constant_names = 'rho'
+    constant_expressions = '${rho}'
+    expression = 'rho / Jacobian_sol'
   []
   [nodeg]
     type = NoDegradation

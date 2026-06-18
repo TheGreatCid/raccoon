@@ -78,9 +78,14 @@ end_time_for_ramp = ${end_time}
 
 # Gaussian BC pulse (see pull_test_dynamic.i in single_hex8_incompressible for
 # the rationale).  Defaults to a 5%-of-pull_amount bump centered at t=0.05.
-pulse_amplitude = 0.01
+pulse_amplitude_bend = 0.01
+pulse_amplitude_compress = 0.01
 pulse_center = 0.05
 pulse_width = 0.025
+# Quadratic-then-linear startup window so f''(t) is continuous at t=0,
+# required by PresetDisplacementSpatial (else Newmark sees a step in the
+# prescribed acceleration at t=0).
+ramp_time = 0.1
 
 # Output / recovery hooks.  Plain `raccoon-opt -i pull_test.i` runs with the
 # defaults below and behaves like the original standalone test.  The
@@ -208,14 +213,16 @@ zfix_bnd = 'front back'
 
 [AuxKernels]
   [compute_target_uy]
+    # Diagnostic AuxVariable (BC now consumes pull_func directly via
+    # PresetDisplacementSpatial).  Kept so postprocessors that reference
+    # target_uy still work.
     type = ParsedAux
     variable = target_uy
     coupled_variables = 'X0'
-    constant_names       = 'pull_amount end_time'
-    constant_expressions = '${pull_amount} ${end_time}'
-    expression = 'pull_amount * (t/end_time) * X0'
+    constant_names       = 'pull_amount end_time_for_ramp ramp_time pulse_amplitude_bend pulse_amplitude_compress pulse_center pulse_width'
+    constant_expressions = '${pull_amount} ${end_time_for_ramp} ${ramp_time} ${pulse_amplitude_bend} ${pulse_amplitude_compress} ${pulse_center} ${pulse_width}'
+    expression = 'if(t <= ramp_time, pull_amount / (2*end_time_for_ramp*ramp_time) * t*t * X0, pull_amount / end_time_for_ramp * (t - ramp_time/2) * X0) + (pulse_amplitude_bend * X0 + pulse_amplitude_compress) * exp(-(t-pulse_center)*(t-pulse_center)/(pulse_width*pulse_width))'
     use_xyzt = true
-    # Run before the solve so the BC sees the correct target each step.
     execute_on = 'INITIAL TIMESTEP_BEGIN LINEAR'
   []
 
@@ -328,12 +335,13 @@ zfix_bnd = 'front back'
 
 [Functions]
   [pull_func]
-    # Bookkeeping function (not used by the BC).  Kept for cross-checking via
-    # FunctionValuePostprocessor.  See hex8/pull_test_dynamic.i.
+    # Piecewise quadratic-then-linear ramp + Gaussian pulse.  Consumed by the
+    # PresetDisplacementSpatial BC below.  See hex8/pull_test_dynamic.i for
+    # the rationale (continuous f''(t) required by Newmark forward update).
     type = ParsedFunction
-    expression = 'pull_amount * (t/end_time_for_ramp) * x + pulse_amplitude * exp(-(t-pulse_center)*(t-pulse_center)/(pulse_width*pulse_width))'
-    symbol_names = 'pull_amount end_time_for_ramp pulse_amplitude pulse_center pulse_width'
-    symbol_values = '${pull_amount} ${end_time_for_ramp} ${pulse_amplitude} ${pulse_center} ${pulse_width}'
+    expression = 'if(t <= ramp_time, pull_amount / (2*end_time_for_ramp*ramp_time) * t*t * x, pull_amount / end_time_for_ramp * (t - ramp_time/2) * x) + (pulse_amplitude_bend * x + pulse_amplitude_compress) * exp(-(t-pulse_center)*(t-pulse_center)/(pulse_width*pulse_width))'
+    symbol_names = 'pull_amount end_time_for_ramp ramp_time pulse_amplitude_bend pulse_amplitude_compress pulse_center pulse_width'
+    symbol_values = '${pull_amount} ${end_time_for_ramp} ${ramp_time} ${pulse_amplitude_bend} ${pulse_amplitude_compress} ${pulse_center} ${pulse_width}'
   []
 []
 
@@ -360,13 +368,18 @@ zfix_bnd = 'front back'
     preset = true
   []
   [ypull]
-    # ADMatchedValueBC: see hex8/pull_test_dynamic.i for why PresetDisplacement
-    # was reverted (it evaluates the function's time derivative at (0,0,0),
-    # killing spatially-varying BCs).
-    type = ADMatchedValueBC
+    # PresetDisplacementSpatial: raccoon's spatially-aware variant of MOOSE's
+    # PresetDisplacement (see hex8/pull_test_dynamic.i [ypull] for the full
+    # rationale -- TL;DR: ADMatchedValueBC + NewmarkAccelAux back-computing
+    # a_n+1 blows up acceleration at small dt; PresetDisplacementSpatial
+    # runs Newmark FORWARD instead).
+    type = PresetDisplacementSpatial
     variable = disp_y
     boundary = top
-    v = target_uy
+    function = pull_func
+    beta = ${newmark_beta}
+    velocity = vel_y
+    acceleration = accel_y
   []
 []
 
@@ -440,6 +453,16 @@ zfix_bnd = 'front back'
     mat_prop = psie_active
     use_displaced_mesh = true
   []
+  [vel_y_max]
+    type = NodalExtremeValue
+    variable = vel_y
+    value_type = max_abs
+  []
+  [accel_y_max]
+    type = NodalExtremeValue
+    variable = accel_y
+    value_type = max_abs
+  []
   [J_F_int]
     type = ADElementIntegralMaterialProperty
     mat_prop = J_F
@@ -509,7 +532,10 @@ zfix_bnd = 'front back'
     # stretch tensors is written per recovery file (libmesh's exodus reader
     # shadows the shorter name when both are present).
     tensor_materials = 'stress rotation_tensor stretch_tensor stretch_tensor_fbar'
-    materials = ''
+    # Jacobian: per-QP J_raw at dump time, consumed by the restart's
+    # adj_density_rec for exact per-QP inertia mass matching.  See
+    # single_hex8_incompressible/dynamic_recovery_fix.pdf.
+    materials = 'Jacobian'
   []
 []
 
