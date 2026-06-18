@@ -340,7 +340,13 @@ zfix_bnd = 'front back'
     # written, so the restart side can switch between Approach A and Approach B
     # without re-running the reference.
     tensor_materials = 'be_bar stress rotation_tensor stretch_tensor stretch_tensor_fbar'
-    materials = 'effective_plastic_strain'
+    # Jacobian: per-QP J_raw at dump time, consumed by the restart's
+    # adj_density_rec material so the inertia kernel's per-QP mass
+    # distribution matches the reference exactly.  Without this the restart
+    # uses det(_F_NoFbar) which in approach A is element-constant J_bar,
+    # leaving a K-amplified per-QP mass mismatch on interior Newton DOFs.
+    # See test/tests/single_hex8_incompressible/dynamic_recovery_fix.pdf.
+    materials = 'effective_plastic_strain Jacobian'
   []
 []
 

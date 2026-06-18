@@ -61,16 +61,19 @@ start_time = 0.5
 end_time = 1.0
 pull_amount = 0.2
 
-# Gaussian pulse on the top-face BC (must match pull_test_plastic.i).  The
-# restart's incremental BC subtracts the pulse value at start_time so the BC
-# stays continuous across the recovery boundary even if the dump happens
-# during the pulse.
-pulse_amplitude = 0.01
+# Gaussian pulse on the top-face BC (must match pull_test_plastic.i).
+# Split into bending (linear in X0) + uniform compression.
+pulse_amplitude_bend = 0.01
+pulse_amplitude_compress = 0.01
 pulse_center = 0.05
 pulse_width = 0.025
+# Quadratic-then-linear startup window for the reference's loading ramp,
+# kept consistent so the restart's BC value at start_time matches what the
+# reference reached at the same physical time.
+ramp_time = 0.1
 # The reference's end_time at which the loading would saturate -- used to
-# scale ypull_func / ypull_func_restart so the BC ramp is the same in both
-# legs.  Always the original reference's end_time (= 1.0 by default).
+# scale pull_func so the BC ramp is the same in both legs.  Always the
+# original reference's end_time (= 1.0 by default).
 end_time_for_ramp = 1.0
 
 # Output / recovery wiring.
@@ -113,7 +116,10 @@ zfix_bnd = 'front back'
     # only the stretch tensor variant the reference dumped (libmesh's exodus
     # reader shadows the shorter name when both prefixes are present).
     tensor_materials = 'stress be_bar stretch_tensor_fbar rotation_tensor'
-    materials = 'effective_plastic_strain'
+    # Jacobian: per-QP J_raw recovered from the reference at t=dump_time,
+    # consumed by adj_density_rec below so the inertia kernels' per-QP mass
+    # distribution matches the reference exactly (see dynamic_recovery_fix.pdf).
+    materials = 'effective_plastic_strain Jacobian'
     # Recover X0 (frozen undeformed nodal x-coords) so the BC can use the
     # ORIGINAL x rather than the deformed-mesh coordx, and d_corr (phase
     # field stub).
@@ -220,12 +226,15 @@ zfix_bnd = 'front back'
 
 [AuxKernels]
   [compute_target_uy]
+    # Diagnostic AuxVariable (the BC now consumes ypull_func_restart directly
+    # via PresetDisplacementSpatial; this keeps target_uy available for
+    # post-processing comparisons).
     type = ParsedAux
     variable = target_uy
     coupled_variables = 'X0'
-    constant_names       = 'pull_amount start_time end_time_for_ramp pulse_amplitude pulse_center pulse_width'
-    constant_expressions = '${pull_amount} ${start_time} ${end_time_for_ramp} ${pulse_amplitude} ${pulse_center} ${pulse_width}'
-    expression = 'pull_amount * X0 * (t - start_time) / end_time_for_ramp + pulse_amplitude * (exp(-(t-pulse_center)*(t-pulse_center)/(pulse_width*pulse_width)) - exp(-(start_time-pulse_center)*(start_time-pulse_center)/(pulse_width*pulse_width)))'
+    constant_names       = 'pull_amount start_time end_time_for_ramp pulse_amplitude_bend pulse_amplitude_compress pulse_center pulse_width'
+    constant_expressions = '${pull_amount} ${start_time} ${end_time_for_ramp} ${pulse_amplitude_bend} ${pulse_amplitude_compress} ${pulse_center} ${pulse_width}'
+    expression = 'pull_amount * X0 * (t - start_time) / end_time_for_ramp + (pulse_amplitude_bend * X0 + pulse_amplitude_compress) * (exp(-(t-pulse_center)*(t-pulse_center)/(pulse_width*pulse_width)) - exp(-(start_time-pulse_center)*(start_time-pulse_center)/(pulse_width*pulse_width)))'
     use_xyzt = true
     execute_on = 'INITIAL TIMESTEP_BEGIN LINEAR'
   []
@@ -315,7 +324,7 @@ zfix_bnd = 'front back'
   [inertia_x]
     type = ADInertialForce
     variable = disp_x
-    density = adj_density
+    density = adj_density_rec
     use_displaced_mesh = false
     beta = ${newmark_beta}
     gamma = ${newmark_gamma}
@@ -326,7 +335,7 @@ zfix_bnd = 'front back'
   [inertia_y]
     type = ADInertialForce
     variable = disp_y
-    density = adj_density
+    density = adj_density_rec
     use_displaced_mesh = false
     beta = ${newmark_beta}
     gamma = ${newmark_gamma}
@@ -337,7 +346,7 @@ zfix_bnd = 'front back'
   [inertia_z]
     type = ADInertialForce
     variable = disp_z
-    density = adj_density
+    density = adj_density_rec
     use_displaced_mesh = false
     beta = ${newmark_beta}
     gamma = ${newmark_gamma}
@@ -360,12 +369,15 @@ zfix_bnd = 'front back'
     # INCREMENTAL top-y displacement on the restart's deformed-config mesh.
     # The mesh's top nodes already sit at the reference's positions at
     # start_time, so the BC has to apply ypull_func(t) - ypull_func(start_time).
-    # Without this the QS restart would freeze at start_time while the
-    # reference keeps ramping past it.
+    # Assumes start_time > ramp_time of the reference run (typical for the
+    # dump_time sweep) -- in that regime the ramp_time/2 offset cancels.
+    # Pulse term subtracts the pulse value at start_time so the BC stays
+    # continuous across the recovery boundary even if the dump happens during
+    # the pulse.
     type = ParsedFunction
-    expression = 'pull_amount * x * ((t - start_time) / end_time_for_ramp)'
-    symbol_names = 'pull_amount start_time end_time_for_ramp'
-    symbol_values = '${pull_amount} ${start_time} ${end_time_for_ramp}'
+    expression = 'pull_amount * ((t - start_time)/end_time_for_ramp) * x + (pulse_amplitude_bend * x + pulse_amplitude_compress) * (exp(-(t-pulse_center)*(t-pulse_center)/(pulse_width*pulse_width)) - exp(-(start_time-pulse_center)*(start_time-pulse_center)/(pulse_width*pulse_width)))'
+    symbol_names = 'pull_amount start_time end_time_for_ramp pulse_amplitude_bend pulse_amplitude_compress pulse_center pulse_width'
+    symbol_values = '${pull_amount} ${start_time} ${end_time_for_ramp} ${pulse_amplitude_bend} ${pulse_amplitude_compress} ${pulse_center} ${pulse_width}'
   []
 []
 
@@ -392,15 +404,20 @@ zfix_bnd = 'front back'
     preset = false
   []
   [ypull]
-    # MatchedValueBC enforces disp_y = target_uy on the top face.  target_uy
-    # is computed via ParsedAux from RECOVERED X0 -- i.e. the original
-    # undeformed x of each node, which equals the reference's BC spatial
-    # argument.  This is the X0 fix: without it the BC used the deformed
-    # mesh's coordx and the top-right shortfell by ~1% of the increment.
-    type = ADMatchedValueBC
+    # PresetDisplacementSpatial (raccoon's spatially-aware variant of
+    # MOOSE's PresetDisplacement; see pull_test_dynamic_restart.i [ypull]
+    # for full rationale).  Routes the function's spatial argument through
+    # coupled_x = X0 (the recovered AuxVariable carrying the original
+    # undeformed x), so the spatial gradient comes from the original mesh
+    # rather than the dump-deformed mesh's coordx.
+    type = PresetDisplacementSpatial
     variable = disp_y
     boundary = top
-    v = target_uy
+    function = ypull_func_restart
+    coupled_x = X0
+    beta = ${newmark_beta}
+    velocity = vel_y
+    acceleration = accel_y
   []
 []
 
@@ -437,12 +454,31 @@ zfix_bnd = 'front back'
     prop_values = '${K} ${G} ${rho}'
   []
   [dens]
-    # Strain-adjusted density: rho / J on the recovered configuration so the
-    # inertia kernel uses mass-consistent density.  Inertia kernels above
-    # consume adj_density.  Mirrors restart.i in the recover_remesh tet10 test.
+    # Strain-adjusted density via det(_F_NoFbar).  In approach A
+    # _F_NoFbar.det() = J_bar (element-constant), so the per-QP mass
+    # distribution differs from the reference (which had per-QP J_raw).
+    # Kept for diagnostics; the inertia kernels below consume adj_density_rec
+    # instead, which uses the per-QP J_raw recovered from the reference's
+    # dump.  See dynamic_recovery_fix.pdf.
     type = ADStrainAdjustedDensityCustom
     strain_free_density = density
     base_name = 'adj'
+  []
+
+  # ---- Per-QP J_raw recovery for exact inertia mass matching ----
+  [recovered_J]
+    type = SolutionReal
+    solution = epsol
+    mat_name = Jacobian
+    element = HEX8_3rd
+  []
+  [adj_density_rec]
+    type = ADParsedMaterial
+    property_name = adj_density_rec
+    material_property_names = 'Jacobian_sol'
+    constant_names = 'rho'
+    constant_expressions = '${rho}'
+    expression = 'rho / Jacobian_sol'
   []
   [nodeg]
     type = NoDegradation

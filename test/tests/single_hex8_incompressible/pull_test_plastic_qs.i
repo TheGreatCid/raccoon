@@ -63,6 +63,15 @@ end_time = 1.0
 dt = 0.0125
 pull_amount = 0.2
 
+# Pulse / ramp_time params: accepted but unused in this quasi-static input.
+# dump_time_sweep_study.sh passes them uniformly across all MODE values;
+# declaring them here lets the standard script CLI work without -w.
+pulse_amplitude_bend = 0.0
+pulse_amplitude_compress = 0.0
+pulse_center = 0.0
+pulse_width = 1.0
+ramp_time = 0.1
+
 # Output / recovery hooks.  Plain `raccoon-opt -i pull_test.i` runs with the
 # defaults below and behaves like the original standalone test.  The
 # nu_sweep_study.sh script overrides `tag`, `out_dir`, and `dump_time` so the
@@ -165,11 +174,14 @@ zfix_bnd = 'front back'
     type = ParsedAux
     variable = target_uy
     coupled_variables = 'X0'
-    constant_names       = 'pull_amount end_time_for_ramp'
-    constant_expressions = '${pull_amount} ${end_time_for_ramp}'
-    expression = 'pull_amount * (t/end_time_for_ramp) * X0'
+    # Pulse / ramp_time params are accepted from CLI but default to a no-op
+    # Gaussian (amplitudes = 0) so the QS loading is pure ramp.  This lets
+    # dump_time_sweep_study.sh pass the same param set across all MODE values
+    # without -w.
+    constant_names       = 'pull_amount end_time_for_ramp ramp_time pulse_amplitude_bend pulse_amplitude_compress pulse_center pulse_width'
+    constant_expressions = '${pull_amount} ${end_time_for_ramp} ${ramp_time} ${pulse_amplitude_bend} ${pulse_amplitude_compress} ${pulse_center} ${pulse_width}'
+    expression = 'pull_amount * (t/end_time_for_ramp) * X0 + (pulse_amplitude_bend * X0 + pulse_amplitude_compress) * exp(-(t-pulse_center)*(t-pulse_center)/(pulse_width*pulse_width)) + 0*ramp_time'
     use_xyzt = true
-    # Run before the solve so the BC sees the correct target each step.
     execute_on = 'INITIAL TIMESTEP_BEGIN LINEAR'
   []
 []

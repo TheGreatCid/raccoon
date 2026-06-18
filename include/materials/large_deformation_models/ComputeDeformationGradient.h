@@ -84,7 +84,11 @@ protected:
 
   unsigned int _qpnum = 0;
   MaterialProperty<Real> & _Frobenius;
-  MaterialProperty<Real> & _Jacobian;
+  /// det(F_raw) per QP -- declared AD so the RecoverVariables/exodus dump
+  /// pipeline (which wires ADMaterialRealAux) can pick it up, and so the
+  /// recovery side reading Jacobian back via SolutionReal has the AD
+  /// version it expects.
+  ADMaterialProperty<Real> & _Jacobian;
 
   // Polar decomposition output (R and U from F = R*U)
   ADMaterialProperty<RankTwoTensor> & _rotation_tensor;

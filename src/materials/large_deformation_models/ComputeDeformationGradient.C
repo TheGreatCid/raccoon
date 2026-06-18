@@ -111,7 +111,7 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _F_recover(adCoupledValues("F_ext_rec")),
     _element(QpMapping::Element::HEX8_3rd),
     _Frobenius(declareProperty<Real>(prependBaseName("Frobenius_norm"))),
-    _Jacobian(declareProperty<Real>(prependBaseName("Jacobian"))),
+    _Jacobian(declareADProperty<Real>(prependBaseName("Jacobian"))),
     _rotation_tensor(declareADProperty<RankTwoTensor>(prependBaseName("rotation_tensor"))),
     _rotation_tensor_old(getMaterialPropertyOld<RankTwoTensor>(prependBaseName("rotation_tensor"))),
     _stretch_tensor(declareADProperty<RankTwoTensor>(prependBaseName("stretch_tensor"))),
@@ -554,7 +554,7 @@ ComputeDeformationGradient::computeProperties()
     _Frobenius[_qp] = MetaPhysicL::raw_value(temp).norm();
 
     // Outputting the Jacobian (determinant of F) for post processing reasons
-    _Jacobian[_qp] = MetaPhysicL::raw_value(_F[_qp].det());
+    _Jacobian[_qp] = _F[_qp].det();
 
     // Add in recovered F
     if (_recover == true)

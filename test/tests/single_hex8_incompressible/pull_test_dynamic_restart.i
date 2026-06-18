@@ -92,7 +92,9 @@ zfix_bnd = 'front back'
     # only the stretch tensor variant the reference dumped (libmesh's exodus
     # reader shadows the shorter name when both prefixes are present).
     tensor_materials = 'stress stretch_tensor_fbar rotation_tensor'
-    materials = ''
+    # Per-QP J_raw from the reference at t=dump_time, used by adj_density_rec
+    # below for the per-QP-mass confirmation test.
+    materials = 'Jacobian'
     # Recover X0 (frozen undeformed nodal x-coords) so the BC can use the
     # ORIGINAL x rather than the deformed-mesh coordx, and d_corr (phase
     # field stub).
@@ -298,7 +300,7 @@ zfix_bnd = 'front back'
   [inertia_x]
     type = ADInertialForce
     variable = disp_x
-    density = adj_density
+    density = adj_density_rec
     use_displaced_mesh = false
     beta = ${newmark_beta}
     gamma = ${newmark_gamma}
@@ -309,7 +311,7 @@ zfix_bnd = 'front back'
   [inertia_y]
     type = ADInertialForce
     variable = disp_y
-    density = adj_density
+    density = adj_density_rec
     use_displaced_mesh = false
     beta = ${newmark_beta}
     gamma = ${newmark_gamma}
@@ -320,7 +322,7 @@ zfix_bnd = 'front back'
   [inertia_z]
     type = ADInertialForce
     variable = disp_z
-    density = adj_density
+    density = adj_density_rec
     use_displaced_mesh = false
     beta = ${newmark_beta}
     gamma = ${newmark_gamma}
@@ -464,6 +466,29 @@ zfix_bnd = 'front back'
     strain_free_density = density
     base_name = 'adj'
   []
+
+  # ---- Per-QP J_raw confirmation test ----
+  # `dens` above uses det(_F_store_noFbar) for J, which in approach A is the
+  # element-constant J_bar (because _F_store_noFbar is aliased to F_bar).  The
+  # reference's actual J at t=dump_time varies per QP (= det(F_raw_ref)), so
+  # the per-QP mass distribution disagrees between ref and restart.  Here we
+  # read the reference's per-QP J directly from the dump and build an
+  # alternate adj_density_rec = rho / J_dumped.  Wired into the inertia
+  # kernels via `density = adj_density_rec`.
+  [recovered_J]
+    type = SolutionReal
+    solution = epsol
+    mat_name = Jacobian
+    element = HEX8_3rd
+  []
+  [adj_density_rec]
+    type = ADParsedMaterial
+    property_name = adj_density_rec
+    material_property_names = 'Jacobian_sol'
+    constant_names = 'rho'
+    constant_expressions = '${rho}'
+    expression = 'rho / Jacobian_sol'
+  []
   [nodeg]
     type = NoDegradation
     phase_field = d_corr
@@ -518,6 +543,14 @@ zfix_bnd = 'front back'
     type = ADElementIntegralMaterialProperty
     mat_prop = psie_active
     use_displaced_mesh = true
+  []
+  [psie_active_int_at_init]
+    # Test C: psie at INITIAL (before any solve).  Should equal ref's
+    # psie_active_int at t=dump_time if recovery is bit-exact.
+    type = ADElementIntegralMaterialProperty
+    mat_prop = psie_active
+    use_displaced_mesh = true
+    execute_on = 'INITIAL'
   []
   [J_F_int]
     type = ADElementIntegralMaterialProperty
