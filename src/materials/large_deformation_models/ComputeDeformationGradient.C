@@ -72,6 +72,21 @@ ComputeDeformationGradient::validParams()
       "averaged on the reference side).  Use approach B when the recovery file does not carry "
       "stretch_tensor_fbar and the F-bar correction must be re-derived on the new mesh.  "
       "Active only when `recover = true` and `volumetric_locking_correction = true`.");
+  params.addParam<bool>(
+      "recover_apply_fbar_to_total",
+      false,
+      "Approach C (recommended for explicit / central-difference dynamics where there is no "
+      "Newton iteration to absorb F-bar composition error): instead of applying F-bar to F_inc "
+      "and F_dump separately and composing them multiplicatively (approach A / B), recover the "
+      "raw F_dump per QP and at each step compute F_total = F_inc * F_dump first, then apply "
+      "F-bar exactly ONCE to F_total -- matching what the reference's continuous run does at "
+      "every step (`F_bar(F_total_raw)`).  J_avg is computed using the corrected formula "
+      "  J_avg = (sum J_inc * _JxW_dump) / (sum _JxW_dump / J_dump_raw)\n"
+      "which is the change-of-variables form of the reference's ` <J_total>_V_orig `; using "
+      "_JxW_dump directly (approach B) gives the wrong J_avg because it averages over the "
+      "wrong volume (V_dump_def vs V_orig).  Requires recovery of raw U from the dump (same as "
+      "approach B).  Mutually exclusive with `recover_apply_fbar_to_U`.  Active only when "
+      "`recover = true` and `volumetric_locking_correction = true`.");
   params.suppressParameter<bool>("use_displaced_mesh");
   params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
   params.addParam<Real>("num_qps", 8, "Number of QPs");
@@ -121,8 +136,16 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _output_half_rotation(getParam<bool>("output_half_rotation_tensor")),
     _input_half_rotation(getParam<bool>("input_half_rotation_tensor")),
     _use_iterative_polar(getParam<bool>("use_iterative_polar_decomposition")),
-    _recover_apply_fbar_to_U(getParam<bool>("recover_apply_fbar_to_U"))
+    _recover_apply_fbar_to_U(getParam<bool>("recover_apply_fbar_to_U")),
+    _recover_apply_fbar_to_total(getParam<bool>("recover_apply_fbar_to_total"))
 {
+  if (_recover_apply_fbar_to_U && _recover_apply_fbar_to_total)
+    paramError("recover_apply_fbar_to_total",
+               "Cannot enable both `recover_apply_fbar_to_U` (approach B) and "
+               "`recover_apply_fbar_to_total` (approach C) at the same time -- they "
+               "are alternative remedies to the multiplicative F-bar composition "
+               "issue and apply different formulas to the same step.");
+
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &Material::getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
 
@@ -238,8 +261,13 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
       // stretch-tensor variants (libmesh's exodus reader silently shadows
       // `stretch_tensor_*` whenever `stretch_tensor_fbar_*` is also present in the same
       // file due to a name-prefix collision, so the reference can dump only one).
-      const bool need_U_fbar_from_file = have_fbar && !_recover_apply_fbar_to_U;
-      const bool need_U_raw_from_file = !have_fbar || _recover_apply_fbar_to_U;
+      // Approach C also requires raw U (it composes F_inc * F_dump_raw at
+      // every step), but unlike approach B it computes J_avg via a
+      // change-of-variables corrected formula instead of the new-mesh _JxW.
+      const bool need_U_fbar_from_file =
+          have_fbar && !_recover_apply_fbar_to_U && !_recover_apply_fbar_to_total;
+      const bool need_U_raw_from_file =
+          !have_fbar || _recover_apply_fbar_to_U || _recover_apply_fbar_to_total;
 
       std::vector<RankTwoTensor> R_qp(n_points), U_qp(n_points), Ufb_qp(n_points);
       std::vector<RankTwoTensor> R_file_qp(n_points); // raw R as read; may be R^(1/2)
@@ -326,8 +354,10 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
       // det(F_bar) = J_avg per element.
       Real J_avg_init = 0.0;
       const bool fbar_from_raw_U = have_fbar && _recover_apply_fbar_to_U;
+      const bool fbar_from_total_C = have_fbar && _recover_apply_fbar_to_total;
       if (fbar_from_raw_U)
       {
+        // Approach B: average J_dump_raw over the new (dump-deformed) mesh.
         for (unsigned int qp = 0; qp < n_points; ++qp)
         {
           const RankTwoTensor F_raw_qp = R_qp[qp] * U_qp[qp];
@@ -335,18 +365,41 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
         }
         J_avg_init /= _current_elem_volume;
       }
+      else if (fbar_from_total_C)
+      {
+        // Approach C: J_avg_init = V_dump_def / sum(_JxW / J_dump_raw)
+        // which is the change-of-variables form of <J_dump_raw>_V_orig (the
+        // reference's actual J_avg at dump_time).  At INITIAL, F_total = F_dump,
+        // so J_avg_total = J_avg_dump = this expression.  Using the corrected
+        // formula here ensures F_store_Fbar = F_bar_dump (per QP) exactly, so
+        // CLDS::initQpStatefulProperties evaluating the constitutive on _Fm
+        // sees the right F-bar and produces sigma matching the reference's
+        // sigma at dump_time.
+        Real V_dump_def = 0.0;
+        Real V_orig = 0.0;
+        for (unsigned int qp = 0; qp < n_points; ++qp)
+        {
+          const RankTwoTensor F_raw_qp = R_qp[qp] * U_qp[qp];
+          V_dump_def += _JxW[qp] * _coord[qp];
+          V_orig += _JxW[qp] * _coord[qp] / F_raw_qp.det();
+        }
+        J_avg_init = V_dump_def / V_orig;
+      }
 
       for (_qp = 0; _qp < n_points; ++_qp)
       {
         const RankTwoTensor F_raw = R_qp[_qp] * U_qp[_qp];
-        // Three branches:
-        //   no F-bar           -> F_fbar = F_raw
+        // Four branches:
+        //   no F-bar             -> F_fbar = F_raw
         //   approach A (default) -> F_fbar = R * U_fbar from the recovery file
-        //   approach B           -> F_fbar = F_raw * cbrt(J_avg / det F_raw)  (cfb539fe1)
+        //   approach B           -> F_fbar = F_raw * cbrt(J_avg_B / det F_raw)
+        //   approach C           -> F_fbar = F_raw * cbrt(J_avg_C / det F_raw)
+        //                          (same formula as B but with corrected J_avg
+        //                          computed via change-of-variables to V_orig)
         RankTwoTensor F_fbar;
         if (!have_fbar)
           F_fbar = F_raw;
-        else if (fbar_from_raw_U)
+        else if (fbar_from_raw_U || fbar_from_total_C)
           F_fbar = F_raw * cbrt(J_avg_init / F_raw.det());
         else
           F_fbar = R_qp[_qp] * Ufb_qp[_qp];
@@ -519,6 +572,12 @@ ComputeDeformationGradient::computeProperties()
   using std::cbrt;
 
   ADReal ave_F_det = 0;
+  // Approach C: alternative denominator for J_avg.  Sums _JxW / J_dump_raw,
+  // which is V_orig by the change-of-variables dV_orig = dV_dump / J_dump_raw.
+  // Combined with the standard J_inc-weighted numerator, this gives
+  //   J_avg_total = sum(J_inc * _JxW) / sum(_JxW / J_dump_raw)
+  // which equals the reference's <J_total>_V_orig exactly.
+  ADReal denom_C = 0;
 
   if (isParamValid("F_ext_rec"))
   {
@@ -563,20 +622,43 @@ ComputeDeformationGradient::computeProperties()
       _Fnobar[_qp] = _F[_qp];
 
     if (_volumetric_locking_correction)
+    {
       ave_F_det += _F[_qp].det() * _JxW[_qp] * _coord[_qp];
+      if (_recover_apply_fbar_to_total && _recover)
+        denom_C += _JxW[_qp] * _coord[_qp] / _F_store_noFbar[_qp].det();
+    }
   }
 
   if (_volumetric_locking_correction)
-    ave_F_det /= _current_elem_volume;
+  {
+    if (_recover_apply_fbar_to_total && _recover)
+      // approach C: numerator = sum(J_inc * _JxW) = ∫_dump J_inc dV;
+      // denominator = sum(_JxW / J_dump_raw) = V_orig.  Result = <J_total>_V_orig.
+      ave_F_det /= denom_C;
+    else
+      // approach A / B / no recover: standard average over the integration mesh.
+      ave_F_det /= _current_elem_volume;
+  }
 
   for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
   {
-    if (_volumetric_locking_correction)
-      _F[_qp] *= cbrt(ave_F_det / _F[_qp].det());
+    if (_recover_apply_fbar_to_total && _recover && _volumetric_locking_correction)
+    {
+      // Approach C: F = F_total_raw * cbrt(J_avg / det(F_total_raw)) -- one F-bar
+      // applied to the EXACT total raw F, no separate F-bar on F_inc and no
+      // multiplicative composition.  _Fnobar already holds F_inc * F_store_noFbar
+      // = F_total_raw (set in the previous loop), so we just rescale it.
+      _F[_qp] = _Fnobar[_qp] * cbrt(ave_F_det / _Fnobar[_qp].det());
+    }
+    else
+    {
+      if (_volumetric_locking_correction)
+        _F[_qp] *= cbrt(ave_F_det / _F[_qp].det());
 
-    // Multiply in old deformation
-    if (_recover == true)
-      _F[_qp] = _F[_qp] * _F_store_Fbar[_qp];
+      // Multiply in old deformation
+      if (_recover == true)
+        _F[_qp] = _F[_qp] * _F_store_Fbar[_qp];
+    }
 
     // Remove the eigen deformation gradient
     ADRankTwoTensor Fg(ADRankTwoTensor::initIdentity);

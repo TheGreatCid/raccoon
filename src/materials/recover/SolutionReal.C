@@ -7,15 +7,20 @@
 #include "SolutionReal.h"
 #include "Qp_Mapping.h"
 
-registerADMooseObject("raccoonApp", SolutionReal);
+registerMooseObject("raccoonApp", SolutionReal);
+registerMooseObject("raccoonApp", SolutionRealNonAD);
 
+template <bool is_ad>
 InputParameters
-SolutionReal::validParams()
+SolutionRealTempl<is_ad>::validParams()
 {
   InputParameters params = Material::validParams();
   params += BaseNameInterface::validParams();
 
-  params.addClassDescription("Getting tensor from solution object");
+  params.addClassDescription(
+      "Per-QP scalar material that reads values from a SolutionUserObject. "
+      "Use SolutionReal for AD consumers, SolutionRealNonAD for non-AD "
+      "consumers (e.g. the MassMatrix kernel).");
   params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
   params.addParam<Real>("num_qps", 8, "Number of QPs");
   params.addParam<std::string>("mat_name", "stress", "Name of tensor");
@@ -24,11 +29,12 @@ SolutionReal::validParams()
   return params;
 }
 
-SolutionReal::SolutionReal(const InputParameters & parameters)
+template <bool is_ad>
+SolutionRealTempl<is_ad>::SolutionRealTempl(const InputParameters & parameters)
   : Material(parameters),
     BaseNameInterface(parameters),
     _mat_name(getParam<std::string>("mat_name")),
-    _mat(declareADProperty<Real>(prependBaseName(_mat_name + "_sol"))),
+    _mat(declareGenericProperty<Real, is_ad>(prependBaseName(_mat_name + "_sol"))),
     _mat_old(getMaterialPropertyOld<Real>(prependBaseName(_mat_name + "_sol"))),
     _solution_object_ptr(NULL),
     _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>())
@@ -36,14 +42,16 @@ SolutionReal::SolutionReal(const InputParameters & parameters)
   _lookup = QpMapping::getLookup(_element, _qpnum, /*reversed=*/true);
 }
 
+template <bool is_ad>
 void
-SolutionReal::initialSetup()
+SolutionRealTempl<is_ad>::initialSetup()
 {
   _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
 }
 
+template <bool is_ad>
 void
-SolutionReal::initStatefulProperties(unsigned int n_points)
+SolutionRealTempl<is_ad>::initStatefulProperties(unsigned int n_points)
 {
   unsigned int qp_max = _qpnum;
 
@@ -63,3 +71,6 @@ SolutionReal::initStatefulProperties(unsigned int n_points)
         _t, _current_elem->true_centroid(), _mat_name + "_" + formatQP(qp_sel), nullptr);
   }
 }
+
+template class SolutionRealTempl<false>;
+template class SolutionRealTempl<true>;

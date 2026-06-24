@@ -136,6 +136,13 @@ protected:
   /// Active only when both `recover = true` and `volumetric_locking_correction = true`.
   const bool _recover_apply_fbar_to_U;
 
+  /// Approach C: apply F-bar once to the EXACT total F (= F_inc * F_dump_raw),
+  /// using a change-of-variables-corrected J_avg over the original undeformed
+  /// volume.  Required for explicit dynamics (no Newton to absorb the
+  /// multiplicative F-bar composition error of approach A/B).  Implies raw U
+  /// recovery from the dump; mutually exclusive with `_recover_apply_fbar_to_U`.
+  const bool _recover_apply_fbar_to_total;
+
 private:
   const std::unordered_map<int, int> * _lookup;
 
