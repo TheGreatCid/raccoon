@@ -155,8 +155,15 @@ ExplicitMixedOrderRecover::recoverVelAccel()
       if (dof == libMesh::DofObject::invalid_id)
         continue;
 
-      const Real v = _sol_uo->directValue(node, vel_name);
-      const Real a = _sol_uo->directValue(node, accel_name);
+      // pointValue(t, Point, var) is safer than directValue(Node*, var) for
+      // higher-order Lagrange meshes (e.g. TET10): directValue calls
+      // mesh.node_ptr(node->id()) on the SolutionUserObject's INTERNAL mesh
+      // and dereferences without checking if the node id exists there.  In
+      // TET10 cases the dump's internal mesh node ordering can mismatch the
+      // restart mesh's, causing a segfault on mid-edge nodes.  pointValue
+      // interpolates at the physical coordinate, which is robust.
+      const Real v = _sol_uo->pointValue(_fe_problem.time(), *node, vel_name);
+      const Real a = _sol_uo->pointValue(_fe_problem.time(), *node, accel_name);
       vel->set(dof, v);
       accel->set(dof, a);
       // Seed the "old" vectors too so the BC's first-step formula sees the
