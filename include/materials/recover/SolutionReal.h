@@ -12,12 +12,21 @@
 #include "MooseArray.h"
 #include "SolutionUserObject.h"
 #include "Qp_Mapping.h"
-class SolutionReal : public Material, public BaseNameInterface
+
+/**
+ * Per-QP scalar material that reads values from a SolutionUserObject (typical
+ * use: the recovery dump).  Templated on `is_ad` so the declared property can
+ * be either AD (`SolutionReal`) for AD-consumer materials, or non-AD
+ * (`SolutionRealNonAD`) for non-AD consumers like the framework MassMatrix
+ * kernel that errors when a property has been declared as the wrong AD-ness.
+ */
+template <bool is_ad>
+class SolutionRealTempl : public Material, public BaseNameInterface
 {
 public:
   static InputParameters validParams();
 
-  SolutionReal(const InputParameters & parameters);
+  SolutionRealTempl(const InputParameters & parameters);
 
   void initStatefulProperties(unsigned int n_points) override;
 
@@ -26,7 +35,7 @@ public:
 protected:
   const std::string _mat_name;
 
-  ADMaterialProperty<Real> & _mat;
+  GenericMaterialProperty<Real, is_ad> & _mat;
   const MaterialProperty<Real> & _mat_old;
 
   const SolutionUserObject * _solution_object_ptr;
@@ -38,3 +47,6 @@ protected:
 private:
   const std::unordered_map<int, int> * _lookup;
 };
+
+typedef SolutionRealTempl<true> SolutionReal;
+typedef SolutionRealTempl<false> SolutionRealNonAD;
