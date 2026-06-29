@@ -28,39 +28,43 @@ rho = 1.0
 # c = sqrt((K + 4G/3)/rho) ~ 1.16 for nu=0.3.  Element size ~ 0.5 ->
 # dt_CFL ~ 0.43.  Use dt = 1e-4 to be safely under (TET10's higher-order
 # basis can have more restrictive CFL than the geometric bound suggests).
-dt = 0.0001
-# Short test window -- end_time = 0.05 keeps the run under ~30s and the
-# trajectory divergence below ~1% over the post-dump window.  CD on TET10
-# accumulates per-step error from the same lumped-mass-mismatch source as
-# the HEX8 test (J_recovered vs J_mesh_geometric not cancelling exactly in
-# (rho/J) * _JxW), but the per-step rate is larger on TET10 because of the
-# higher mode density of the 24-element mesh.  Longer runs amplify this
-# drift; for recovery-infrastructure validation, the short window is
-# sufficient.
-end_time = 0.05
-# Subsonic loading.  pull_amount = 0.005 keeps the ramp velocity
-# (v_ramp = pull/eft = 0.1) at Mach ~0.086 vs the P-wave speed c_p ~ 1.16.
-# Earlier pull_amount = 0.1 / eft = 0.05 gave Mach ~1.7, which made the
-# top face move faster than elastic waves could redistribute -- shock-like
-# loading that excited high-frequency modes CD couldn't damp, dominating
-# the post-dump trajectory drift on TET10.
-pull_amount = 0.005
+# Timescales chosen so the elastic wave actually propagates through the
+# bulk during the simulation:
+#   c_p = sqrt((K + 4G/3)/rho) ~ 1.16 for E=1, nu=0.3, rho=1.
+#   Cube transit time t_transit = L/c_p ~ 0.86 s.
+# With end_time = 1.0 the wave does ~1.16 transits (one full traverse +
+# partial reflection off the bottom).  dump_time = 0.5 catches the wave
+# roughly halfway down the cube on its first traverse, so the dumped
+# vel/accel field carries a non-trivial in-flight wave that the restart
+# must reproduce.  dt = 1e-3 still leaves a 200x CFL margin
+# (dt_CFL = h_eff/c_p = 0.25/1.16 = 0.22) and gives 1000 steps total.
+dt = 0.001
+end_time = 0.6
+# Subsonic loading.  pull_amount = 0.01 with end_time_for_ramp = 1 gives
+# ramp velocity 0.05 (Mach 0.043).  Earlier setups with v_ramp >> c_p
+# made the top face move faster than elastic waves could redistribute --
+# shock-like loading that excited high-frequency modes CD couldn't damp.
+pull_amount = 0.01
 
 # Compression-only Gaussian pulse on the top face.  x-INDEPENDENT (=
-# uniform vertical) burst of motion, no bending content.  pulse_width is
-# wide enough that the peak pulse velocity (amp*sqrt(2/e)/width = 0.21
-# units/s) stays subsonic (Mach ~0.18).  pulse_center kept well before
-# dump_time so the wave is fully launched -- the dumped vel/accel state
-# must carry the in-flight wave for the restart to track the reference.
+# uniform vertical) burst of motion, no bending content.
 #   target_uy(top, t) = pull_amount * (t/end_time_for_ramp)
 #                     + pulse_amplitude * exp(-((t-pulse_center)/pulse_width)^2)
-pulse_amplitude = 0.005
-pulse_center = 0.01
-pulse_width = 0.02
+#
+# pulse_center is set to 4*pulse_width past t=0 so f(0) ~ exp(-16) ~ 1e-7
+# -- numerically zero, which avoids the BC trying to jump disp_y(top)
+# from 0 to f(0) in a single step (produces an O(1/dt^2) acceleration
+# spike right on the BC nodes that propagates as a numerical shock).
+# pulse_width = 0.1 is roughly 1/8 of the cube transit time, so the
+# pulse-driven wave is narrow enough to be visible as it travels.  Peak
+# pulse velocity = amp*sqrt(2/e)/width = 0.0086 (Mach 0.007).
+pulse_amplitude = 0.001
+pulse_center = 0.2
+pulse_width = 0.05
 
 out_dir = outputs
 tag = ''
-dump_time = 0.025
+dump_time = 0.3
 end_time_for_ramp = ${end_time}
 
 xfix_bnd = 'left'

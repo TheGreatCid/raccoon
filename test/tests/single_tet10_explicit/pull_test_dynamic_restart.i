@@ -15,16 +15,16 @@ K = '${fparse E/3/(1-2*nu)}'
 G = '${fparse E/2/(1+nu)}'
 rho = 1.0
 
-dt = 0.0001
-start_time = 0.025
-end_time = 0.05
-pull_amount = 0.005
-end_time_for_ramp = 0.05
+dt = 0.001
+start_time = 0.3
+end_time = 0.6
+pull_amount = 0.01
+end_time_for_ramp = 0.6
 # Pulse parameters must match the reference's exactly.  See pull_test_dynamic.i
 # for rationale.
-pulse_amplitude = 0.005
-pulse_center = 0.01
-pulse_width = 0.02
+pulse_amplitude = 0.001
+pulse_center = 0.2
+pulse_width = 0.05
 
 out_dir = outputs
 tag = ''
