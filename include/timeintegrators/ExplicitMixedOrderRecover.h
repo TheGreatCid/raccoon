@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ExplicitMixedOrder.h"
+#include "ExplicitMixedOrderHRZ.h"
 
 class SolutionUserObject;
 
@@ -54,7 +54,7 @@ class SolutionUserObject;
  *     interpolation on its side.  directValue(node, var_name) is then a
  *     direct nodal lookup.
  */
-class ExplicitMixedOrderRecover : public ExplicitMixedOrder
+class ExplicitMixedOrderRecover : public ExplicitMixedOrderHRZ
 {
 public:
   static InputParameters validParams();
