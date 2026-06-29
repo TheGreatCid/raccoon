@@ -16,7 +16,7 @@ registerMooseObject("raccoonApp", ExplicitMixedOrderRecover);
 InputParameters
 ExplicitMixedOrderRecover::validParams()
 {
-  InputParameters params = ExplicitMixedOrder::validParams();
+  InputParameters params = ExplicitMixedOrderHRZ::validParams();
   params.addClassDescription(
       "Recovery-aware ExplicitMixedOrder.  After the base class init() runs "
       "(which zeros solutionUDot via the forward Euler estimate), reads "
@@ -42,7 +42,7 @@ ExplicitMixedOrderRecover::validParams()
 }
 
 ExplicitMixedOrderRecover::ExplicitMixedOrderRecover(const InputParameters & parameters)
-  : ExplicitMixedOrder(parameters),
+  : ExplicitMixedOrderHRZ(parameters),
     _sol_uo(nullptr),
     _disp_var_names(getParam<std::vector<VariableName>>("disp_vars")),
     _vel_var_names(getParam<std::vector<std::string>>("vel_vars")),
@@ -66,7 +66,7 @@ ExplicitMixedOrderRecover::init()
   // Base class runs first: sets up first/second-order DOF index lists and
   // calls computeICs(), which zeros solutionUDot via the (u - u_old)/dt
   // estimate.  We override that zero immediately afterwards.
-  ExplicitMixedOrder::init();
+  ExplicitMixedOrderHRZ::init();
 
   _sol_uo = &_fe_problem.getUserObject<SolutionUserObject>(
       getParam<UserObjectName>("solution"));
@@ -77,7 +77,7 @@ ExplicitMixedOrderRecover::init()
 void
 ExplicitMixedOrderRecover::preSolve()
 {
-  ExplicitMixedOrder::preSolve();
+  ExplicitMixedOrderHRZ::preSolve();
 
   // On the very first restart step, _dt_old is whatever the executioner
   // initialized it to (typically 0).  ExplicitMixedOrder's central-difference
