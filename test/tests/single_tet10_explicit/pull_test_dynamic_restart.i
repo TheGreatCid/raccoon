@@ -20,6 +20,11 @@ start_time = 0.025
 end_time = 0.05
 pull_amount = 0.1
 end_time_for_ramp = 0.05
+# Pulse parameters must match the reference's exactly.  See pull_test_dynamic.i
+# for rationale.
+pulse_amplitude = 0.005
+pulse_center = 0.01
+pulse_width = 0.005
 
 out_dir = outputs
 tag = ''
@@ -210,10 +215,13 @@ zfix_bnd = 'front back'
 
 [Functions]
   [ypull_func_restart]
+    # INCREMENTAL top-y displacement past start_time.  Both the ramp AND the
+    # pulse are subtracted at start_time so the increment is 0 at the
+    # restart's first step (matching the dump's stored disp_y at the top).
     type = ParsedFunction
-    expression = 'pull_amount * ((t - start_time) / end_time_for_ramp)'
-    symbol_names = 'pull_amount start_time end_time_for_ramp'
-    symbol_values = '${pull_amount} ${start_time} ${end_time_for_ramp}'
+    expression = 'pull_amount * ((t - start_time) / end_time_for_ramp) + pulse_amplitude * (exp(-((t-pulse_center)*(t-pulse_center))/(pulse_width*pulse_width)) - exp(-((start_time-pulse_center)*(start_time-pulse_center))/(pulse_width*pulse_width)))'
+    symbol_names = 'pull_amount start_time end_time_for_ramp pulse_amplitude pulse_center pulse_width'
+    symbol_values = '${pull_amount} ${start_time} ${end_time_for_ramp} ${pulse_amplitude} ${pulse_center} ${pulse_width}'
   []
 []
 
