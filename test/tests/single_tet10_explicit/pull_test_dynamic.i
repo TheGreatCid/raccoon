@@ -40,6 +40,19 @@ dt = 0.0001
 end_time = 0.05
 pull_amount = 0.1
 
+# Compression-only Gaussian pulse on the top face.  Adds an x-INDEPENDENT
+# (= uniform vertical) burst of motion that launches a longitudinal wave
+# into the bulk; bending content is omitted on purpose (the user-level
+# spec says "just tension/compression").  Set pulse_amplitude = 0 to
+# disable.  pulse_center is well before dump_time so the wave is fully
+# launched -- the dumped vel/accel state must carry the in-flight wave for
+# the restart to track the reference.
+#   target_uy(top, t) = pull_amount * (t/end_time_for_ramp)
+#                     + pulse_amplitude * exp(-((t-pulse_center)/pulse_width)^2)
+pulse_amplitude = 0.005
+pulse_center = 0.01
+pulse_width = 0.005
+
 out_dir = outputs
 tag = ''
 dump_time = 0.025
@@ -66,9 +79,9 @@ zfix_bnd = 'front back'
   [gmg]
     type = GeneratedMeshGenerator
     dim = 3
-    nx = 1
-    ny = 1
-    nz = 1
+    nx = 2
+    ny = 2
+    nz = 2
     xmin = 0
     xmax = 1
     ymin = 0
@@ -219,10 +232,13 @@ zfix_bnd = 'front back'
 
 [Functions]
   [pull_func]
+    # Linear ramp + uniform compression-pulse.  No x-scaling on the pulse,
+    # so the entire top face moves together (pure tension/compression mode,
+    # no bending).
     type = ParsedFunction
-    expression = 'pull_amount * (t / end_time_for_ramp)'
-    symbol_names = 'pull_amount end_time_for_ramp'
-    symbol_values = '${pull_amount} ${end_time_for_ramp}'
+    expression = 'pull_amount * (t / end_time_for_ramp) + pulse_amplitude * exp(-((t-pulse_center)*(t-pulse_center))/(pulse_width*pulse_width))'
+    symbol_names = 'pull_amount end_time_for_ramp pulse_amplitude pulse_center pulse_width'
+    symbol_values = '${pull_amount} ${end_time_for_ramp} ${pulse_amplitude} ${pulse_center} ${pulse_width}'
   []
 []
 
