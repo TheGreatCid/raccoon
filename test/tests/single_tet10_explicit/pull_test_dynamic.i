@@ -38,20 +38,25 @@ dt = 0.0001
 # drift; for recovery-infrastructure validation, the short window is
 # sufficient.
 end_time = 0.05
-pull_amount = 0.1
+# Subsonic loading.  pull_amount = 0.005 keeps the ramp velocity
+# (v_ramp = pull/eft = 0.1) at Mach ~0.086 vs the P-wave speed c_p ~ 1.16.
+# Earlier pull_amount = 0.1 / eft = 0.05 gave Mach ~1.7, which made the
+# top face move faster than elastic waves could redistribute -- shock-like
+# loading that excited high-frequency modes CD couldn't damp, dominating
+# the post-dump trajectory drift on TET10.
+pull_amount = 0.005
 
-# Compression-only Gaussian pulse on the top face.  Adds an x-INDEPENDENT
-# (= uniform vertical) burst of motion that launches a longitudinal wave
-# into the bulk; bending content is omitted on purpose (the user-level
-# spec says "just tension/compression").  Set pulse_amplitude = 0 to
-# disable.  pulse_center is well before dump_time so the wave is fully
-# launched -- the dumped vel/accel state must carry the in-flight wave for
-# the restart to track the reference.
+# Compression-only Gaussian pulse on the top face.  x-INDEPENDENT (=
+# uniform vertical) burst of motion, no bending content.  pulse_width is
+# wide enough that the peak pulse velocity (amp*sqrt(2/e)/width = 0.21
+# units/s) stays subsonic (Mach ~0.18).  pulse_center kept well before
+# dump_time so the wave is fully launched -- the dumped vel/accel state
+# must carry the in-flight wave for the restart to track the reference.
 #   target_uy(top, t) = pull_amount * (t/end_time_for_ramp)
 #                     + pulse_amplitude * exp(-((t-pulse_center)/pulse_width)^2)
 pulse_amplitude = 0.005
 pulse_center = 0.01
-pulse_width = 0.005
+pulse_width = 0.02
 
 out_dir = outputs
 tag = ''

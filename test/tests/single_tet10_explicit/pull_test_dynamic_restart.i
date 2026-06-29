@@ -18,13 +18,13 @@ rho = 1.0
 dt = 0.0001
 start_time = 0.025
 end_time = 0.05
-pull_amount = 0.1
+pull_amount = 0.005
 end_time_for_ramp = 0.05
 # Pulse parameters must match the reference's exactly.  See pull_test_dynamic.i
 # for rationale.
 pulse_amplitude = 0.005
 pulse_center = 0.01
-pulse_width = 0.005
+pulse_width = 0.02
 
 out_dir = outputs
 tag = ''
