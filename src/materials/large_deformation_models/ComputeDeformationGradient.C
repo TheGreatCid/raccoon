@@ -251,7 +251,17 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
       //       (approach A) or rebuild it via the F-bar averaging operator on F_raw
       //       (approach B; recover_apply_fbar_to_U = true), then store.
       const std::vector<std::string> indices = {"x", "y", "z"};
-      const bool have_fbar = _volumetric_locking_correction;
+      // Use the USER's requested volumetric_locking_correction, NOT the
+      // boundary-adjusted `_volumetric_locking_correction` member (which gets
+      // AND'd with `!isBoundaryMaterial()` in the constructor).  The
+      // recovery-read decision is about which approach the user configured
+      // (A/B/C -- i.e., which stretch_tensor variant lives in the dump), not
+      // about whether this particular material instance is a bulk or boundary
+      // variant.  Without this, MOOSE-created boundary variants see
+      // `_volumetric_locking_correction = false`, flip `need_U_raw_from_file`
+      // on, and try to read `stretch_tensor_*` (raw) from a dump that only
+      // contains `stretch_tensor_fbar_*` -- erroring at INITIAL.
+      const bool have_fbar = getParam<bool>("volumetric_locking_correction");
       // Approach B (recover_apply_fbar_to_U) rebuilds F_bar from the raw recovered U on
       // the new mesh -- it doesn't need U_fbar from the recovery file, so don't try to
       // read it.  Approach A (recover_apply_fbar_to_U = false, F-bar active) consumes
