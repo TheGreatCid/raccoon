@@ -124,6 +124,13 @@ zfix_bnd = 'front back'
   []
   [accel_z]
   []
+
+  # Product-form (leapfrog-conserved) kinetic energy density,
+  # 1/2 rho (v^{n+1/2} . v^{n-1/2}); see LeapfrogKineticEnergyAux.
+  [kinetic_energy_lf]
+    order = CONSTANT
+    family = MONOMIAL
+  []
 []
 
 [AuxKernels]
@@ -164,6 +171,22 @@ zfix_bnd = 'front back'
     variable = accel_z
     v = disp_z
     order_derivative = SECOND
+    execute_on = 'timestep_end'
+  []
+
+  # Leapfrog product-form kinetic energy: 1/2 rho0 (v^{n+1/2} . v^{n-1/2}).  The
+  # aux reads the OLD state of vel_* for v^{n-1/2}.  density = rho_const (a plain
+  # CONSTANT rho0, NOT adj_density): using the same constant density as the base
+  # run makes the displaced-mesh KE integral a physical integral over Omega(t),
+  # continuous across the handoff.  (adj_density = rho0/J(0.5) would scale the
+  # restart KE by a constant J(0.5) relative to the base -- the mismatch we saw.)
+  [Ke_lf]
+    type = LeapfrogKineticEnergyAux
+    velocity_x = vel_x
+    velocity_y = vel_y
+    velocity_z = vel_z
+    density = rho_const
+    variable = kinetic_energy_lf
     execute_on = 'timestep_end'
   []
 []
@@ -310,6 +333,7 @@ zfix_bnd = 'front back'
     type = ComputeLargeDeformationStress
     elasticity_model = hencky
   []
+
 []
 
 [Postprocessors]
@@ -325,6 +349,33 @@ zfix_bnd = 'front back'
     mat_prop = psie_active
     use_displaced_mesh = true
     execute_on = 'INITIAL'
+  []
+
+  # ---- Leapfrog energy balance (product-form KE + strain energy at u^n) ----
+  # H^n = 1/2 rho0 (v^{n+1/2}.v^{n-1/2}) + psi(u^n): the product-form KE is
+  # centered at step n, so it pairs with the strain energy at the start-of-step
+  # displacement u^n, evaluated at TIMESTEP_BEGIN (material and displaced mesh
+  # both at u^n).  Plain DISPLACED-mesh integrals with a CONSTANT density
+  # (rho_const on the KE) -> physical integrals over Omega(t), continuous with
+  # the base run across the handoff.  NOTE: the first restart step has
+  # vel_*_old = 0 (no history across the recover), so KE_lf is a one-step
+  # transient there -- ignore it.
+  [kinetic_energy_lf_int]
+    type = ElementIntegralVariablePostprocessor
+    variable = kinetic_energy_lf
+    use_displaced_mesh = true
+  []
+  [psie_old_int]
+    type = ADElementIntegralMaterialProperty
+    mat_prop = psie_active
+    use_displaced_mesh = true
+    execute_on = 'INITIAL TIMESTEP_BEGIN'
+  []
+  [total_energy_lf]
+    type = ParsedPostprocessor
+    expression = 'psie_old_int + kinetic_energy_lf_int'
+    pp_names = 'psie_old_int kinetic_energy_lf_int'
+    execute_on = 'TIMESTEP_END'
   []
   [vel_y_max]
     type = NodalExtremeValue

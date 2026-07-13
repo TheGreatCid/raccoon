@@ -112,6 +112,13 @@ zfix_bnd = 'front back'
   []
   [accel_z]
   []
+
+  # Product-form (leapfrog-conserved) kinetic energy density,
+  # 1/2 rho (v^{n+1/2} . v^{n-1/2}); see LeapfrogKineticEnergyAux.
+  [kinetic_energy_lf]
+    order = CONSTANT
+    family = MONOMIAL
+  []
 []
 
 [AuxKernels]
@@ -157,6 +164,19 @@ zfix_bnd = 'front back'
     variable = accel_z
     v = disp_z
     order_derivative = SECOND
+    execute_on = 'timestep_end'
+  []
+
+  # Leapfrog-conserved kinetic energy: 1/2 rho (v^{n+1/2} . v^{n-1/2}).  The
+  # aux reads the OLD state of vel_* for v^{n-1/2}; density is the same
+  # material the MassMatrix uses, so this is the quantity the scheme conserves.
+  [Ke_lf]
+    type = LeapfrogKineticEnergyAux
+    velocity_x = vel_x
+    velocity_y = vel_y
+    velocity_z = vel_z
+    density = density
+    variable = kinetic_energy_lf
     execute_on = 'timestep_end'
   []
 []
@@ -287,6 +307,7 @@ zfix_bnd = 'front back'
     type = ComputeLargeDeformationStress
     elasticity_model = hencky
   []
+
 []
 
 [Postprocessors]
@@ -294,6 +315,36 @@ zfix_bnd = 'front back'
     type = ADElementIntegralMaterialProperty
     mat_prop = psie_active
     use_displaced_mesh = true
+  []
+
+  # ---- Leapfrog energy balance (product-form KE + strain energy at u^n) ----
+  # H^n = 1/2 rho0 (v^{n+1/2}.v^{n-1/2}) + psi(u^n), with the product-form KE
+  # centered at step n paired with the strain energy at the START-of-step u^n
+  # (TIMESTEP_BEGIN, where material state and displaced mesh sit at u^n).
+  # Both terms are plain integrals on the DISPLACED mesh, with a CONSTANT
+  # density (rho0), so they are physical integrals over the current volume
+  # Omega(t) and therefore continuous across the restart's re-reference to the
+  # deformed dump config.  (They carry a J(t) weighting -- integrating over
+  # Omega(t) rather than Omega_0 -- so the total is not perfectly flat; that is
+  # the price of restart continuity.  A true int(...)dV0 would need the LIVE
+  # TOTAL Jacobian, which the recover run does not expose: its `Jacobian` is the
+  # post-dump INCREMENTAL J, so dividing by it reintroduces the J(0.5) jump.)
+  [kinetic_energy_lf_int]
+    type = ElementIntegralVariablePostprocessor
+    variable = kinetic_energy_lf
+    use_displaced_mesh = true
+  []
+  [psie_old_int]
+    type = ADElementIntegralMaterialProperty
+    mat_prop = psie_active
+    use_displaced_mesh = true
+    execute_on = 'INITIAL TIMESTEP_BEGIN'
+  []
+  [total_energy_lf]
+    type = ParsedPostprocessor
+    expression = 'psie_old_int + kinetic_energy_lf_int'
+    pp_names = 'psie_old_int kinetic_energy_lf_int'
+    execute_on = 'TIMESTEP_END'
   []
   [vel_y_max]
     type = NodalExtremeValue
