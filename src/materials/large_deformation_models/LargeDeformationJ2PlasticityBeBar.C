@@ -177,7 +177,11 @@ LargeDeformationJ2PlasticityBeBar::updateState(ADRankTwoTensor & stress, ADRankT
 
     ADReal J = _F[_qp].det();
     ADReal p = 0.5 * (*_K)[_qp] * (J * J - 1);
-    ADRankTwoTensor tau = J >= 1.0 ? (*_ge)[_qp] * p * I2 + s : p * I2 + s;
+    // Degrade the volumetric (pressure) part only in tension when the split is
+    // active; with the split off it is degraded unconditionally so the stress stays
+    // consistent with the unsplit energy g*(U+W).
+    const bool degrade_vol = !_apply_strain_energy_split || J >= 1.0;
+    ADRankTwoTensor tau = degrade_vol ? (*_ge)[_qp] * p * I2 + s : p * I2 + s;
     stress = tau / J;
 
     computeCorrectionTerm(s / (*_ge)[_qp] / (*_G)[_qp]);
@@ -188,7 +192,8 @@ LargeDeformationJ2PlasticityBeBar::updateState(ADRankTwoTensor & stress, ADRankT
 
     ADReal J = _F[_qp].det();
     ADReal p = 0.5 * (*_K)[_qp] * (J * J - 1);
-    ADRankTwoTensor tau = J >= 1.0 ? (*_ge)[_qp] * p * I2 + s_trial : p * I2 + s_trial;
+    const bool degrade_vol = !_apply_strain_energy_split || J >= 1.0;
+    ADRankTwoTensor tau = degrade_vol ? (*_ge)[_qp] * p * I2 + s_trial : p * I2 + s_trial;
     stress = tau / J;
   }
 
@@ -331,8 +336,21 @@ LargeDeformationJ2PlasticityBeBar::computeStrainEnergyDensity()
   ADReal E_el_pos = J >= 1.0 ? U + W : W;
   ADReal E_el_neg = J >= 1.0 ? 0.0 : U;
 
-  _psie_active_corr[_qp] = _apply_strain_energy_split ? E_el_pos : _psie_unsplit[_qp];
-  _psie_corr[_qp] = (*_ge)[_qp] * E_el_pos + E_el_neg;
+  // With the split active, only E_el_pos (deviatoric + tensile volumetric) is degraded
+  // and drives fracture; E_el_neg (compressive volumetric) is protected. With the split
+  // off, the full unsplit energy is degraded and drives fracture. In both cases
+  // _psie_corr, _psie_active_corr, and _dpsie_dd_corr are kept mutually consistent so
+  // that _dpsie_dd_corr == d(_psie_corr)/dd.
+  if (_apply_strain_energy_split)
+  {
+    _psie_active_corr[_qp] = E_el_pos;
+    _psie_corr[_qp] = (*_ge)[_qp] * E_el_pos + E_el_neg;
+  }
+  else
+  {
+    _psie_active_corr[_qp] = _psie_unsplit[_qp];
+    _psie_corr[_qp] = (*_ge)[_qp] * _psie_unsplit[_qp];
+  }
   _dpsie_dd_corr[_qp] = (*_dge_dd)[_qp] * _psie_active_corr[_qp];
 
   // Overwrite CNH's energy properties so that psie_active is correct for fracture driving.
