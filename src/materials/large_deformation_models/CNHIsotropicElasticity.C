@@ -25,6 +25,21 @@ CNHIsotropicElasticity::validParams()
   params.addParam<MooseEnum>(
       "decomposition", MooseEnum("NONE SPECTRAL VOLDEV", "NONE"), "The decomposition method");
 
+  params.addParam<bool>(
+      "use_inversion_barrier",
+      false,
+      "If true, add an un-degraded volumetric barrier (energy 0.5*kb*(ln J)^2, stress kb*(ln J)*I) "
+      "in fully damaged elements to resist element inversion during the equilibration after a "
+      "recover/remap. Off by default.");
+  params.addParam<Real>(
+      "inversion_barrier_coefficient",
+      0.0,
+      "Barrier stiffness kb (used only when use_inversion_barrier=true). Choose it small relative "
+      "to the bulk modulus -- just large enough to keep damaged elements from folding.");
+  params.addParam<Real>("inversion_barrier_damage_threshold",
+                        0.8,
+                        "The barrier is applied only where the phase field exceeds this value.");
+
   return params;
 }
 
@@ -47,8 +62,50 @@ CNHIsotropicElasticity::CNHIsotropicElasticity(const InputParameters & parameter
     _g(getADMaterialProperty<Real>(_g_name)),
     _dg_dd(getADMaterialProperty<Real>(derivativePropertyName(_g_name, {_d_name}))),
 
-    _decomposition(getParam<MooseEnum>("decomposition").getEnum<Decomposition>())
+    _decomposition(getParam<MooseEnum>("decomposition").getEnum<Decomposition>()),
+    _use_inversion_barrier(getParam<bool>("use_inversion_barrier")),
+    _inversion_barrier_coef(getParam<Real>("inversion_barrier_coefficient")),
+    _inversion_barrier_d_threshold(getParam<Real>("inversion_barrier_damage_threshold")),
+    _d(adCoupledValue("phase_field"))
 {
+  if (_use_inversion_barrier && _inversion_barrier_coef <= 0)
+    paramError("inversion_barrier_coefficient",
+               "Must be positive when 'use_inversion_barrier' is true.");
+}
+
+void
+CNHIsotropicElasticity::applyInversionBarrier(ADRankTwoTensor & stress,
+                                              const ADReal & J,
+                                              const bool plasticity_update)
+{
+  // Only act in fully damaged elements; d is an aux field during the mechanics solve, so this
+  // threshold does not introduce a tangent discontinuity in the displacement Newton iteration.
+  if (!_use_inversion_barrier || _d[_qp] <= _inversion_barrier_d_threshold)
+    return;
+
+  using std::log;
+  const ADRankTwoTensor I2(ADRankTwoTensor::initIdentity);
+  const ADReal lnJ = log(J);
+  // Un-degraded: energy 0.5*kb*(ln J)^2 -> +inf and stress kb*(ln J)*I -> -inf as J -> 0, so a
+  // (nearly) stiffness-less damaged element still resists collapse/inversion.
+  stress += _inversion_barrier_coef * lnJ * I2;
+  if (!plasticity_update)
+    _psie[_qp] += 0.5 * _inversion_barrier_coef * lnJ * lnJ;
+}
+
+ADReal
+CNHIsotropicElasticity::volumetricKirchhoffPressure(const ADReal & J) const
+{
+  // Standard compressible Neo-Hookean volumetric pressure: tau_vol = 0.5 K (J^2 - 1) I.
+  return 0.5 * _K[_qp] * (J * J - 1.0);
+}
+
+ADReal
+CNHIsotropicElasticity::volumetricEnergy(const ADReal & J) const
+{
+  using std::log;
+  // Standard volumetric energy, consistent with the pressure above (p = J dU/dJ).
+  return 0.5 * _K[_qp] * (0.5 * (J * J - 1.0) - log(J));
 }
 
 ADRankTwoTensor
@@ -104,6 +161,8 @@ CNHIsotropicElasticity::computeMandelStressNoDecomposition(const ADRankTwoTensor
     _dpsie_dd[_qp] = _dg_dd[_qp] * _psie_active[_qp];
   }
 
+  applyInversionBarrier(stress, J, plasticity_update);
+
   return stress;
 }
 
@@ -145,6 +204,8 @@ CNHIsotropicElasticity::computeMandelStressVolDevDecomposition(const ADRankTwoTe
     _psie[_qp] = _g[_qp] * _psie_active[_qp];
     _dpsie_dd[_qp] = _dg_dd[_qp] * _psie_active[_qp];
   }
+
+  applyInversionBarrier(stress, J, plasticity_update);
 
   return stress;
 }
