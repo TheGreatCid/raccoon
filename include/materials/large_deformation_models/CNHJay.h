@@ -6,6 +6,7 @@
 
 #include "LargeDeformationElasticityModel.h"
 #include "DerivativeMaterialPropertyNameInterface.h"
+#include "CNHElasticityInterface.h"
 
 /**
  * Isotropic compressible Neo-Hookean hyperelasticity with an alternative volumetric response.
@@ -21,7 +22,8 @@
  * not include the inversion barrier of CNHIsotropicElasticity.
  */
 class CNHJay : public LargeDeformationElasticityModel,
-               public DerivativeMaterialPropertyNameInterface
+               public DerivativeMaterialPropertyNameInterface,
+               public CNHElasticityInterface
 {
 public:
   static InputParameters validParams();
@@ -31,14 +33,18 @@ public:
   virtual ADRankTwoTensor computeMandelStress(const ADRankTwoTensor & Fe,
                                               const bool plasticity_update = false) override;
 
-  const ADMaterialProperty<Real> & getK() const { return _K; }
-  const ADMaterialProperty<Real> & getG() const { return _G; }
-  const ADMaterialProperty<Real> & getDegradation() const { return _g; }
-  const ADMaterialProperty<Real> & getDegradationDerivative() const { return _dg_dd; }
+  const ADMaterialProperty<Real> & getK() const override { return _K; }
+  const ADMaterialProperty<Real> & getG() const override { return _G; }
+  const ADMaterialProperty<Real> & getDegradation() const override { return _g; }
+  const ADMaterialProperty<Real> & getDegradationDerivative() const override { return _dg_dd; }
 
-  ADMaterialProperty<Real> & getPsie() { return _psie; }
-  ADMaterialProperty<Real> & getPsieActive() { return _psie_active; }
-  ADMaterialProperty<Real> & getDpsieDD() { return _dpsie_dd; }
+  ADMaterialProperty<Real> & getPsie() override { return _psie; }
+  ADMaterialProperty<Real> & getPsieActive() override { return _psie_active; }
+  ADMaterialProperty<Real> & getDpsieDD() override { return _dpsie_dd; }
+
+  ADReal volumetricKirchhoffPressure(const ADReal & J) const override;
+  ADReal volumetricEnergy(const ADReal & J) const override;
+  bool supportsEnergySplit() const override { return false; }
 
 protected:
   /// The bulk modulus

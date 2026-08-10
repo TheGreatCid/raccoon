@@ -49,6 +49,22 @@ CNHJay::CNHJay(const InputParameters & parameters)
 {
 }
 
+ADReal
+CNHJay::volumetricKirchhoffPressure(const ADReal & J) const
+{
+  const ADReal Jinv = 1.0 / J;
+  // Volumetric Kirchhoff pressure p: tau_vol = p I = 2 K (J - 1/J) (J + 1/J - 1) I.
+  return 2.0 * _K[_qp] * (J - Jinv) * (J + Jinv - 1.0);
+}
+
+ADReal
+CNHJay::volumetricEnergy(const ADReal & J) const
+{
+  const ADReal Jinv = 1.0 / J;
+  // Volumetric energy consistent with the pressure above: p = J dU/dJ, U(1) = 0.
+  return 2.0 * _K[_qp] * (0.5 * J * J + 0.5 * Jinv * Jinv - J - Jinv + 1.0);
+}
+
 ADRankTwoTensor
 CNHJay::computeMandelStress(const ADRankTwoTensor & Fe, const bool plasticity_update)
 {
@@ -66,14 +82,14 @@ CNHJay::computeMandelStress(const ADRankTwoTensor & Fe, const bool plasticity_up
     strain = Fe * Fe.transpose();
 
   const ADReal J = sqrt(strain.det());
-  const ADReal Jinv = 1.0 / J;
 
   const ADRankTwoTensor I2(ADRankTwoTensor::initIdentity);
 
-  // Volumetric Mandel/Kirchhoff stress: 2 K (J - 1/J) (J + 1/J - 1) I. The deviatoric part is the
-  // standard Neo-Hookean G*dev(b).
+  // Volumetric Mandel/Kirchhoff stress p*I plus the standard Neo-Hookean deviatoric G*dev(b). The
+  // volumetric term is sourced from volumetricKirchhoffPressure so the elastic path and any
+  // plasticity model that queries this model share a single definition.
   ADRankTwoTensor stress_intact =
-      2.0 * _K[_qp] * (J - Jinv) * (J + Jinv - 1.0) * I2 + _G[_qp] * strain.deviatoric();
+      volumetricKirchhoffPressure(J) * I2 + _G[_qp] * strain.deviatoric();
   ADRankTwoTensor stress = _g[_qp] * stress_intact;
 
   // If plasticity_update == false, then we are not in the middle of a plasticity update, hence we
@@ -81,8 +97,7 @@ CNHJay::computeMandelStress(const ADRankTwoTensor & Fe, const bool plasticity_up
   if (!plasticity_update)
   {
     ADRankTwoTensor strain_bar = pow(J, -2. / 3.) * strain;
-    // Volumetric energy consistent with the stress above: tau_vol = J dU/dJ I, U(1) = 0.
-    ADReal U = 2.0 * _K[_qp] * (0.5 * J * J + 0.5 * Jinv * Jinv - J - Jinv + 1.0);
+    ADReal U = volumetricEnergy(J);
     ADReal W = 0.5 * _G[_qp] * (strain_bar.trace() - 3.0);
     _psie_active[_qp] = U + W;
     _psie[_qp] = _g[_qp] * _psie_active[_qp];
