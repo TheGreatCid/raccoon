@@ -7,6 +7,8 @@
 #include "LargeDeformationJ2PlasticityBase.h"
 #include "DerivativeMaterialPropertyNameInterface.h"
 
+class CNHElasticityInterface;
+
 class LargeDeformationJ2PlasticityBeBar : public LargeDeformationJ2PlasticityBase,
                                           public DerivativeMaterialPropertyNameInterface
 {
@@ -57,6 +59,9 @@ protected:
   ADMaterialProperty<Real> * _psie_active_cnh = nullptr;
   ADMaterialProperty<Real> * _dpsie_dd_cnh = nullptr;
 
+  /// The companion CNH elasticity model, used to source the volumetric stress/energy formulation.
+  const CNHElasticityInterface * _cnh_model = nullptr;
+
   const MaterialProperty<RankTwoTensor> & _F_old;
   const ADMaterialProperty<RankTwoTensor> & _F;
 
@@ -68,7 +73,9 @@ protected:
   ADMaterialProperty<Real> & _dpsie_dd_corr;
   ADMaterialProperty<Real> & _psie_unsplit;
 
-  const bool _apply_strain_energy_split;
+  /// Whether to apply the vol/dev energy split. Forced off if the elasticity model does not support
+  /// a split (see setElasticityModel), so it is not const.
+  bool _apply_strain_energy_split;
 
   ADMaterialProperty<Real> & _triaxfunc;
   ADMaterialProperty<Real> & _triaxiality_kirchhoff;

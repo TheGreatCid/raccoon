@@ -4,7 +4,7 @@
 
 #include "EigenADReal.h"
 #include "LargeDeformationJ2PlasticityBeBar.h"
-#include "CNHIsotropicElasticity.h"
+#include "CNHElasticityInterface.h"
 #include "RaccoonUtils.h"
 
 registerMooseObject("raccoonApp", LargeDeformationJ2PlasticityBeBar);
@@ -15,7 +15,8 @@ LargeDeformationJ2PlasticityBeBar::validParams()
   InputParameters params = LargeDeformationJ2PlasticityBase::validParams();
   params.addClassDescription("Large deformation $J_2$ plasticity using the bebar (modified "
                              "left Cauchy-Green) update. Elastic parameters are sourced from "
-                             "the associated CNHIsotropicElasticity model.");
+                             "the associated CNH elasticity model (CNHIsotropicElasticity or "
+                             "CNHJay).");
   params.addRequiredCoupledVar("phase_field", "Name of the phase-field (damage) variable");
   params.addParam<MaterialPropertyName>(
       "strain_energy_density_corr",
@@ -83,9 +84,12 @@ void
 LargeDeformationJ2PlasticityBeBar::setElasticityModel(
     LargeDeformationElasticityModel * elasticity_model)
 {
-  auto * cnh = dynamic_cast<CNHIsotropicElasticity *>(elasticity_model);
+  auto * cnh = dynamic_cast<CNHElasticityInterface *>(elasticity_model);
   if (!cnh)
-    mooseError(type(), ": requires a CNHIsotropicElasticity model; got ", elasticity_model->type());
+    mooseError(type(),
+               ": requires a CNH elasticity model (CNHIsotropicElasticity or CNHJay); got ",
+               elasticity_model->type());
+  _cnh_model = cnh;
   _K = &cnh->getK();
   _G = &cnh->getG();
   _ge = &cnh->getDegradation();
@@ -93,6 +97,18 @@ LargeDeformationJ2PlasticityBeBar::setElasticityModel(
   _psie_cnh = &cnh->getPsie();
   _psie_active_cnh = &cnh->getPsieActive();
   _dpsie_dd_cnh = &cnh->getDpsieDD();
+
+  // Models with a single unsplit energy (e.g. CNHJay) do not admit a vol/dev split; force it off so
+  // the stress and energy stay consistent with the model's own (unsplit) volumetric formulation.
+  if (_apply_strain_energy_split && !cnh->supportsEnergySplit())
+  {
+    _apply_strain_energy_split = false;
+    mooseInfo(type(),
+              ": the elasticity model '",
+              elasticity_model->type(),
+              "' does not support an energy split; disabling apply_strain_energy_split.");
+  }
+
   LargeDeformationJ2PlasticityBase::setElasticityModel(elasticity_model);
 }
 
@@ -176,7 +192,7 @@ LargeDeformationJ2PlasticityBeBar::updateState(ADRankTwoTensor & stress, ADRankT
                                       _bebar[_qp].trace() * _Np[_qp];
 
     ADReal J = _F[_qp].det();
-    ADReal p = 0.5 * (*_K)[_qp] * (J * J - 1);
+    ADReal p = _cnh_model->volumetricKirchhoffPressure(J);
     // Degrade the volumetric (pressure) part only in tension when the split is
     // active; with the split off it is degraded unconditionally so the stress stays
     // consistent with the unsplit energy g*(U+W).
@@ -191,7 +207,7 @@ LargeDeformationJ2PlasticityBeBar::updateState(ADRankTwoTensor & stress, ADRankT
     _ep[_qp] = _ep_old[_qp];
 
     ADReal J = _F[_qp].det();
-    ADReal p = 0.5 * (*_K)[_qp] * (J * J - 1);
+    ADReal p = _cnh_model->volumetricKirchhoffPressure(J);
     const bool degrade_vol = !_apply_strain_energy_split || J >= 1.0;
     ADRankTwoTensor tau = degrade_vol ? (*_ge)[_qp] * p * I2 + s_trial : p * I2 + s_trial;
     stress = tau / J;
@@ -326,9 +342,8 @@ LargeDeformationJ2PlasticityBeBar::computeCorrectionTerm(const ADRankTwoTensor &
 void
 LargeDeformationJ2PlasticityBeBar::computeStrainEnergyDensity()
 {
-  using std::log;
   ADReal J = _F[_qp].det();
-  ADReal U = 0.5 * (*_K)[_qp] * (0.5 * (J * J - 1) - log(J));
+  ADReal U = _cnh_model->volumetricEnergy(J);
   ADReal W = 0.5 * (*_G)[_qp] * (_bebar[_qp].trace() - 3.0);
 
   _psie_unsplit[_qp] = U + W;
