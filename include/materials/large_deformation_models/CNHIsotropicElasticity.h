@@ -33,6 +33,9 @@ public:
   ADReal volumetricEnergy(const ADReal & J) const override;
   bool supportsEnergySplit() const override { return true; }
 
+  ADReal inversionBarrierPressure(const ADReal & J) const override;
+  ADReal inversionBarrierEnergy(const ADReal & J) const override;
+
 protected:
   // @{ Decomposition methods
   virtual ADRankTwoTensor computeMandelStressNoDecomposition(const ADRankTwoTensor & Fe,
