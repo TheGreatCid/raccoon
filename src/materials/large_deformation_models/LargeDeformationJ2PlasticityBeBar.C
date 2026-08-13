@@ -198,6 +198,8 @@ LargeDeformationJ2PlasticityBeBar::updateState(ADRankTwoTensor & stress, ADRankT
     // consistent with the unsplit energy g*(U+W).
     const bool degrade_vol = !_apply_strain_energy_split || J >= 1.0;
     ADRankTwoTensor tau = degrade_vol ? (*_ge)[_qp] * p * I2 + s : p * I2 + s;
+    // Un-degraded inversion barrier (nonzero only for a barrier-enabled model in damaged elements).
+    tau += _cnh_model->inversionBarrierPressure(J) * I2;
     stress = tau / J;
 
     computeCorrectionTerm(s / (*_ge)[_qp] / (*_G)[_qp]);
@@ -210,6 +212,8 @@ LargeDeformationJ2PlasticityBeBar::updateState(ADRankTwoTensor & stress, ADRankT
     ADReal p = _cnh_model->volumetricKirchhoffPressure(J);
     const bool degrade_vol = !_apply_strain_energy_split || J >= 1.0;
     ADRankTwoTensor tau = degrade_vol ? (*_ge)[_qp] * p * I2 + s_trial : p * I2 + s_trial;
+    // Un-degraded inversion barrier (nonzero only for a barrier-enabled model in damaged elements).
+    tau += _cnh_model->inversionBarrierPressure(J) * I2;
     stress = tau / J;
   }
 
@@ -367,6 +371,11 @@ LargeDeformationJ2PlasticityBeBar::computeStrainEnergyDensity()
     _psie_corr[_qp] = (*_ge)[_qp] * _psie_unsplit[_qp];
   }
   _dpsie_dd_corr[_qp] = (*_dge_dd)[_qp] * _psie_active_corr[_qp];
+
+  // Un-degraded inversion-barrier energy: added to the total energy only, so it does not enter
+  // _psie_active_corr / _dpsie_dd_corr and therefore does not drive fracture. Nonzero only for a
+  // barrier-enabled model in damaged elements.
+  _psie_corr[_qp] += _cnh_model->inversionBarrierEnergy(J);
 
   // Overwrite CNH's energy properties so that psie_active is correct for fracture driving.
   // CNH computes these from Fe, which BeBar does not update; the bebar-based values are correct.
