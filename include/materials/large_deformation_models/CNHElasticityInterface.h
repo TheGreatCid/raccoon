@@ -43,4 +43,16 @@ public:
    * then not apply an energy split regardless of its own setting.
    */
   virtual bool supportsEnergySplit() const = 0;
+
+  /**
+   * Optional un-degraded inversion-barrier Kirchhoff pressure that a plasticity model should add on
+   * top of the volumetric stress in (nearly) collapsed damaged elements to resist inversion. Returns
+   * 0 when the model has no barrier or the current point is not damaged enough. Default: no barrier.
+   * See CNHIsotropicElasticity for the enabling parameters.
+   */
+  virtual ADReal inversionBarrierPressure(const ADReal & /*J*/) const { return 0.0; }
+
+  /// Un-degraded strain energy density of the inversion barrier (0 if none), consistent with
+  /// inversionBarrierPressure. It is added to the total energy only and does not drive fracture.
+  virtual ADReal inversionBarrierEnergy(const ADReal & /*J*/) const { return 0.0; }
 };
