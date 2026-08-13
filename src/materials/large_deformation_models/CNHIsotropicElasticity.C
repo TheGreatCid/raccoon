@@ -83,14 +83,31 @@ CNHIsotropicElasticity::applyInversionBarrier(ADRankTwoTensor & stress,
   if (!_use_inversion_barrier || _d[_qp] <= _inversion_barrier_d_threshold)
     return;
 
-  using std::log;
   const ADRankTwoTensor I2(ADRankTwoTensor::initIdentity);
-  const ADReal lnJ = log(J);
-  // Un-degraded: energy 0.5*kb*(ln J)^2 -> +inf and stress kb*(ln J)*I -> -inf as J -> 0, so a
-  // (nearly) stiffness-less damaged element still resists collapse/inversion.
-  stress += _inversion_barrier_coef * lnJ * I2;
+  stress += inversionBarrierPressure(J) * I2;
   if (!plasticity_update)
-    _psie[_qp] += 0.5 * _inversion_barrier_coef * lnJ * lnJ;
+    _psie[_qp] += inversionBarrierEnergy(J);
+}
+
+ADReal
+CNHIsotropicElasticity::inversionBarrierPressure(const ADReal & J) const
+{
+  using std::log;
+  if (!_use_inversion_barrier || _d[_qp] <= _inversion_barrier_d_threshold)
+    return 0.0;
+  // Un-degraded barrier pressure kb*ln(J) -> -inf as J -> 0, so a (nearly) stiffness-less damaged
+  // element still resists collapse/inversion.
+  return _inversion_barrier_coef * log(J);
+}
+
+ADReal
+CNHIsotropicElasticity::inversionBarrierEnergy(const ADReal & J) const
+{
+  using std::log;
+  if (!_use_inversion_barrier || _d[_qp] <= _inversion_barrier_d_threshold)
+    return 0.0;
+  const ADReal lnJ = log(J);
+  return 0.5 * _inversion_barrier_coef * lnJ * lnJ;
 }
 
 ADReal
