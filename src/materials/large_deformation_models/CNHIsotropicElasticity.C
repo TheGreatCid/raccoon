@@ -28,9 +28,10 @@ CNHIsotropicElasticity::validParams()
   params.addParam<bool>(
       "use_inversion_barrier",
       false,
-      "If true, add an un-degraded volumetric barrier (energy 0.5*kb*(ln J)^2, stress kb*(ln J)*I) "
-      "in fully damaged elements to resist element inversion during the equilibration after a "
-      "recover/remap. Off by default.");
+      "If true, add an un-degraded, one-sided volumetric barrier (energy 0.5*kb*(ln J)^2, stress "
+      "kb*(ln J)*I, applied only in compression J<1) in fully damaged elements to resist element "
+      "inversion during the equilibration after a recover/remap. It does nothing for J>=1, so it "
+      "does not fight expansion (e.g. a widening tension crack). Off by default.");
   params.addParam<Real>(
       "inversion_barrier_coefficient",
       0.0,
@@ -93,7 +94,9 @@ ADReal
 CNHIsotropicElasticity::inversionBarrierPressure(const ADReal & J) const
 {
   using std::log;
-  if (!_use_inversion_barrier || _d[_qp] <= _inversion_barrier_d_threshold)
+  // One-sided: act only in compression (J < 1) to resist collapse/inversion; do nothing for J >= 1
+  // so the barrier never fights legitimate expansion (e.g. a widening tension crack).
+  if (!_use_inversion_barrier || _d[_qp] <= _inversion_barrier_d_threshold || J >= 1.0)
     return 0.0;
   // Un-degraded barrier pressure kb*ln(J) -> -inf as J -> 0, so a (nearly) stiffness-less damaged
   // element still resists collapse/inversion.
@@ -104,7 +107,8 @@ ADReal
 CNHIsotropicElasticity::inversionBarrierEnergy(const ADReal & J) const
 {
   using std::log;
-  if (!_use_inversion_barrier || _d[_qp] <= _inversion_barrier_d_threshold)
+  // One-sided (see inversionBarrierPressure): compression only.
+  if (!_use_inversion_barrier || _d[_qp] <= _inversion_barrier_d_threshold || J >= 1.0)
     return 0.0;
   const ADReal lnJ = log(J);
   return 0.5 * _inversion_barrier_coef * lnJ * lnJ;
