@@ -577,6 +577,15 @@ ComputeDeformationGradient::computeQpOutOfPlaneGradDisp()
 }
 
 void
+ComputeDeformationGradient::applyOutOfPlaneGradDisp(ADRankTwoTensor & A)
+{
+  // Axisymmetric: F_zz is the hoop stretch u_r / r. Cartesian bulk problems leave A(2,2) as the
+  // (zero) out-of-plane displacement gradient. Plane-stress models override this hook.
+  if (_coord_sys == Moose::COORD_RZ)
+    A(2, 2) = computeQpOutOfPlaneGradDisp();
+}
+
+void
 ComputeDeformationGradient::computeProperties()
 {
   using std::cbrt;
@@ -610,8 +619,7 @@ ComputeDeformationGradient::computeProperties()
   {
     ADRankTwoTensor A = ADRankTwoTensor::initializeFromRows(
         (*_grad_disp[0])[_qp], (*_grad_disp[1])[_qp], (*_grad_disp[2])[_qp]);
-    if (_coord_sys == Moose::COORD_RZ)
-      A(2, 2) = computeQpOutOfPlaneGradDisp();
+    applyOutOfPlaneGradDisp(A);
     _F[_qp] = A;
     _F[_qp].addIa(1.0);
 

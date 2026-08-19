@@ -53,16 +53,18 @@ ADReal
 CNHJay::volumetricKirchhoffPressure(const ADReal & J) const
 {
   const ADReal Jinv = 1.0 / J;
-  // Volumetric Kirchhoff pressure p: tau_vol = p I = 2 K (J - 1/J) (J + 1/J - 1) I.
-  return 2.0 * _K[_qp] * (J - Jinv) * (J + Jinv - 1.0);
+  // Volumetric Kirchhoff pressure p (tau_vol = p I), = J dU/dJ for the m=1 Seth-Hill volumetric
+  // energy below: p = (K/2) (J - 1/J) (J + 1/J - 1).
+  return 0.5 * _K[_qp] * (J - Jinv) * (J + Jinv - 1.0);
 }
 
 ADReal
 CNHJay::volumetricEnergy(const ADReal & J) const
 {
   const ADReal Jinv = 1.0 / J;
-  // Volumetric energy consistent with the pressure above: p = J dU/dJ, U(1) = 0.
-  return 2.0 * _K[_qp] * (0.5 * J * J + 0.5 * Jinv * Jinv - J - Jinv + 1.0);
+  // Seth-Hill volumetric energy at m=1 (Garanger et al. 2026, Eq. 4): U = (K/4)[(J-1)^2+(1/J-1)^2].
+  // U(1) = 0, and tau_vol = J dU/dJ I (see volumetricKirchhoffPressure).
+  return 0.25 * _K[_qp] * ((J - 1.0) * (J - 1.0) + (Jinv - 1.0) * (Jinv - 1.0));
 }
 
 ADRankTwoTensor
