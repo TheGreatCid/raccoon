@@ -36,6 +36,11 @@ protected:
 
   virtual ADReal computeQpOutOfPlaneGradDisp();
 
+  /// Impose the out-of-plane component of the displacement-gradient tensor A (before the identity is
+  /// added, so F_zz = 1 + A(2,2)). The base applies it only for RZ (axisymmetric hoop stretch);
+  /// derived plane-stress models override this to set A(2,2) from a coupled out-of-plane strain.
+  virtual void applyOutOfPlaneGradDisp(ADRankTwoTensor & A);
+
   /// The coordinate system
   const Moose::CoordinateSystemType & _coord_sys;
 
