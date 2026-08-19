@@ -4,77 +4,25 @@
 
 #pragma once
 
-#include "Material.h"
-#include "BaseNameInterface.h"
-#include "ADRankTwoTensorForward.h"
-#include "SolutionUserObject.h"
-#include "Qp_Mapping.h"
+#include "ComputeDeformationGradient.h"
 
 /**
- * This class computes the deformation gradient
+ * Plane-stress deformation gradient. Identical to ComputeDeformationGradient (including the full
+ * recover / F-bar / polar-decomposition machinery) except that the out-of-plane stretch is supplied
+ * by a coupled out-of-plane strain variable: F_zz = 1 + out_of_plane_strain, imposed at every
+ * quadrature point rather than only for the axisymmetric (RZ) case.
  */
-class ComputePlaneDeformationGradient : public Material, public BaseNameInterface
+class ComputePlaneDeformationGradient : public ComputeDeformationGradient
 {
 public:
   static InputParameters validParams();
 
   ComputePlaneDeformationGradient(const InputParameters & parameters);
 
-  void initialSetup() override;
-
-  void computeProperties() override;
-
-  void initStatefulProperties(unsigned int n_points) override;
-
 protected:
-  virtual void initQpStatefulProperties() override;
+  ADReal computeQpOutOfPlaneGradDisp() override;
+  void applyOutOfPlaneGradDisp(ADRankTwoTensor & A) override;
 
-  virtual void displacementIntegrityCheck();
-
-  virtual ADReal computeQpOutOfPlaneGradDisp();
-
-  /// The coordinate system
-  const Moose::CoordinateSystemType & _coord_sys;
-
+  /// Out-of-plane strain variable driving F_zz = 1 + out_of_plane_strain (plane stress).
   const ADVariableValue & _out_of_plane_strain;
-  /// Coupled displacement variables
-  const unsigned int _ndisp;
-
-  /// Displacement variables
-  std::vector<const ADVariableValue *> _disp;
-
-  /// Gradient of displacements
-  std::vector<const ADVariableGradient *> _grad_disp;
-
-  /// Whether to apply volumetric locaking correction
-  const bool _volumetric_locking_correction;
-
-  /// The current element volume
-  const Real & _current_elem_volume;
-
-  /// The total deformation gradient
-  ADMaterialProperty<RankTwoTensor> & _F;
-  ADMaterialProperty<RankTwoTensor> & _Fnobar;
-  ADMaterialProperty<RankTwoTensor> & _F_store_Fbar;
-  const MaterialProperty<RankTwoTensor> & _F_store_Fbar_old;
-  // The mechanical deformation gradient (after excluding eigen deformation gradients from the total
-  // deformation gradient)
-  ADMaterialProperty<RankTwoTensor> & _Fm;
-  ADMaterialProperty<RankTwoTensor> & _F_store_noFbar;
-  const MaterialProperty<RankTwoTensor> & _F_store_noFbar_old;
-  // @{ Eigen deformation gradients
-  std::vector<MaterialPropertyName> _Fg_names;
-  std::vector<const ADMaterialProperty<RankTwoTensor> *> _Fgs;
-  // @}
-  // is this recovering?
-  const bool _recover;
-
-  const SolutionUserObject * _solution_object_ptr;
-
-  unsigned int _qpnum;
-  QpMapping::Element _element;
-  MaterialProperty<Real> & _Frobenius;
-
-private:
-  const std::unordered_map<int, int> * _lookup;
 };

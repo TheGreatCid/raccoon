@@ -11,12 +11,12 @@
 /**
  * Isotropic compressible Neo-Hookean hyperelasticity with an alternative volumetric response.
  *
- * The volumetric part of the Mandel/Kirchhoff stress is
- *   tau_vol = 2 K (J - 1/J) (J + 1/J - 1) I,
- * which derives from the volumetric strain energy
- *   U(J) = 2 K (0.5 J^2 + 0.5 J^-2 - J - 1/J + 1)   (U(1) = 0, tau_vol = J dU/dJ I).
+ * The volumetric response is the Seth-Hill volumetric term at m=1 (Garanger et al. 2026, Eq. 4):
+ *   U(J)     = (K/4) [ (J - 1)^2 + (1/J - 1)^2 ]        (U(1) = 0)
+ *   tau_vol  = J dU/dJ I = (K/2) (J - 1/J) (J + 1/J - 1) I.
  * The isochoric (deviatoric) response is the standard Neo-Hookean G*dev(b) with the isochoric
- * distortional energy 0.5 G (tr(bbar) - 3), identical to CNHIsotropicElasticity.
+ * distortional energy 0.5 G (tr(bbar) - 3), identical to CNHIsotropicElasticity (this is NOT the
+ * Seth-Hill deviatoric term of Eq. 4).
  *
  * This model does not support any energy decomposition (no volumetric/deviatoric split) and does
  * not include the inversion barrier of CNHIsotropicElasticity.
