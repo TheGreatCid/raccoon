@@ -20,6 +20,10 @@ RecoverVariablesAction::validParams()
   // params.addParam<Real>("num_qps", 8, "Number of QPs");
   params.addRequiredParam<MooseEnum>(
       "element", MooseEnum(QpMapping::ELEMENT_ENUM_DEFINITION), "The element type");
+  params.addParam<std::vector<SubdomainName>>(
+      "block",
+      "The list of blocks (ids or names) the generated AuxKernels are restricted to. If "
+      "specified, the AuxKernel names are suffixed with the block names.");
   return params;
 }
 
@@ -28,7 +32,9 @@ RecoverVariablesAction::RecoverVariablesAction(const InputParameters & params)
     _tensor_materials(getParam<std::vector<MaterialName>>("tensor_materials")),
     _materials(getParam<std::vector<MaterialName>>("materials")),
     _output_name(getParam<std::string>("output_name")),
-    _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>())
+    _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>()),
+    _blocks(isParamValid("block") ? getParam<std::vector<SubdomainName>>("block")
+                                  : std::vector<SubdomainName>())
 {
   _lookup = QpMapping::getLookup(_element, _qpnum, /*reversed=*/false);
 }
@@ -85,6 +91,12 @@ RecoverVariablesAction::act()
 
   if (_current_task == "add_aux_kernel")
   {
+    // Suffix appended to AuxKernel names when block restricted, e.g. "_block1_block2"
+    std::string block_suffix;
+    for (const auto & block : _blocks)
+      block_suffix += "_" + block;
+
+
     // Non tensor
     for (unsigned int i = 0; i < _materials.size(); i++)
       // assuming 8 QPs
@@ -95,7 +107,10 @@ RecoverVariablesAction::act()
         params.set<AuxVariableName>("variable") = _materials[i] + "_" + formatQP(qp);
         params.set<MaterialPropertyName>("property") = _materials[i];
         params.set<unsigned int>("selected_qp") = qp_sel - 1;
-        _problem->addAuxKernel("ADMaterialRealAux", _materials[i] + "_" + formatQP(qp), params);
+        if (!_blocks.empty())
+          params.set<std::vector<SubdomainName>>("block") = _blocks;
+        _problem->addAuxKernel(
+            "ADMaterialRealAux", _materials[i] + "_" + formatQP(qp) + block_suffix, params);
       }
 
     // tensor
@@ -118,9 +133,11 @@ RecoverVariablesAction::act()
             params.set<unsigned int>("selected_qp") = qp_sel - 1;
             params.set<unsigned int>("index_i") = j;
             params.set<unsigned int>("index_j") = k;
+            if (!_blocks.empty())
+              params.set<std::vector<SubdomainName>>("block") = _blocks;
             _problem->addAuxKernel("ADRankTwoAux",
                                    _tensor_materials[i] + "_" + conv[j] + conv[k] + "_" +
-                                       formatQP(qp),
+                                       formatQP(qp) + block_suffix,
                                    params);
           }
       }
