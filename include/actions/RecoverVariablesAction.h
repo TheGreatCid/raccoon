@@ -26,6 +26,9 @@ protected:
 
   QpMapping::Element _element;
 
+  /// Blocks the generated AuxKernels are restricted to (empty = all blocks)
+  const std::vector<SubdomainName> _blocks;
+
 private:
   const std::unordered_map<int, int> * _lookup;
 };
