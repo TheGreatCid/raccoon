@@ -68,6 +68,13 @@ PhaseFieldCrackSubdomainGenerator::validParams()
       "assigned from their neighbors instead of from their own gradient. Raise it if elements "
       "deep inside a d = 1 plateau land on the wrong side: interpolating the plateau edge leaves "
       "small spurious gradients there.");
+  params.addRangeCheckedParam<Real>(
+      "ridge_search_distance",
+      0,
+      "ridge_search_distance >= 0",
+      "Distance on each side of a crack-surface node searched along the crack normal for the ridge "
+      "(largest d) that decides whether the node is inside the crack. 0 uses twice the largest "
+      "element size around the node.");
   params.addParam<unsigned int>(
       "smoothing_passes",
       2,
@@ -100,6 +107,7 @@ PhaseFieldCrackSubdomainGenerator::PhaseFieldCrackSubdomainGenerator(
     _has_normal(isParamValid("normal")),
     _normal_radius(isParamValid("normal_radius") ? getParam<Real>("normal_radius") : 0),
     _gradient_tolerance(getParam<Real>("gradient_tolerance")),
+    _ridge_search_distance(getParam<Real>("ridge_search_distance")),
     _smoothing_passes(getParam<unsigned int>("smoothing_passes")),
     _lower_block_id(getParam<subdomain_id_type>("lower_block_id")),
     _upper_block_id(getParam<subdomain_id_type>("upper_block_id"))
@@ -456,9 +464,14 @@ PhaseFieldCrackSubdomainGenerator::generate()
   // the lower/upper faces separate all elements around it; an element outside the band that
   // touches both sides at that node keeps it shared, stitching the crack shut there. This happens
   // wherever the band is thin, e.g. along free surfaces. So every node on the lower/upper interface
-  // whose own value reaches the threshold takes all elements around it into the band, each on the
-  // side of the local crack plane through the node that its centroid lies on. Interface nodes
-  // below the threshold are left alone, so a crack front inside the material stays a front.
+  // that lies inside the crack takes all elements around it into the band. A node is inside the
+  // crack when the ridge along the crack normal (the largest d nearby) lies within about an element
+  // of the node and reaches the threshold there. The node's own value is not used: crack-surface
+  // nodes sit off the ridge, so where the peak is close to the threshold they would fall below it
+  // even in the middle of the crack. Each added element goes on the side of that ridge its centroid
+  // lies on, consistent with the gradient-based sides, so no parallel crack sheets form. Where the
+  // ridge drops below the threshold the nodes stay shared, so a crack front inside the material
+  // stays a front.
   std::unordered_map<dof_id_type, std::vector<const Elem *>> nodes_to_elems;
   MeshTools::build_nodes_to_elem_map(*mesh, nodes_to_elems);
 
@@ -479,8 +492,6 @@ PhaseFieldCrackSubdomainGenerator::generate()
       if (!closed_nodes.insert(node_id).second)
         continue;
       const Point & p = mesh->point(node_id);
-      if (phase_field(p) < _threshold)
-        continue;
 
       // Local crack normal at the node, oriented from the lower to the upper side
       RealVectorValue normal;
@@ -508,6 +519,26 @@ PhaseFieldCrackSubdomainGenerator::generate()
       if (normal.norm_sq() == 0)
         continue;
 
+      // Only nodes next to a ridge that reaches the threshold are inside the crack. Nodes further
+      // from the ridge are on stray lower/upper faces, and closing them would grow extra sheets.
+      const auto unit_normal = normal.unit();
+      const Real reach = ridgeReach(nodes_to_elems[node_id]);
+      const auto [ridge_offset, peak_at_node] = findRidge(phase_field, p, unit_normal, reach);
+      if (std::abs(ridge_offset) > 0.5 * reach)
+        continue;
+      const Point ridge_point = p + ridge_offset * unit_normal;
+
+      // The interpolated ridge dips below its true peak in places, most at element faces, which
+      // would leave single nodes pinned inside the crack. So the ridge value is the largest found
+      // through the node and through the centroids of the elements around it.
+      Real peak = peak_at_node;
+      for (const auto * elem : nodes_to_elems[node_id])
+        if (peak < _threshold)
+          peak = std::max(
+              peak, findRidge(phase_field, elem->vertex_average(), unit_normal, reach).second);
+      if (peak < _threshold)
+        continue;
+
       for (const auto * elem : nodes_to_elems[node_id])
       {
         if (band_index.count(elem->id()) ||
@@ -519,7 +550,8 @@ PhaseFieldCrackSubdomainGenerator::generate()
         centroids.push_back(c);
         gradients.push_back(phase_field.gradient(c));
         normals.push_back(normal.unit());
-        side.push_back((c - p) * normal >= 0 ? upper : lower);
+        // The side of the ridge, as for the band elements labeled by their gradient
+        side.push_back((c - ridge_point) * unit_normal >= 0 ? upper : lower);
         added = true;
         ++n_closing;
       }
@@ -558,4 +590,39 @@ PhaseFieldCrackSubdomainGenerator::generate()
 
   mesh->unset_is_prepared();
   return mesh;
+}
+
+Real
+PhaseFieldCrackSubdomainGenerator::ridgeReach(const std::vector<const Elem *> & elems_at_p) const
+{
+  if (_ridge_search_distance > 0)
+    return _ridge_search_distance;
+  Real reach = 0;
+  for (const auto * elem : elems_at_p)
+    reach = std::max(reach, 2 * elem->hmax());
+  return reach;
+}
+
+std::pair<Real, Real>
+PhaseFieldCrackSubdomainGenerator::findRidge(libMesh::MeshFunction & phase_field,
+                                             const Point & p,
+                                             const RealVectorValue & unit_normal,
+                                             const Real reach) const
+{
+  // Sample densely enough to resolve the quadratic variation of d within each element crossed.
+  const int n = 20;
+  Real peak = -std::numeric_limits<Real>::max();
+  Real offset = 0;
+  for (int k = -n; k <= n; ++k)
+  {
+    const Real s = reach * k / n;
+    const Real value = phase_field(p + s * unit_normal);
+    // Prefer the sample closest to p among equal values, e.g. on a d = 1 plateau
+    if (value > peak || (value == peak && std::abs(s) < std::abs(offset)))
+    {
+      peak = value;
+      offset = s;
+    }
+  }
+  return {offset, peak};
 }
