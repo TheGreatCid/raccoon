@@ -38,6 +38,8 @@ protected:
   const FileName & _solution_file;
   /// Name of the nodal phase-field variable in the file
   const std::string & _variable;
+  /// Nodal displacement variables; when given, the mesh is moved to the deformed configuration
+  const std::vector<std::string> & _displacements;
   /// Elements whose centroid value is at least this are part of the crack band
   const Real _threshold;
   /// Whether a fixed crack normal was given
