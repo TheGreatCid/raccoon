@@ -2,6 +2,11 @@
 
 #include "MeshGenerator.h"
 
+namespace libMesh
+{
+class MeshFunction;
+}
+
 /**
  * Splits the damaged band of a phase-field crack into two subdomains, one on each side of the
  * crack mid-surface, so that BreakMeshByBlockGenerator can open a sharp crack along it.
@@ -32,6 +37,16 @@ public:
   std::unique_ptr<MeshBase> generate() override;
 
 protected:
+  /// Distance searched for the ridge on each side of a point touching the given elements
+  Real ridgeReach(const std::vector<const Elem *> & elems_at_p) const;
+
+  /// The ridge along the crack normal through p: its signed offset from p along the normal and the
+  /// largest phase-field value there, within the reach
+  std::pair<Real, Real> findRidge(libMesh::MeshFunction & phase_field,
+                                  const Point & p,
+                                  const RealVectorValue & unit_normal,
+                                  Real reach) const;
+
   /// The mesh to modify
   std::unique_ptr<MeshBase> & _input;
   /// Exodus file holding the phase-field variable
@@ -48,6 +63,8 @@ protected:
   const Real _normal_radius;
   /// |grad(d) . n| below this fraction of the band's largest |grad(d)| is treated as undecided
   const Real _gradient_tolerance;
+  /// Search distance for the ridge on each side of a crack-surface node (0: from element size)
+  const Real _ridge_search_distance;
   /// Number of majority-vote smoothing passes
   const unsigned int _smoothing_passes;
   /// Subdomain for band elements on the side of the ridge opposite to the normal
