@@ -9,6 +9,7 @@
 #include "libmesh/exodusII_io.h"
 #include "libmesh/explicit_system.h"
 #include "libmesh/mesh_function.h"
+#include "libmesh/mesh_tools.h"
 #include "libmesh/numeric_vector.h"
 #include "libmesh/remote_elem.h"
 #include "libmesh/replicated_mesh.h"
@@ -451,8 +452,96 @@ PhaseFieldCrackSubdomainGenerator::generate()
     side = std::move(updated);
   }
 
+  // Close the crack at every node inside it. BreakMeshByBlockGenerator only duplicates a node when
+  // the lower/upper faces separate all elements around it; an element outside the band that
+  // touches both sides at that node keeps it shared, stitching the crack shut there. This happens
+  // wherever the band is thin, e.g. along free surfaces. So every node on the lower/upper interface
+  // whose own value reaches the threshold takes all elements around it into the band, each on the
+  // side of the local crack plane through the node that its centroid lies on. Interface nodes
+  // below the threshold are left alone, so a crack front inside the material stays a front.
+  std::unordered_map<dof_id_type, std::vector<const Elem *>> nodes_to_elems;
+  MeshTools::build_nodes_to_elem_map(*mesh, nodes_to_elems);
+
+  std::set<dof_id_type> closed_nodes;
+  std::size_t n_closing = 0;
+  while (true)
+  {
+    std::set<dof_id_type> interface_nodes;
+    for (const auto i : index_range(band))
+      for (const auto j : band_neighbors[i])
+        if (side[i] != side[j])
+          for (const auto n : band[i]->nodes_on_side(band[i]->which_neighbor_am_i(band[j])))
+            interface_nodes.insert(band[i]->node_id(n));
+
+    bool added = false;
+    for (const auto node_id : interface_nodes)
+    {
+      if (!closed_nodes.insert(node_id).second)
+        continue;
+      const Point & p = mesh->point(node_id);
+      if (phase_field(p) < _threshold)
+        continue;
+
+      // Local crack normal at the node, oriented from the lower to the upper side
+      RealVectorValue normal;
+      Point lower_centroid, upper_centroid;
+      unsigned int n_lower_at_node = 0, n_upper_at_node = 0;
+      for (const auto * elem : nodes_to_elems[node_id])
+      {
+        const auto it = band_index.find(elem->id());
+        if (it == band_index.end())
+          continue;
+        normal += normals[it->second];
+        if (side[it->second] == lower)
+        {
+          lower_centroid += centroids[it->second];
+          ++n_lower_at_node;
+        }
+        else
+        {
+          upper_centroid += centroids[it->second];
+          ++n_upper_at_node;
+        }
+      }
+      if (normal.norm_sq() == 0 && n_lower_at_node && n_upper_at_node)
+        normal = upper_centroid / n_upper_at_node - lower_centroid / n_lower_at_node;
+      if (normal.norm_sq() == 0)
+        continue;
+
+      for (const auto * elem : nodes_to_elems[node_id])
+      {
+        if (band_index.count(elem->id()) ||
+            (!restricted_blocks.empty() && !restricted_blocks.count(elem->subdomain_id())))
+          continue;
+        const Point c = elem->vertex_average();
+        band_index[elem->id()] = band.size();
+        band.push_back(mesh->elem_ptr(elem->id()));
+        centroids.push_back(c);
+        gradients.push_back(phase_field.gradient(c));
+        normals.push_back(normal.unit());
+        side.push_back((c - p) * normal >= 0 ? upper : lower);
+        added = true;
+        ++n_closing;
+      }
+    }
+    if (!added)
+      break;
+
+    band_neighbors.assign(band.size(), {});
+    for (const auto i : index_range(band))
+      for (const auto s : band[i]->side_index_range())
+      {
+        const Elem * neighbor = band[i]->neighbor_ptr(s);
+        if (!neighbor || neighbor == remote_elem)
+          continue;
+        const auto it = band_index.find(neighbor->id());
+        if (it != band_index.end())
+          band_neighbors[i].push_back(it->second);
+      }
+  }
+
   std::size_t n_lower = 0;
-  for (const auto i : make_range(n_band))
+  for (const auto i : index_range(band))
   {
     band[i]->subdomain_id() = side[i] == lower ? _lower_block_id : _upper_block_id;
     n_lower += side[i] == lower;
@@ -462,9 +551,10 @@ PhaseFieldCrackSubdomainGenerator::generate()
   if (isParamValid("upper_block_name"))
     mesh->subdomain_name(_upper_block_id) = getParam<SubdomainName>("upper_block_name");
 
-  _console << name() << ": " << n_band << " band elements (d >= " << _threshold << "): " << n_lower
-           << " lower, " << n_band - n_lower << " upper; " << n_filled
-           << " assigned from neighbors, " << n_switched << " switched by smoothing." << std::endl;
+  _console << name() << ": " << band.size() << " band elements (d >= " << _threshold
+           << "): " << n_lower << " lower, " << band.size() - n_lower << " upper; " << n_filled
+           << " assigned from neighbors, " << n_switched << " switched by smoothing, "
+           << n_closing << " added to close the crack at nodes inside it." << std::endl;
 
   mesh->unset_is_prepared();
   return mesh;
