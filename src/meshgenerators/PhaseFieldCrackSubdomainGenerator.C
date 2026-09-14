@@ -36,6 +36,14 @@ PhaseFieldCrackSubdomainGenerator::validParams()
       "Interpolation order of the phase-field variable. AUTO uses the order of the solution "
       "file's elements, so second-order meshes use their mid-edge values.");
 
+  params.addParam<std::vector<std::string>>(
+      "displacements",
+      {},
+      "Nodal displacement variables in the solution file, one per spatial direction. When given, "
+      "the input mesh is moved into the deformed configuration and the band is found there, so "
+      "every downstream generator works on the displaced mesh. The input mesh must be in the "
+      "file's undeformed configuration.");
+
   params.addRequiredRangeCheckedParam<Real>(
       "threshold",
       "threshold > 0 & threshold <= 1",
@@ -86,6 +94,7 @@ PhaseFieldCrackSubdomainGenerator::PhaseFieldCrackSubdomainGenerator(
     _input(getMesh("input")),
     _solution_file(getParam<FileName>("solution_file")),
     _variable(getParam<std::string>("variable")),
+    _displacements(getParam<std::vector<std::string>>("displacements")),
     _threshold(getParam<Real>("threshold")),
     _has_normal(isParamValid("normal")),
     _normal_radius(isParamValid("normal_radius") ? getParam<Real>("normal_radius") : 0),
@@ -98,6 +107,8 @@ PhaseFieldCrackSubdomainGenerator::PhaseFieldCrackSubdomainGenerator(
     paramError("normal", "Exactly one of 'normal' and 'normal_radius' must be given.");
   if (_has_normal && getParam<RealVectorValue>("normal").norm() == 0)
     paramError("normal", "The crack normal must be nonzero.");
+  if (_displacements.size() > 3)
+    paramError("displacements", "At most three displacement variables can be given.");
   if (_lower_block_id == _upper_block_id)
     paramError("upper_block_id", "'lower_block_id' and 'upper_block_id' must differ.");
 }
@@ -171,15 +182,73 @@ PhaseFieldCrackSubdomainGenerator::generate()
   else
     order = Utility::string_to_enum<Order>(order_enum);
 
+  for (const auto & disp : _displacements)
+    if (std::find(nodal_names.begin(), nodal_names.end(), disp) == nodal_names.end())
+      paramError("displacements",
+                 "Nodal variable '",
+                 disp,
+                 "' was not found in '",
+                 _solution_file,
+                 "'. Available: ",
+                 Moose::stringify(nodal_names));
+
   libMesh::EquationSystems es(solution_mesh);
   auto & system = es.add_system<libMesh::ExplicitSystem>("phase_field");
   const auto var_num = system.add_variable(_variable, order, LAGRANGE);
+  std::vector<unsigned int> disp_nums;
+  for (const auto & disp : _displacements)
+    disp_nums.push_back(system.add_variable(disp, order, LAGRANGE));
   es.init();
   exodus.copy_nodal_solution(system, _variable, _variable, timestep);
+  for (const auto & disp : _displacements)
+    exodus.copy_nodal_solution(system, disp, disp, timestep);
 
   auto serialized = NumericVector<Number>::build(comm());
   serialized->init(system.n_dofs(), false, SERIAL);
   system.solution->localize(*serialized);
+
+  if (!_displacements.empty())
+  {
+    // Move the input mesh into the deformed configuration. Its nodes are located in the undeformed
+    // solution mesh, so the input mesh need not share the file's node numbering.
+    {
+      libMesh::MeshFunction displacement(es, *serialized, system.get_dof_map(), disp_nums);
+      displacement.init();
+      DenseVector<Number> outside(disp_nums.size(), std::numeric_limits<Real>::max());
+      displacement.enable_out_of_mesh_mode(outside);
+
+      std::size_t n_outside = 0;
+      DenseVector<Number> u;
+      for (auto & node : mesh->node_ptr_range())
+      {
+        displacement(*node, 0, u);
+        if (u(0) == std::numeric_limits<Real>::max())
+        {
+          ++n_outside;
+          continue;
+        }
+        for (const auto i : index_range(disp_nums))
+          (*node)(i) += u(i);
+      }
+      if (n_outside)
+        mooseError(name(),
+                   ": ",
+                   n_outside,
+                   " input mesh nodes lie outside the undeformed mesh of '",
+                   _solution_file,
+                   "', so their displacement is unknown. The input mesh must be in the same "
+                   "undeformed configuration as the solution file.");
+    }
+
+    // Move the solution mesh by its own nodal displacements so the phase field below is evaluated
+    // in the deformed configuration too.
+    const auto sys_num = system.number();
+    for (auto & node : solution_mesh.node_ptr_range())
+      for (const auto i : index_range(disp_nums))
+        if (node->n_comp(sys_num, disp_nums[i]))
+          (*node)(i) += (*serialized)(node->dof_number(sys_num, disp_nums[i], 0));
+    solution_mesh.clear_point_locator();
+  }
 
   libMesh::MeshFunction phase_field(es, *serialized, system.get_dof_map(), var_num);
   phase_field.init();
