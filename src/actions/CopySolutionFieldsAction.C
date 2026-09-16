@@ -23,6 +23,7 @@ CopySolutionFieldsAction::validParams()
   params.addParam<std::vector<std::string>>(
       "variables", "Copy only these variables. By default every nodal and elemental variable.");
   params.addParam<std::vector<std::string>>("exclude", {}, "Variables not to copy");
+  params.addParam<bool>("elemental", true, "Whether to copy elemental variables");
   params.addParam<MeshGeneratorName>(
       "moved_nodes_from",
       "A mesh generator that moved nodes and recorded it (e.g. PlanarCrackGenerator). Values are "
@@ -96,7 +97,7 @@ CopySolutionFieldsAction::readHeader()
     if (keep(var))
       _nodal_variables.push_back(var);
   for (const auto & var : elemental)
-    if (keep(var))
+    if (getParam<bool>("elemental") && keep(var))
     {
       // A name used for both a nodal and an elemental variable cannot become two AuxVariables.
       if (contains(_nodal_variables, var))
