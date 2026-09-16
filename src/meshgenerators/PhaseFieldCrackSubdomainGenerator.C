@@ -1,19 +1,12 @@
 #include "PhaseFieldCrackSubdomainGenerator.h"
-#include "Conversion.h"
 #include "KDTree.h"
 #include "MooseMeshUtils.h"
+#include "PhaseFieldSolution.h"
 #include "RankTwoTensor.h"
 
 #include "libmesh/elem.h"
-#include "libmesh/equation_systems.h"
-#include "libmesh/exodusII_io.h"
-#include "libmesh/explicit_system.h"
-#include "libmesh/mesh_function.h"
 #include "libmesh/mesh_tools.h"
-#include "libmesh/numeric_vector.h"
 #include "libmesh/remote_elem.h"
-#include "libmesh/replicated_mesh.h"
-#include "libmesh/string_to_enum.h"
 
 #include <queue>
 
@@ -25,17 +18,7 @@ PhaseFieldCrackSubdomainGenerator::validParams()
   InputParameters params = MeshGenerator::validParams();
   params.addRequiredParam<MeshGeneratorName>("input", "The mesh we want to modify");
 
-  params.addRequiredParam<FileName>("solution_file",
-                                    "The Exodus file holding the phase-field variable. Its mesh "
-                                    "may differ from the input mesh; values are interpolated.");
-  params.addParam<std::string>("variable", "d", "The nodal phase-field variable in the file");
-  params.addParam<std::string>(
-      "timestep", "LATEST", "The Exodus time step (1-based) to read, or 'LATEST'");
-  params.addParam<MooseEnum>(
-      "variable_order",
-      MooseEnum("AUTO FIRST SECOND", "AUTO"),
-      "Interpolation order of the phase-field variable. AUTO uses the order of the solution "
-      "file's elements, so second-order meshes use their mid-edge values.");
+  params += PhaseFieldSolution::validParams();
 
   params.addParam<std::vector<std::string>>(
       "displacements",
@@ -100,8 +83,6 @@ PhaseFieldCrackSubdomainGenerator::PhaseFieldCrackSubdomainGenerator(
     const InputParameters & parameters)
   : MeshGenerator(parameters),
     _input(getMesh("input")),
-    _solution_file(getParam<FileName>("solution_file")),
-    _variable(getParam<std::string>("variable")),
     _displacements(getParam<std::vector<std::string>>("displacements")),
     _threshold(getParam<Real>("threshold")),
     _has_normal(isParamValid("normal")),
@@ -152,117 +133,10 @@ PhaseFieldCrackSubdomainGenerator::generate()
     restricted_blocks.insert(ids.begin(), ids.end());
   }
 
-  // Load the phase-field variable into a MeshFunction, as SolutionUserObject does.
-  libMesh::ReplicatedMesh solution_mesh(comm());
-  libMesh::ExodusII_IO exodus(solution_mesh);
-  exodus.read(_solution_file);
-  solution_mesh.allow_renumbering(false);
-  solution_mesh.prepare_for_use();
-
-  const auto & nodal_names = exodus.get_nodal_var_names();
-  if (std::find(nodal_names.begin(), nodal_names.end(), _variable) == nodal_names.end())
-    paramError("variable",
-               "Nodal variable '",
-               _variable,
-               "' was not found in '",
-               _solution_file,
-               "'. Available: ",
-               Moose::stringify(nodal_names));
-
-  const int n_steps = exodus.get_num_time_steps();
-  if (n_steps == 0)
-    paramError("solution_file", "The file contains no time steps.");
-  int timestep = n_steps;
-  const auto & timestep_string = getParam<std::string>("timestep");
-  if (timestep_string != "LATEST")
-  {
-    std::istringstream ss(timestep_string);
-    if (!((ss >> timestep) && ss.eof()) || timestep < 1 || timestep > n_steps)
-      paramError("timestep", "Expected 'LATEST' or an integer from 1 to ", n_steps, ".");
-  }
-
-  Order order = FIRST;
-  const auto & order_enum = getParam<MooseEnum>("variable_order");
-  if (order_enum == "AUTO")
-  {
-    for (const auto & elem : solution_mesh.active_element_ptr_range())
-      order = std::max(order, elem->default_order());
-  }
-  else
-    order = Utility::string_to_enum<Order>(order_enum);
-
-  for (const auto & disp : _displacements)
-    if (std::find(nodal_names.begin(), nodal_names.end(), disp) == nodal_names.end())
-      paramError("displacements",
-                 "Nodal variable '",
-                 disp,
-                 "' was not found in '",
-                 _solution_file,
-                 "'. Available: ",
-                 Moose::stringify(nodal_names));
-
-  libMesh::EquationSystems es(solution_mesh);
-  auto & system = es.add_system<libMesh::ExplicitSystem>("phase_field");
-  const auto var_num = system.add_variable(_variable, order, LAGRANGE);
-  std::vector<unsigned int> disp_nums;
-  for (const auto & disp : _displacements)
-    disp_nums.push_back(system.add_variable(disp, order, LAGRANGE));
-  es.init();
-  exodus.copy_nodal_solution(system, _variable, _variable, timestep);
-  for (const auto & disp : _displacements)
-    exodus.copy_nodal_solution(system, disp, disp, timestep);
-
-  auto serialized = NumericVector<Number>::build(comm());
-  serialized->init(system.n_dofs(), false, SERIAL);
-  system.solution->localize(*serialized);
-
+  // Load the phase-field variable, and move the mesh into the deformed configuration if asked.
+  PhaseFieldSolution phase_field(*this, _displacements);
   if (!_displacements.empty())
-  {
-    // Move the input mesh into the deformed configuration. Its nodes are located in the undeformed
-    // solution mesh, so the input mesh need not share the file's node numbering.
-    {
-      libMesh::MeshFunction displacement(es, *serialized, system.get_dof_map(), disp_nums);
-      displacement.init();
-      DenseVector<Number> outside(disp_nums.size(), std::numeric_limits<Real>::max());
-      displacement.enable_out_of_mesh_mode(outside);
-
-      std::size_t n_outside = 0;
-      DenseVector<Number> u;
-      for (auto & node : mesh->node_ptr_range())
-      {
-        displacement(*node, 0, u);
-        if (u(0) == std::numeric_limits<Real>::max())
-        {
-          ++n_outside;
-          continue;
-        }
-        for (const auto i : index_range(disp_nums))
-          (*node)(i) += u(i);
-      }
-      if (n_outside)
-        mooseError(name(),
-                   ": ",
-                   n_outside,
-                   " input mesh nodes lie outside the undeformed mesh of '",
-                   _solution_file,
-                   "', so their displacement is unknown. The input mesh must be in the same "
-                   "undeformed configuration as the solution file.");
-    }
-
-    // Move the solution mesh by its own nodal displacements so the phase field below is evaluated
-    // in the deformed configuration too.
-    const auto sys_num = system.number();
-    for (auto & node : solution_mesh.node_ptr_range())
-      for (const auto i : index_range(disp_nums))
-        if (node->n_comp(sys_num, disp_nums[i]))
-          (*node)(i) += (*serialized)(node->dof_number(sys_num, disp_nums[i], 0));
-    solution_mesh.clear_point_locator();
-  }
-
-  libMesh::MeshFunction phase_field(es, *serialized, system.get_dof_map(), var_num);
-  phase_field.init();
-  // Centroids outside the solution mesh read as undamaged.
-  phase_field.enable_out_of_mesh_mode(Number(0));
+    phase_field.moveToDeformed(*mesh);
 
   // Collect the band: elements whose centroid value reaches the threshold.
   std::vector<Elem *> band;
@@ -273,7 +147,7 @@ PhaseFieldCrackSubdomainGenerator::generate()
     if (!restricted_blocks.empty() && !restricted_blocks.count(elem->subdomain_id()))
       continue;
     const Point c = elem->vertex_average();
-    if (phase_field(c) < _threshold)
+    if (phase_field.value(c) < _threshold)
       continue;
     band.push_back(elem);
     centroids.push_back(c);
@@ -522,8 +396,9 @@ PhaseFieldCrackSubdomainGenerator::generate()
       // Only nodes next to a ridge that reaches the threshold are inside the crack. Nodes further
       // from the ridge are on stray lower/upper faces, and closing them would grow extra sheets.
       const auto unit_normal = normal.unit();
-      const Real reach = ridgeReach(nodes_to_elems[node_id]);
-      const auto [ridge_offset, peak_at_node] = findRidge(phase_field, p, unit_normal, reach);
+      const Real reach =
+          PhaseFieldSolution::ridgeReach(nodes_to_elems[node_id], _ridge_search_distance);
+      const auto [ridge_offset, peak_at_node] = phase_field.findRidge(p, unit_normal, reach);
       if (std::abs(ridge_offset) > 0.5 * reach)
         continue;
       const Point ridge_point = p + ridge_offset * unit_normal;
@@ -535,7 +410,7 @@ PhaseFieldCrackSubdomainGenerator::generate()
       for (const auto * elem : nodes_to_elems[node_id])
         if (peak < _threshold)
           peak = std::max(
-              peak, findRidge(phase_field, elem->vertex_average(), unit_normal, reach).second);
+              peak, phase_field.findRidge(elem->vertex_average(), unit_normal, reach).second);
       if (peak < _threshold)
         continue;
 
@@ -590,39 +465,4 @@ PhaseFieldCrackSubdomainGenerator::generate()
 
   mesh->unset_is_prepared();
   return mesh;
-}
-
-Real
-PhaseFieldCrackSubdomainGenerator::ridgeReach(const std::vector<const Elem *> & elems_at_p) const
-{
-  if (_ridge_search_distance > 0)
-    return _ridge_search_distance;
-  Real reach = 0;
-  for (const auto * elem : elems_at_p)
-    reach = std::max(reach, 2 * elem->hmax());
-  return reach;
-}
-
-std::pair<Real, Real>
-PhaseFieldCrackSubdomainGenerator::findRidge(libMesh::MeshFunction & phase_field,
-                                             const Point & p,
-                                             const RealVectorValue & unit_normal,
-                                             const Real reach) const
-{
-  // Sample densely enough to resolve the quadratic variation of d within each element crossed.
-  const int n = 20;
-  Real peak = -std::numeric_limits<Real>::max();
-  Real offset = 0;
-  for (int k = -n; k <= n; ++k)
-  {
-    const Real s = reach * k / n;
-    const Real value = phase_field(p + s * unit_normal);
-    // Prefer the sample closest to p among equal values, e.g. on a d = 1 plateau
-    if (value > peak || (value == peak && std::abs(s) < std::abs(offset)))
-    {
-      peak = value;
-      offset = s;
-    }
-  }
-  return {offset, peak};
 }

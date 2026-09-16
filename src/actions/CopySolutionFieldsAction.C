@@ -23,6 +23,11 @@ CopySolutionFieldsAction::validParams()
   params.addParam<std::vector<std::string>>(
       "variables", "Copy only these variables. By default every nodal and elemental variable.");
   params.addParam<std::vector<std::string>>("exclude", {}, "Variables not to copy");
+  params.addParam<MeshGeneratorName>(
+      "moved_nodes_from",
+      "A mesh generator that moved nodes and recorded it (e.g. PlanarCrackGenerator). Values are "
+      "then looked up at the nodes' positions before the move, so moved nodes keep their original "
+      "values.");
   return params;
 }
 
@@ -151,16 +156,39 @@ CopySolutionFieldsAction::act()
 
   else if (_current_task == "add_ic")
   {
+    const bool moved = isParamValid("moved_nodes_from");
+    const std::string ic_type = moved ? "OriginalPositionSolutionIC" : "SolutionIC";
+    std::vector<Point> moved_positions, moved_offsets;
+    if (moved)
+    {
+      const auto & generator = getParam<MeshGeneratorName>("moved_nodes_from");
+      for (const auto & property : {"moved_node_positions", "moved_node_offsets"})
+        if (!hasMeshProperty<std::vector<Point>>(property, generator))
+          paramError("moved_nodes_from",
+                     "Mesh generator '",
+                     generator,
+                     "' did not record moved nodes ('",
+                     property,
+                     "').");
+      moved_positions = getMeshProperty<std::vector<Point>>("moved_node_positions", generator);
+      moved_offsets = getMeshProperty<std::vector<Point>>("moved_node_offsets", generator);
+    }
+
     const auto add_ic = [&](const std::string & variable)
     {
-      auto params = _factory.getValidParams("SolutionIC");
+      auto params = _factory.getValidParams(ic_type);
+      if (moved)
+      {
+        params.set<std::vector<Point>>("moved_node_positions") = moved_positions;
+        params.set<std::vector<Point>>("moved_node_offsets") = moved_offsets;
+      }
       params.set<VariableName>("variable") = auxVariableName(variable);
       params.set<UserObjectName>("solution_uo") = solution_name;
       params.set<VariableName>("from_variable") = variable;
       // The mesh may have subdomains the file does not (e.g. crack blocks), so read from all of
       // the file's blocks instead of matching subdomain names.
       params.set<std::vector<SubdomainName>>("from_subdomains") = _file_blocks;
-      _problem->addInitialCondition("SolutionIC", name() + "_" + variable, params);
+      _problem->addInitialCondition(ic_type, name() + "_" + variable, params);
     };
     for (const auto & variable : _nodal_variables)
       add_ic(variable);
