@@ -193,6 +193,8 @@ PlanarCrackGenerator::generate()
   }
   if (band.empty())
   {
+    // Machine-readable summary, parsed by scripts deciding whether a crack was cut
+    _console << name() << ": crack summary: band_elements=0 crack_faces=0" << std::endl;
     mooseWarning("No element reached d >= ", _threshold, "; the mesh is returned unchanged.");
     return mesh;
   }
@@ -786,6 +788,13 @@ PlanarCrackGenerator::generate()
            << (touched.empty() ? "" : std::to_string(lowest_quality)) << "; " << n_crack_faces
            << " crack faces (" << n_off_plane_faces << " off the plane); " << n_lower
            << " lower and " << n_upper << " upper elements." << std::endl;
+  // Machine-readable summary, parsed by scripts deciding whether a crack was cut
+  _console << name() << ": crack summary: band_elements=" << band.size()
+           << " crack_faces=" << n_crack_faces << std::endl;
+  if (n_crack_faces == 0)
+    mooseWarning("No crack faces were found where the ridge reaches d >= ",
+                 _threshold,
+                 "; no elements were assigned to the crack subdomains.");
   if (n_unresolved)
     mooseWarning(n_unresolved,
                  " plane-crossing edges could not be snapped; around the ",
