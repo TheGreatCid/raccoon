@@ -2,6 +2,7 @@
 #include "InputParameters.h"
 #include "MooseTypes.h"
 #include "MooseEnum.h"
+#include "ExecFlagEnum.h"
 #include <unordered_map>
 #include "Qp_Mapping.h"
 
@@ -28,6 +29,9 @@ protected:
 
   /// Blocks the generated AuxKernels are restricted to (empty = all blocks)
   const std::vector<SubdomainName> _blocks;
+
+  /// When the generated AuxKernels are evaluated
+  const ExecFlagEnum _execute_on;
 
 private:
   const std::unordered_map<int, int> * _lookup;

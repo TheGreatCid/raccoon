@@ -2,6 +2,7 @@
 #include "FEProblem.h"
 #include "AddVariableAction.h"
 #include "InputParameters.h"
+#include "MooseUtils.h"
 #include "NonlinearSystemBase.h"
 #include "Parser.h"
 #include "Qp_Mapping.h"
@@ -24,6 +25,18 @@ RecoverVariablesAction::validParams()
       "block",
       "The list of blocks (ids or names) the generated AuxKernels are restricted to. If "
       "specified, the AuxKernel names are suffixed with the block names.");
+
+  // Defaults to the stock AuxKernel schedule so existing inputs are unchanged.  This block
+  // generates one AuxKernel per tensor component per QP (e.g. 4 tensors x 9 components x 11 QPs
+  // = 396 kernels for TET10_4th), and on the default schedule every one of them re-evaluates its
+  // material property on each linear iteration.  Since the recovery variables are only ever
+  // consumed by the dump file, narrowing this to the schedule the output actually uses (e.g.
+  // 'FINAL', or the sync times the recovery file is written at) removes that cost entirely.
+  ExecFlagEnum exec_enum = MooseUtils::getDefaultExecFlagEnum();
+  exec_enum.addAvailableFlags(EXEC_PRE_DISPLACE);
+  exec_enum = {EXEC_LINEAR, EXEC_TIMESTEP_END};
+  params.addParam<ExecFlagEnum>(
+      "execute_on", exec_enum, "When the generated recovery AuxKernels are evaluated.");
   return params;
 }
 
@@ -34,7 +47,8 @@ RecoverVariablesAction::RecoverVariablesAction(const InputParameters & params)
     _output_name(getParam<std::string>("output_name")),
     _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>()),
     _blocks(isParamValid("block") ? getParam<std::vector<SubdomainName>>("block")
-                                  : std::vector<SubdomainName>())
+                                  : std::vector<SubdomainName>()),
+    _execute_on(getParam<ExecFlagEnum>("execute_on"))
 {
   _lookup = QpMapping::getLookup(_element, _qpnum, /*reversed=*/false);
 }
@@ -107,6 +121,7 @@ RecoverVariablesAction::act()
         params.set<AuxVariableName>("variable") = _materials[i] + "_" + formatQP(qp);
         params.set<MaterialPropertyName>("property") = _materials[i];
         params.set<unsigned int>("selected_qp") = qp_sel - 1;
+        params.set<ExecFlagEnum>("execute_on") = _execute_on;
         if (!_blocks.empty())
           params.set<std::vector<SubdomainName>>("block") = _blocks;
         _problem->addAuxKernel(
@@ -133,6 +148,7 @@ RecoverVariablesAction::act()
             params.set<unsigned int>("selected_qp") = qp_sel - 1;
             params.set<unsigned int>("index_i") = j;
             params.set<unsigned int>("index_j") = k;
+            params.set<ExecFlagEnum>("execute_on") = _execute_on;
             if (!_blocks.empty())
               params.set<std::vector<SubdomainName>>("block") = _blocks;
             _problem->addAuxKernel("ADRankTwoAux",
