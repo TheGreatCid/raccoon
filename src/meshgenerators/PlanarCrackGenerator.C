@@ -8,6 +8,7 @@
 #include "libmesh/remote_elem.h"
 #include "libmesh/string_to_enum.h"
 
+#include <numeric>
 #include <optional>
 
 registerMooseObject("raccoonApp", PlanarCrackGenerator);
@@ -889,7 +890,7 @@ PlanarCrackGenerator::generate()
   // still cross the plane (e.g. around crack nodes at the edge of the extent), so every crack face
   // ends up on the plane.
   std::map<const Elem *, bool> is_upper;
-  std::size_t n_outside_blocks = 0, n_sawtooth_elems = 0;
+  std::size_t n_outside_blocks = 0, n_sawtooth_elems = 0, n_pinched_nodes = 0;
   const unsigned int max_rounds = 5;
   for (unsigned int round = 0; round < max_rounds; ++round)
   {
@@ -1018,6 +1019,7 @@ PlanarCrackGenerator::generate()
     is_upper.clear();
     n_outside_blocks = 0;
     n_sawtooth_elems = 0;
+    n_pinched_nodes = 0;
     const auto label = [&](const Elem * elem)
     {
       if (is_upper.count(elem))
@@ -1073,6 +1075,89 @@ PlanarCrackGenerator::generate()
         for (const auto * elem : nodes_to_elems[node_id])
           added = label(elem) || added;
       }
+      if (added)
+        continue;
+
+      // The crack surface must be a manifold for BreakMeshByBlockGenerator's output to be a valid
+      // solid. A node that stays shared must have its crack faces in one fan (faces joined across
+      // edges to open nodes) that ends at a front edge somewhere (an edge of only one crack face,
+      // not on the external boundary). Otherwise the crack is pinched there, e.g. along an edge
+      // with crack faces on both sides whose nodes stayed shared because the ridge dips below the
+      // threshold, and the node is opened as well.
+      std::map<dof_id_type, std::vector<std::array<dof_id_type, 3>>> crack_faces_of;
+      for (const auto & [elem, upper] : is_upper)
+        for (const auto s : elem->side_index_range())
+        {
+          const Elem * neighbor = elem->neighbor_ptr(s);
+          if (!neighbor || neighbor == remote_elem || neighbor->id() < elem->id())
+            continue;
+          const auto it = is_upper.find(neighbor);
+          if (it == is_upper.end() || it->second == upper)
+            continue;
+          std::array<dof_id_type, 3> key;
+          unsigned int n_vertices = 0;
+          for (const auto v : elem->nodes_on_side(s))
+            if (v < 4)
+              key[n_vertices++] = elem->node_id(v);
+          for (const auto node_id : key)
+            crack_faces_of[node_id].push_back(key);
+        }
+      const auto open = [&](dof_id_type node_id)
+      {
+        for (const auto * elem : nodes_to_elems[node_id])
+          if (!is_upper.count(elem))
+            return false;
+        return true;
+      };
+      const auto on_external_boundary = [&](dof_id_type a, dof_id_type b)
+      {
+        for (const auto * elem : nodes_to_elems[a])
+          for (const auto s : elem->side_index_range())
+            if (!elem->neighbor_ptr(s))
+            {
+              unsigned int n_found = 0;
+              for (const auto v : elem->nodes_on_side(s))
+                n_found += v < 4 && (elem->node_id(v) == a || elem->node_id(v) == b);
+              if (n_found == 2)
+                return true;
+            }
+        return false;
+      };
+      std::vector<dof_id_type> pinched;
+      for (const auto & [node_id, faces] : crack_faces_of)
+      {
+        if (open(node_id))
+          continue;
+        std::map<dof_id_type, std::vector<std::size_t>> edge_faces;
+        for (const auto f : index_range(faces))
+          for (const auto other : faces[f])
+            if (other != node_id)
+              edge_faces[other].push_back(f);
+        std::vector<std::size_t> parent(faces.size());
+        std::iota(parent.begin(), parent.end(), 0);
+        const auto find = [&](std::size_t f)
+        {
+          while (parent[f] != f)
+            f = parent[f] = parent[parent[f]];
+          return f;
+        };
+        bool front_end = false;
+        for (const auto & [other, edge] : edge_faces)
+          if (edge.size() == 1)
+            front_end = front_end || !on_external_boundary(node_id, other);
+          else if (open(other))
+            for (const auto f : edge)
+              parent[find(f)] = find(edge.front());
+        std::set<std::size_t> fans;
+        for (const auto f : index_range(faces))
+          fans.insert(find(f));
+        if (fans.size() > 1 || !front_end)
+          pinched.push_back(node_id);
+      }
+      for (const auto node_id : pinched)
+        for (const auto * elem : nodes_to_elems[node_id])
+          added = label(elem) || added;
+      n_pinched_nodes += pinched.size();
     }
 
     // Elements assigned to a side that still cross the plane are snapped or split in another round
@@ -1155,6 +1240,9 @@ PlanarCrackGenerator::generate()
            << (touched.empty() ? "" : std::to_string(lowest_quality)) << "; " << n_crack_faces
            << " crack faces (" << n_off_plane_faces << " off the plane); " << n_lower
            << " lower and " << n_upper << " upper elements"
+           << (n_pinched_nodes ? "; opened " + std::to_string(n_pinched_nodes) +
+                                     " crack front nodes that pinched the crack surface"
+                               : "")
            << (existing_crack_elems.empty()
                    ? "."
                    : "; kept " + std::to_string(existing_crack_elems.size()) +
