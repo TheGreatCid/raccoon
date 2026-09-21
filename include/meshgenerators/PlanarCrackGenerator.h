@@ -18,17 +18,25 @@ class PhaseFieldSolution;
  * 4. Snapping: every edge of an element inside the extent that crosses the plane gets one end moved
  *    onto the plane, the nearer one unless that would degrade an element below the quality limit.
  *    If neither end can move directly, free nodes around it are smoothed to make room. Nodes on
- *    external boundaries slide within them. Mid-edge nodes of the affected elements go to
- *    their edge midpoints, so the crack faces are exactly planar.
- * 5. Sides: the elements of faces lying on the plane inside the extent, and elements there that
- *    still cross the plane because their edges could not be snapped, go to the subdomain of the side
- *    their centroid is on; around unsnapped elements the crack follows element faces (sawtooth)
- *    instead of leaving a hole. Every node between the two sides where the ridge reaches the
+ *    external boundaries slide within them. Edges that still cross the plane are split at the
+ *    crossing point (bisect_unsnapped_edges): every element around such an edge is replaced by two,
+ *    so the mesh stays conforming. Mid-edge nodes of the affected elements go to their edge
+ *    midpoints, so the crack faces are exactly planar.
+ * 5. Sides: the elements of faces lying on the plane inside the extent go to the subdomain of the
+ *    side their centroid is on. Every node between the two sides where the ridge reaches the
  *    threshold then takes all elements around it; nodes where it does not stay shared, forming the
- *    crack front.
+ *    crack front. Elements taken this way that still cross the plane are snapped or split and the
+ *    sides assigned again, so every crack face lies on the plane. (With bisection off, the crack
+ *    follows element faces around elements that could not be snapped instead of leaving a hole.)
  *
- * The positions and offsets of moved nodes are stored as mesh meta data (moved_node_positions,
- * moved_node_offsets) so CopySolutionFields can look fields up at the original positions.
+ * A mesh that already contains a crack from an earlier cut is kept: its faces are found as external
+ * boundary faces lying in the plane inside the extent (see existing_crack_angle), their nodes are
+ * not moved, and the elements behind them are assigned to the crack sides again.
+ *
+ * The positions and offsets of moved nodes, and of the nodes created by splitting, are stored as
+ * mesh meta data (moved_node_positions, moved_node_offsets) so CopySolutionFields can look fields up
+ * at the original positions. The two halves of a split element take the elemental values of the
+ * element they were split from.
  * Tetrahedral meshes only; crack branching and curved cracks are not represented.
  */
 class PlanarCrackGenerator : public MeshGenerator
@@ -57,6 +65,12 @@ protected:
   const Real _min_scaled_jacobian;
   /// Smallest cosine between a boundary node's slide direction and the crack normal
   const Real _min_boundary_alignment;
+  /// Whether edges still crossing the plane after snapping are split at the crossing point
+  const bool _bisect_unsnapped_edges;
+  /// Largest angle (degrees) between an existing crack face's normal and the crack normal
+  const Real _existing_crack_angle;
+  /// Largest distance from the plane at which a boundary face is an existing crack face (0: auto)
+  const Real _existing_crack_opening;
   /// Element layers of free nodes smoothed when a node cannot be snapped directly (0: none)
   const unsigned int _relaxation_layers;
   /// Smoothing sweeps per relaxed move
