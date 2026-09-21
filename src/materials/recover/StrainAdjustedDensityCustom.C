@@ -43,7 +43,8 @@ StrainAdjustedDensityCustomTempl<is_ad>::StrainAdjustedDensityCustomTempl(
     _strain_free_density(
         this->template getGenericMaterialProperty<Real, is_ad>("strain_free_density")),
     _density(declareGenericProperty<Real, is_ad>(_base_name + "density")),
-    _F(getADMaterialProperty<RankTwoTensor>("deformation_gradient_NoFbar"))
+    _F(getADMaterialProperty<RankTwoTensor>("deformation_gradient_NoFbar")),
+    _relaxed_jacobian(getMaterialProperty<Real>("recovery_relaxed_jacobian"))
 {
   if (getParam<bool>("use_displaced_mesh"))
     paramError("use_displaced_mesh",
@@ -63,7 +64,10 @@ template <bool is_ad>
 void
 StrainAdjustedDensityCustomTempl<is_ad>::computeQpProperties()
 {
-  _density[_qp] = _strain_free_density[_qp] / MetaPhysicL::raw_value(_F[_qp]).det();
+  // Elements recovered stress-free (see SolutionUserObjectQP relax_threshold) keep the recovered
+  // volume change, so their mass is unchanged
+  _density[_qp] =
+      _strain_free_density[_qp] / (MetaPhysicL::raw_value(_F[_qp]).det() * _relaxed_jacobian[_qp]);
 }
 
 template class StrainAdjustedDensityCustomTempl<false>;

@@ -70,6 +70,10 @@ protected:
 
   ADMaterialProperty<RankTwoTensor> & _F_store_noFbar;
   const MaterialProperty<RankTwoTensor> & _F_store_noFbar_old;
+  /// det of the recovered deformation gradient where the recovery was relaxed to a stress-free
+  /// state (1 elsewhere), so the density keeps the recovered volume change
+  MaterialProperty<Real> & _relaxed_jacobian;
+  const MaterialProperty<Real> & _relaxed_jacobian_old;
 
   // @{ Eigen deformation gradients
   std::vector<MaterialPropertyName> _Fg_names;
