@@ -12,6 +12,7 @@
 #include "MooseTypes.h"
 #include "RankTwoTensorForward.h"
 #include "SolutionUserObject.h"
+#include "SolutionUserObjectQP.h"
 #include "metaphysicl/raw_type.h"
 #include "Qp_Mapping.h"
 
@@ -117,6 +118,8 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
         declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient_NoFbar"))),
     _F_store_noFbar_old(
         getMaterialPropertyOld<RankTwoTensor>(prependBaseName("deformation_gradient_NoFbar"))),
+    _relaxed_jacobian(declareProperty<Real>(prependBaseName("recovery_relaxed_jacobian"))),
+    _relaxed_jacobian_old(getMaterialPropertyOld<Real>(prependBaseName("recovery_relaxed_jacobian"))),
     _Fg_names(prependBaseName(
         getParam<std::vector<MaterialPropertyName>>("eigen_deformation_gradient_names"))),
     _Fgs(_Fg_names.size()),
@@ -211,6 +214,7 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
     _F[_qp].setToIdentity();
     _Fm[_qp].setToIdentity();
     _rotation_tensor[_qp].setToIdentity();
+    _relaxed_jacobian[_qp] = 1;
   }
   unsigned int qp_max = _qpnum;
 
@@ -356,6 +360,18 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
           Ufb_qp[qp] = need_U_fbar_from_file ? R.transpose() * F_fbar : U;
         }
       }
+
+      // Damaged elements behind a cut crack face are recovered stress-free (see
+      // SolutionUserObjectQP relax_threshold): the element's current shape becomes its reference,
+      // keeping the rotation. Their stored stretch belongs to the smeared crack opening the cut
+      // crack now carries. The recovered volume change is kept for the density.
+      if (SolutionUserObjectQP::relaxRecovery(_solution_object_ptr, *_current_elem))
+        for (unsigned int qp = 0; qp < n_points; ++qp)
+        {
+          _relaxed_jacobian[qp] = (R_qp[qp] * U_qp[qp]).det();
+          U_qp[qp].setToIdentity();
+          Ufb_qp[qp].setToIdentity();
+        }
 
       // Approach B (recover_apply_fbar_to_U = true, F-bar active): rebuild F_bar on the
       // new mesh by applying the original cfb539fe1-era F-bar averaging operator to the
@@ -617,6 +633,8 @@ ComputeDeformationGradient::computeProperties()
 
   for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
   {
+    _relaxed_jacobian[_qp] = _relaxed_jacobian_old[_qp];
+
     ADRankTwoTensor A = ADRankTwoTensor::initializeFromRows(
         (*_grad_disp[0])[_qp], (*_grad_disp[1])[_qp], (*_grad_disp[2])[_qp]);
     applyOutOfPlaneGradDisp(A);

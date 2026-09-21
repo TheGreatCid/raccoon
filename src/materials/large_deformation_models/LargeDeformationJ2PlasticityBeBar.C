@@ -4,6 +4,7 @@
 
 #include "EigenADReal.h"
 #include "LargeDeformationJ2PlasticityBeBar.h"
+#include "SolutionUserObjectQP.h"
 #include "CNHElasticityInterface.h"
 #include "RaccoonUtils.h"
 
@@ -144,6 +145,11 @@ LargeDeformationJ2PlasticityBeBar::initQpStatefulProperties()
   const Real det_bebar = MetaPhysicL::raw_value(_bebar[_qp].det());
   if (std::abs(det_bebar - 1.0) > 1e-10)
     _bebar[_qp] /= std::cbrt(det_bebar);
+
+  // Damaged elements behind a cut crack face are recovered stress-free (see SolutionUserObjectQP
+  // relax_threshold); the plastic strain history is kept.
+  if (SolutionUserObjectQP::relaxRecovery(_solution_object_ptr, *_current_elem))
+    _bebar[_qp].setToIdentity();
 
   if (_recover_psip_triax)
   {

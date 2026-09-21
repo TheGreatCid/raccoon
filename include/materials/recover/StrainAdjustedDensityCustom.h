@@ -32,6 +32,8 @@ protected:
 private:
   GenericMaterialProperty<Real, is_ad> & _density;
   const ADMaterialProperty<RankTwoTensor> & _F;
+  /// Recovered volume change of elements whose recovery was relaxed to a stress-free state
+  const MaterialProperty<Real> & _relaxed_jacobian;
 };
 
 typedef StrainAdjustedDensityCustomTempl<false> StrainAdjustedDensityCustom;

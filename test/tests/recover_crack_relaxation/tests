@@ -1,0 +1,76 @@
+[Tests]
+  design = 'SolutionUserObjectQP.md'
+  issues = '#0'
+  [band]
+    type = RunApp
+    input = 'band.i'
+    recover = false
+    requirement = 'The system shall write a synthetic phase-field band whose crack-opening '
+                  'displacement stretches the band across the crack, for the crack relaxation tests.'
+  []
+  [source]
+    type = RunApp
+    input = 'source.i'
+    prereq = 'band'
+    recover = false
+    requirement = 'The system shall cut a separated planar crack into the band and write the '
+                  'per-quadrature-point recovery variables of its stretched state.'
+  []
+  [relax]
+    type = CSVDiff
+    input = 'relax.i'
+    csvdiff = 'relax_out.csv'
+    prereq = 'source'
+    recover = false
+    requirement = 'SolutionUserObjectQP shall relax the recovered state of the damaged elements '
+                  'behind the crack faces, but not ahead of the crack front: they start with the '
+                  'identity stretch and zero stress, and the total mass is unchanged.'
+  []
+  [relax_field]
+    type = Exodiff
+    input = 'relax.i'
+    exodiff = 'relax_exodus.e'
+    prereq = 'relax'
+    recover = false
+    requirement = 'SolutionUserObjectQP shall relax only the damaged elements connected to the '
+                  'crack faces and lying behind them.'
+  []
+  [relax_threshold]
+    type = CSVDiff
+    input = 'relax.i'
+    cli_args = 'relax_threshold=0.9 Outputs/file_base=relax_threshold_out'
+    csvdiff = 'relax_threshold_out.csv'
+    prereq = 'relax_field'
+    recover = false
+    requirement = 'A higher relaxation threshold shall relax fewer elements behind the crack faces.'
+  []
+  [no_relax]
+    type = CSVDiff
+    input = 'relax.i'
+    cli_args = 'relax_threshold=1 Outputs/file_base=no_relax_out'
+    csvdiff = 'no_relax_out.csv'
+    prereq = 'relax_threshold'
+    recover = false
+    requirement = 'Without elements reaching the relaxation threshold, the recovered state shall be '
+                  'kept everywhere, with the same total mass as the relaxed recovery.'
+  []
+  [unknown_crack_boundary]
+    type = RunException
+    input = 'relax.i'
+    cli_args = 'UserObjects/epsol/crack_boundaries=nope'
+    expect_err = "Sideset 'nope' is not in"
+    prereq = 'no_relax'
+    recover = false
+    requirement = 'SolutionUserObjectQP shall report a crack sideset missing from the solution file.'
+  []
+  [stress_not_relaxed]
+    type = RunException
+    input = 'relax.i'
+    cli_args = 'Materials/stress_sol/relaxed_value=none'
+    expect_err = "the solution relaxes the recovery of elements behind the crack faces"
+    prereq = 'unknown_crack_boundary'
+    recover = false
+    requirement = 'SolutionTensor shall warn when it keeps the recovered tensor in elements the '
+                  'solution relaxes.'
+  []
+[]

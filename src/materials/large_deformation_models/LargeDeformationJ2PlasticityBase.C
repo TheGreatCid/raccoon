@@ -3,6 +3,7 @@
 //* http://dolbow.pratt.duke.edu
 
 #include "LargeDeformationJ2PlasticityBase.h"
+#include "SolutionUserObjectQP.h"
 
 InputParameters
 LargeDeformationJ2PlasticityBase::validParams()
@@ -61,4 +62,9 @@ LargeDeformationJ2PlasticityBase::initQpStatefulProperties()
           _current_elem->true_centroid(),
           "plastic_deformation_gradie_" + indices[i] + indices[j] + "_" + formatQP(qp_sel),
           nullptr);
+
+  // Damaged elements behind a cut crack face are recovered stress-free (see SolutionUserObjectQP
+  // relax_threshold); the plastic strain history is kept.
+  if (SolutionUserObjectQP::relaxRecovery(_solution_object_ptr, *_current_elem))
+    _Fp[_qp].setToIdentity();
 }

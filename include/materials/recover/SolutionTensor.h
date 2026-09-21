@@ -32,6 +32,8 @@ protected:
   const SolutionUserObject * _solution_object_ptr;
   unsigned int _qpnum;
   QpMapping::Element _element;
+  /// Value in elements whose recovery the solution relaxes (none, zero or identity)
+  const MooseEnum _relaxed_value;
 
 private:
   const std::unordered_map<int, int> * _lookup;
