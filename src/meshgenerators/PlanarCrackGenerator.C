@@ -87,6 +87,26 @@ PlanarCrackGenerator::validParams()
       "boundaries only within those boundaries). 0 disables relaxation.");
   params.addParam<unsigned int>(
       "relaxation_iterations", 10, "Smoothing sweeps over the free nodes per relaxed move");
+  params.addParam<bool>(
+      "bisect_unsnapped_edges",
+      true,
+      "Split every edge that still crosses the plane after snapping at the crossing point (all "
+      "elements around it are bisected, so the mesh stays conforming), making the crack exactly "
+      "planar. Without it the crack follows element faces around those edges.");
+  params.addRangeCheckedParam<Real>(
+      "existing_crack_angle",
+      20,
+      "existing_crack_angle >= 0 & existing_crack_angle < 90",
+      "External boundary faces inside the crack extent whose normal is within this angle (degrees) "
+      "of the crack normal, and within 'existing_crack_opening' of the plane, are the faces of a "
+      "crack cut earlier. Their nodes are not moved and the elements behind them are assigned to "
+      "the crack sides, so a mesh that already contains a crack keeps it.");
+  params.addRangeCheckedParam<Real>(
+      "existing_crack_opening",
+      0,
+      "existing_crack_opening >= 0",
+      "Largest distance from the plane at which a boundary face counts as an existing crack face, "
+      "i.e. half the widest crack opening expected. 0 uses the largest band element size.");
   params.addParam<std::vector<SubdomainName>>(
       "block", "Only elements in these subdomains can be moved or assigned to the crack sides");
   params.addRequiredParam<subdomain_id_type>(
@@ -109,6 +129,9 @@ PlanarCrackGenerator::PlanarCrackGenerator(const InputParameters & parameters)
     _ridge_search_distance(getParam<Real>("ridge_search_distance")),
     _min_scaled_jacobian(getParam<Real>("min_scaled_jacobian")),
     _min_boundary_alignment(getParam<Real>("min_boundary_alignment")),
+    _bisect_unsnapped_edges(getParam<bool>("bisect_unsnapped_edges")),
+    _existing_crack_angle(getParam<Real>("existing_crack_angle")),
+    _existing_crack_opening(getParam<Real>("existing_crack_opening")),
     _relaxation_layers(getParam<unsigned int>("relaxation_layers")),
     _relaxation_iterations(getParam<unsigned int>("relaxation_iterations")),
     _lower_block_id(getParam<subdomain_id_type>("lower_block_id")),
@@ -194,7 +217,8 @@ PlanarCrackGenerator::generate()
   if (band.empty())
   {
     // Machine-readable summary, parsed by scripts deciding whether a crack was cut
-    _console << name() << ": crack summary: band_elements=0 crack_faces=0" << std::endl;
+    _console << name() << ": crack summary: band_elements=0 crack_faces=0 existing_faces=0"
+             << std::endl;
     mooseWarning("No element reached d >= ", _threshold, "; the mesh is returned unchanged.");
     return mesh;
   }
@@ -290,6 +314,142 @@ PlanarCrackGenerator::generate()
   std::unordered_map<dof_id_type, std::vector<const Elem *>> nodes_to_elems;
   MeshTools::build_nodes_to_elem_map(*mesh, nodes_to_elems);
 
+  // Faces of a crack cut in an earlier step: external boundary faces in the crack plane facing
+  // along the crack normal. Their nodes stay where they are and the elements behind them are
+  // assigned to the crack sides below, so the existing crack is kept and handed on. The search
+  // starts from faces inside the extent and spreads along the crack surface, so parts where the
+  // damage has since dropped below the threshold are kept too.
+  const Real opening = _existing_crack_opening > 0 ? _existing_crack_opening : band_size;
+  const Real min_alignment = std::cos(_existing_crack_angle * libMesh::pi / 180);
+  std::vector<const Elem *> existing_crack_elems;
+  std::set<dof_id_type> frozen_vertices;
+  const auto find_existing_crack = [&]()
+  {
+    existing_crack_elems.clear();
+    frozen_vertices.clear();
+
+    struct CrackFace
+    {
+      const Elem * elem;
+      unsigned int side;
+      std::vector<dof_id_type> vertices;
+      bool seed;
+    };
+    std::vector<CrackFace> candidates;
+    for (const auto & elem : mesh->active_element_ptr_range())
+    {
+      if (!allowed(*elem))
+        continue;
+      for (const auto s : elem->side_index_range())
+      {
+        if (elem->neighbor_ptr(s))
+          continue;
+        std::vector<Point> points;
+        std::vector<dof_id_type> vertices;
+        Real furthest = 0;
+        for (const auto v : elem->nodes_on_side(s))
+          if (v < 4)
+          {
+            points.push_back(elem->point(v));
+            vertices.push_back(elem->node_id(v));
+            furthest = std::max(furthest, std::abs(phi(elem->point(v))));
+          }
+        if (furthest > opening)
+          continue;
+        const auto face_normal = (points[1] - points[0]).cross(points[2] - points[0]).unit();
+        if (std::abs(face_normal * _plane_normal) < min_alignment)
+          continue;
+        std::sort(vertices.begin(), vertices.end());
+        candidates.push_back({elem, s, vertices, inside(*elem, s)});
+      }
+    }
+
+    // Spread from the seeds over candidates sharing an edge, i.e. two vertices
+    std::map<std::pair<dof_id_type, dof_id_type>, std::vector<std::size_t>> by_edge;
+    for (const auto i : index_range(candidates))
+      for (const auto & [a, b] : {std::make_pair(0, 1), std::make_pair(1, 2), std::make_pair(0, 2)})
+        by_edge[{candidates[i].vertices[a], candidates[i].vertices[b]}].push_back(i);
+
+    std::vector<bool> on_crack(candidates.size(), false);
+    std::queue<std::size_t> queue;
+    for (const auto i : index_range(candidates))
+      if (candidates[i].seed)
+      {
+        on_crack[i] = true;
+        queue.push(i);
+      }
+    while (!queue.empty())
+    {
+      const auto i = queue.front();
+      queue.pop();
+      for (const auto & [a, b] : {std::make_pair(0, 1), std::make_pair(1, 2), std::make_pair(0, 2)})
+        for (const auto j : by_edge[{candidates[i].vertices[a], candidates[i].vertices[b]}])
+          if (!on_crack[j])
+          {
+            on_crack[j] = true;
+            queue.push(j);
+          }
+    }
+
+    for (const auto i : index_range(candidates))
+      if (on_crack[i])
+      {
+        existing_crack_elems.push_back(candidates[i].elem);
+        for (const auto v : candidates[i].elem->nodes_on_side(candidates[i].side))
+          frozen_vertices.insert(candidates[i].elem->node_id(v));
+      }
+  };
+
+  find_existing_crack();
+  if (!existing_crack_elems.empty())
+  {
+    // Anchor the plane to the existing crack so new growth continues it instead of stepping off it
+    Point anchor;
+    RealVectorValue anchor_normal;
+    Real total_area = 0;
+    for (const auto * elem : existing_crack_elems)
+      for (const auto s : elem->side_index_range())
+      {
+        if (elem->neighbor_ptr(s))
+          continue;
+        std::vector<Point> points;
+        for (const auto v : elem->nodes_on_side(s))
+          if (v < 4)
+            points.push_back(elem->point(v));
+        if (points.size() != 3)
+          continue;
+        const auto cross = (points[1] - points[0]).cross(points[2] - points[0]);
+        const Real area = 0.5 * cross.norm();
+        if (area == 0 || std::abs(cross.unit() * _plane_normal) < min_alignment ||
+            std::abs(phi(points[0])) > opening)
+          continue;
+        const auto face_normal = cross.unit() * _plane_normal < 0 ? -cross.unit() : cross.unit();
+        anchor += area * (points[0] + points[1] + points[2]) / 3;
+        anchor_normal += area * face_normal;
+        total_area += area;
+      }
+    if (total_area > 0 && anchor_normal.norm() > 0)
+    {
+      const auto anchored = anchor_normal.unit();
+      const Real turn = std::acos(std::min(1., std::abs(anchored * _plane_normal))) * 180 /
+                        libMesh::pi;
+      if (turn > _existing_crack_angle)
+        mooseWarning("The phase field's ridge runs ",
+                     turn,
+                     " degrees away from the existing crack's plane, more than "
+                     "'existing_crack_angle'. The crack is extended along the existing plane, so a "
+                     "crack that turns is flattened onto it.");
+      _plane_point = anchor / total_area;
+      _plane_normal = anchored;
+      rms = 0;
+      for (const auto i : index_range(band))
+        rms += weight[i] * Utility::pow<2>((ridge[i] - _plane_point) * _plane_normal);
+      rms = std::sqrt(rms / total_weight);
+      // The plane moved, so the faces on it and the extent are found again
+      find_existing_crack();
+    }
+  }
+
   // 3.-4. Snap one end of every plane-crossing edge, first of the elements inside the crack extent,
   // then of crack elements that still cross the plane (at the edge of the extent)
   const auto straddles = [&](const Elem & elem)
@@ -333,7 +493,7 @@ PlanarCrackGenerator::generate()
   std::set<dof_id_type> moved_vertices;
   Real largest_move = 0;
   std::size_t n_refused_corner = 0, n_refused_boundary = 0, n_refused_inverted = 0,
-              n_refused_quality = 0;
+              n_refused_quality = 0, n_refused_frozen = 0;
   // Vertices on external boundaries, which relaxation leaves in place
   std::set<dof_id_type> boundary_vertices;
   for (const auto & elem : mesh->active_element_ptr_range())
@@ -455,6 +615,12 @@ PlanarCrackGenerator::generate()
   // smoothed to make room; everything is reverted if an element still ends up unacceptable.
   const auto try_move = [&](const dof_id_type node_id, const bool relax, const bool count)
   {
+    // Nodes of an existing crack's faces keep the geometry that crack was cut with
+    if (frozen_vertices.count(node_id))
+    {
+      n_refused_frozen += count;
+      return false;
+    }
     const auto target = plane_move(node_id, count);
     if (!target)
       return false;
@@ -474,7 +640,8 @@ PlanarCrackGenerator::generate()
               for (unsigned int v = 0; v < 4; ++v)
               {
                 const auto m = elem->node_id(v);
-                if (seen.insert(m).second && std::abs(phi(mesh->point(m))) > tolerance)
+                if (seen.insert(m).second && !frozen_vertices.count(m) &&
+                    std::abs(phi(mesh->point(m))) > tolerance)
                 {
                   free_vertices.push_back(m);
                   next.insert(m);
@@ -561,182 +728,379 @@ PlanarCrackGenerator::generate()
   };
   std::map<std::array<dof_id_type, 3>, PlaneFace> plane_faces;
   std::set<const Elem *> crack_elems;
-  const unsigned int max_passes = 10;
-  for (unsigned int pass = 0; pass < max_passes; ++pass)
+  // Splits every edge of the given elements that crosses the plane at the crossing point. Each
+  // element around such an edge is replaced by two, one with each edge end swapped for the new node,
+  // so the mesh stays conforming. The new node lies on the plane, so no edge through it crosses it,
+  // and every split removes one crossing. Returns the number of edges split.
+  const auto edge_key = [](const dof_id_type a, const dof_id_type b)
+  { return std::make_pair(std::min(a, b), std::max(a, b)); };
+  const auto original_of = [&](const dof_id_type node_id) -> Point
   {
-    const auto n_moved_before = moved_vertices.size();
-    for (const auto & [a, b] : crossing_edges(to_snap))
+    const auto it = original_positions.find(node_id);
+    return it == original_positions.end() ? Point(mesh->point(node_id)) : it->second;
+  };
+  auto & boundary_info = mesh->get_boundary_info();
+  std::size_t n_bisected = 0, n_split_elems = 0;
+  const auto bisect = [&](const std::vector<const Elem *> & elems) -> std::size_t
+  {
+    // Keyed and ordered by id, never by address, so every processor of a replicated mesh splits in
+    // the same order and gives new nodes and elements the same ids
+    std::map<dof_id_type, std::set<dof_id_type>> vertex_elems;
+    std::map<std::pair<dof_id_type, dof_id_type>, dof_id_type> edge_mid;
+    for (auto & elem : mesh->active_element_ptr_range())
+    {
+      for (unsigned int v = 0; v < 4; ++v)
+        vertex_elems[elem->node_id(v)].insert(elem->id());
+      if (elem->type() == TET10)
+        for (const auto e : elem->edge_index_range())
+        {
+          const auto nodes = elem->nodes_on_edge(e);
+          edge_mid[edge_key(elem->node_id(nodes[0]), elem->node_id(nodes[1]))] =
+              elem->node_id(nodes[2]);
+        }
+    }
+    // The mid-edge node of an edge, created at its midpoint if the edge is new. New nodes take the
+    // processor of the element they are made for; an unset one makes libMesh wait for its owner.
+    processor_id_type owner = 0;
+    const auto mid_node = [&](const dof_id_type a, const dof_id_type b) -> Node *
+    {
+      const auto key = edge_key(a, b);
+      const auto it = edge_mid.find(key);
+      if (it != edge_mid.end())
+        return mesh->node_ptr(it->second);
+      Node * mid =
+          mesh->add_point(0.5 * (mesh->point(a) + mesh->point(b)), DofObject::invalid_id, owner);
+      const Point original = 0.5 * (original_of(a) + original_of(b));
+      if ((original - *mid).norm() > tolerance)
+        original_positions.emplace(mid->id(), original);
+      edge_mid[key] = mid->id();
+      return mid;
+    };
+    const auto set_vertices = [&](Elem * elem, const std::array<dof_id_type, 4> & vertices)
+    {
+      for (unsigned int k = 0; k < 4; ++k)
+        elem->set_node(k, mesh->node_ptr(vertices[k]));
+      if (elem->type() == TET10)
+        for (const auto e : elem->edge_index_range())
+        {
+          const auto nodes = elem->nodes_on_edge(e);
+          elem->set_node(nodes[2], mid_node(vertices[nodes[0]], vertices[nodes[1]]));
+        }
+    };
+
+    std::set<std::pair<dof_id_type, dof_id_type>> edges;
+    for (const auto & [a, b] : crossing_edges(elems))
+      edges.insert(edge_key(a, b));
+
+    std::size_t n_split = 0;
+    std::set<dof_id_type> replaced_mids;
+    for (const auto & [a, b] : edges)
     {
       const Real phi_a = phi(mesh->point(a)), phi_b = phi(mesh->point(b));
-      // An earlier move may already have put one end on the plane
-      if (std::abs(phi_a) <= tolerance || std::abs(phi_b) <= tolerance)
+      if (!(phi_a * phi_b < 0 && std::abs(phi_a) > tolerance && std::abs(phi_b) > tolerance))
         continue;
-      const auto nearer = std::abs(phi_a) <= std::abs(phi_b) ? a : b;
-      const auto farther = nearer == a ? b : a;
-      const bool relaxing = _relaxation_layers > 0;
-      if (!try_move(nearer, false, !relaxing) && !try_move(farther, false, !relaxing) &&
-          (!relaxing || (!try_move(nearer, true, true) && !try_move(farther, true, true))))
-        unresolved.insert({a, b});
+      std::vector<Elem *> around;
+      for (const auto elem_id : vertex_elems[a])
+        if (vertex_elems[b].count(elem_id))
+          around.push_back(mesh->elem_ptr(elem_id));
+      if (around.empty())
+        continue;
+
+      const Real t = phi_a / (phi_a - phi_b);
+      Point crossing = mesh->point(a) + t * (mesh->point(b) - mesh->point(a));
+      crossing -= phi(crossing) * _plane_normal;
+      owner = around.front()->processor_id();
+      Node * m = mesh->add_point(crossing, DofObject::invalid_id, owner);
+      const Point original = original_of(a) + t * (original_of(b) - original_of(a));
+      if ((original - crossing).norm() > tolerance)
+        original_positions.emplace(m->id(), original);
+      const auto old_mid = edge_mid.find(edge_key(a, b));
+      if (old_mid != edge_mid.end())
+      {
+        replaced_mids.insert(old_mid->second);
+        edge_mid.erase(old_mid);
+      }
+
+      for (auto * parent : around)
+      {
+        owner = parent->processor_id();
+        const unsigned int ia = parent->local_node(a), ib = parent->local_node(b);
+        std::array<dof_id_type, 4> first, second;
+        for (unsigned int k = 0; k < 4; ++k)
+          first[k] = second[k] = parent->node_id(k);
+        first[ib] = m->id();
+        second[ia] = m->id();
+
+        // The side opposite a vertex is the one that does not contain it
+        const auto opposite = [&](const unsigned int k) -> unsigned int
+        {
+          for (const auto side : parent->side_index_range())
+            if (!parent->is_node_on_side(k, side))
+              return side;
+          return libMesh::invalid_uint;
+        };
+        const unsigned int side_opposite_a = opposite(ia), side_opposite_b = opposite(ib);
+        std::vector<std::vector<boundary_id_type>> side_ids(parent->n_sides());
+        for (const auto side : parent->side_index_range())
+          boundary_info.boundary_ids(parent, side, side_ids[side]);
+
+        auto child = Elem::build(parent->type());
+        child->subdomain_id() = parent->subdomain_id();
+        child->processor_id() = parent->processor_id();
+        set_vertices(child.get(), second);
+        Elem * added = mesh->add_elem(std::move(child));
+        for (const auto i : make_range(parent->n_extra_integers()))
+          added->set_extra_integer(i, parent->get_extra_integer(i));
+        set_vertices(parent, first);
+
+        // Each half keeps the parts of the parent's faces it contains. The face through the new node
+        // and the edge opposite the split one is new and interior.
+        boundary_info.remove_side(parent, side_opposite_a);
+        for (const auto side : parent->side_index_range())
+          if (side != side_opposite_b)
+            for (const auto id : side_ids[side])
+              boundary_info.add_side(added, side, id);
+
+        vertex_elems[b].erase(parent->id());
+        vertex_elems[m->id()].insert(parent->id());
+        for (unsigned int k = 0; k < 4; ++k)
+          vertex_elems[second[k]].insert(added->id());
+        ++n_split_elems;
+      }
+      ++n_split;
     }
 
-    // 5. Crack faces: interior faces on the plane inside the crack extent
-    std::set<dof_id_type> plane_vertices;
-    for (const auto & elem : mesh->active_element_ptr_range())
-      for (unsigned int v = 0; v < 4; ++v)
-        if (std::abs(phi(elem->point(v))) <= tolerance)
-          plane_vertices.insert(elem->node_id(v));
-
-    // Straighten the edges of every element with a vertex on the plane, so faces on the plane are
-    // planar also where their vertices were already on it and the edges were curved.
-    std::set<const Elem *> straightened;
-    for (const auto & vertices : {plane_vertices, relaxed_vertices})
-      for (const auto node_id : vertices)
-        for (const auto * elem : nodes_to_elems[node_id])
-          if (elem->type() == TET10)
-            straightened.insert(elem);
-    for (const auto * const_elem : straightened)
+    if (n_split)
     {
-      auto * elem = mesh->elem_ptr(const_elem->id());
-      for (const auto e : elem->edge_index_range())
+      mesh->find_neighbors();
+      nodes_to_elems.clear();
+      MeshTools::build_nodes_to_elem_map(*mesh, nodes_to_elems);
+      // Mid-edge nodes of split edges are no longer used. They are left in place, since deleting
+      // nodes leaves gaps in the node ids that BreakMeshByBlockGenerator mishandles; mesh
+      // preparation removes unused nodes.
+      for (const auto id : replaced_mids)
+        if (!nodes_to_elems.count(id))
+          original_positions.erase(id);
+    }
+    return n_split;
+  };
+
+  // Snap and split, assign the sides, and repeat while the side assignment took elements that
+  // still cross the plane (e.g. around crack nodes at the edge of the extent), so every crack face
+  // ends up on the plane.
+  std::map<const Elem *, bool> is_upper;
+  std::size_t n_outside_blocks = 0, n_sawtooth_elems = 0;
+  const unsigned int max_rounds = 5;
+  for (unsigned int round = 0; round < max_rounds; ++round)
+  {
+    const unsigned int max_passes = 10;
+    for (unsigned int pass = 0; pass < max_passes; ++pass)
+    {
+      const auto n_moved_before = moved_vertices.size();
+      for (const auto & [a, b] : crossing_edges(to_snap))
       {
-        const auto edge_nodes = elem->nodes_on_edge(e);
-        auto & middle = elem->node_ref(edge_nodes[2]);
-        const Point midpoint = 0.5 * (elem->point(edge_nodes[0]) + elem->point(edge_nodes[1]));
-        if ((midpoint - middle).norm() > tolerance)
+        const Real phi_a = phi(mesh->point(a)), phi_b = phi(mesh->point(b));
+        // An earlier move may already have put one end on the plane
+        if (std::abs(phi_a) <= tolerance || std::abs(phi_b) <= tolerance)
+          continue;
+        const auto nearer = std::abs(phi_a) <= std::abs(phi_b) ? a : b;
+        const auto farther = nearer == a ? b : a;
+        const bool relaxing = _relaxation_layers > 0;
+        if (!try_move(nearer, false, !relaxing) && !try_move(farther, false, !relaxing) &&
+            (!relaxing || (!try_move(nearer, true, true) && !try_move(farther, true, true))))
+          unresolved.insert({a, b});
+      }
+
+      // Split what snapping left crossing the plane, so the crack is exactly planar
+      std::size_t n_bisected_now = 0;
+      if (_bisect_unsnapped_edges)
+      {
+        std::vector<const Elem *> crossing_elems;
+        for (const auto * elem : to_snap)
+          if (straddles(*elem))
+            crossing_elems.push_back(elem);
+        n_bisected_now = bisect(crossing_elems);
+        n_bisected += n_bisected_now;
+      }
+
+      // 5. Crack faces: interior faces on the plane inside the crack extent
+      std::set<dof_id_type> plane_vertices;
+      for (const auto & elem : mesh->active_element_ptr_range())
+        for (unsigned int v = 0; v < 4; ++v)
+          if (std::abs(phi(elem->point(v))) <= tolerance)
+            plane_vertices.insert(elem->node_id(v));
+
+      // Straighten the edges of every element with a vertex on the plane, so faces on the plane are
+      // planar also where their vertices were already on it and the edges were curved.
+      std::set<const Elem *> straightened;
+      for (const auto & vertices : {plane_vertices, relaxed_vertices})
+        for (const auto node_id : vertices)
+          for (const auto * elem : nodes_to_elems[node_id])
+            if (elem->type() == TET10)
+              straightened.insert(elem);
+      for (const auto * const_elem : straightened)
+      {
+        auto * elem = mesh->elem_ptr(const_elem->id());
+        for (const auto e : elem->edge_index_range())
         {
-          original_positions.emplace(middle.id(), middle);
-          middle = midpoint;
+          const auto edge_nodes = elem->nodes_on_edge(e);
+          auto & middle = elem->node_ref(edge_nodes[2]);
+          const Point midpoint = 0.5 * (elem->point(edge_nodes[0]) + elem->point(edge_nodes[1]));
+          if ((midpoint - middle).norm() > tolerance)
+          {
+            original_positions.emplace(middle.id(), middle);
+            middle = midpoint;
+          }
         }
       }
+
+      plane_faces.clear();
+      for (const auto node_id : plane_vertices)
+        for (const auto * elem : nodes_to_elems[node_id])
+          for (const auto s : elem->side_index_range())
+          {
+            const Elem * neighbor = elem->neighbor_ptr(s);
+            if (!neighbor || neighbor == remote_elem)
+              continue;
+            std::array<dof_id_type, 3> key;
+            unsigned int n_vertices = 0;
+            bool on_plane = true;
+            for (const auto v : elem->nodes_on_side(s))
+              if (v < 4)
+              {
+                key[n_vertices++] = elem->node_id(v);
+                on_plane = on_plane && plane_vertices.count(elem->node_id(v));
+              }
+            if (!on_plane)
+              continue;
+            std::sort(key.begin(), key.end());
+            if (!plane_faces.count(key))
+              plane_faces[key] = {elem, neighbor, inside(*elem, s)};
+          }
+
+      // Crack nodes are surrounded by crack faces; the others on crack faces form the front
+      std::map<dof_id_type, bool> surrounded;
+      for (const auto & [key, face] : plane_faces)
+        for (const auto node_id : key)
+        {
+          auto it = surrounded.try_emplace(node_id, true).first;
+          it->second = it->second && face.crack;
+        }
+
+      crack_elems.clear();
+      for (const auto & [key, face] : plane_faces)
+        if (face.crack)
+        {
+          crack_elems.insert(face.elem);
+          crack_elems.insert(face.neighbor);
+          for (const auto node_id : key)
+            if (surrounded[node_id])
+              for (const auto * elem : nodes_to_elems[node_id])
+                crack_elems.insert(elem);
+        }
+
+      // Crack elements still crossing the plane get their edges snapped in the next pass
+      to_snap.clear();
+      for (const auto * elem : crack_elems)
+        if (allowed(*elem) && straddles(*elem))
+          to_snap.push_back(elem);
+      if (to_snap.empty() || (moved_vertices.size() == n_moved_before && n_bisected_now == 0))
+        break;
     }
 
-    plane_faces.clear();
-    for (const auto node_id : plane_vertices)
-      for (const auto * elem : nodes_to_elems[node_id])
+    // Final sides. Seeds: both elements of each crack face on the plane, and elements inside the
+    // extent that still cross the plane because their edges could not be snapped. Every element goes
+    // to the side its centroid is on: for snapped elements that is the side of all their vertices,
+    // and around unsnapped ones the crack follows their faces (sawtooth) instead of leaving a hole.
+    // Then, as in PhaseFieldCrackSubdomainGenerator, every node between the two sides where the ridge
+    // reaches the threshold takes all elements around it, so BreakMeshByBlockGenerator duplicates it;
+    // nodes where the ridge is below the threshold stay shared as the crack front.
+    is_upper.clear();
+    n_outside_blocks = 0;
+    n_sawtooth_elems = 0;
+    const auto label = [&](const Elem * elem)
+    {
+      if (is_upper.count(elem))
+        return false;
+      if (!allowed(*elem))
+      {
+        ++n_outside_blocks;
+        return false;
+      }
+      is_upper[elem] = phi(elem->vertex_average()) >= 0;
+      return true;
+    };
+    for (const auto & [key, face] : plane_faces)
+      if (face.crack)
+      {
+        label(face.elem);
+        label(face.neighbor);
+      }
+    for (const auto & elem : mesh->active_element_ptr_range())
+      if (allowed(*elem) && straddles(*elem) && inside(*elem))
+        n_sawtooth_elems += label(elem);
+    // The elements behind an existing crack's faces, so its two sides are subdomains again
+    for (const auto * elem : existing_crack_elems)
+      label(elem);
+
+    std::set<dof_id_type> checked_nodes;
+    bool added = true;
+    while (added)
+    {
+      added = false;
+      std::set<dof_id_type> interface_nodes;
+      for (const auto & [elem, upper] : is_upper)
         for (const auto s : elem->side_index_range())
         {
           const Elem * neighbor = elem->neighbor_ptr(s);
           if (!neighbor || neighbor == remote_elem)
             continue;
-          std::array<dof_id_type, 3> key;
-          unsigned int n_vertices = 0;
-          bool on_plane = true;
-          for (const auto v : elem->nodes_on_side(s))
-            if (v < 4)
-            {
-              key[n_vertices++] = elem->node_id(v);
-              on_plane = on_plane && plane_vertices.count(elem->node_id(v));
-            }
-          if (!on_plane)
-            continue;
-          std::sort(key.begin(), key.end());
-          if (!plane_faces.count(key))
-            plane_faces[key] = {elem, neighbor, inside(*elem, s)};
+          const auto it = is_upper.find(neighbor);
+          if (it != is_upper.end() && it->second != upper)
+            for (const auto v : elem->nodes_on_side(s))
+              interface_nodes.insert(elem->node_id(v));
         }
-
-    // Crack nodes are surrounded by crack faces; the others on crack faces form the front
-    std::map<dof_id_type, bool> surrounded;
-    for (const auto & [key, face] : plane_faces)
-      for (const auto node_id : key)
+      for (const auto node_id : interface_nodes)
       {
-        auto it = surrounded.try_emplace(node_id, true).first;
-        it->second = it->second && face.crack;
+        if (!checked_nodes.insert(node_id).second)
+          continue;
+        // The ridge through the node and the centroids around it, which smooths out single dips
+        std::vector<Point> points = {mesh->point(node_id)};
+        for (const auto * elem : nodes_to_elems[node_id])
+          points.push_back(elem->vertex_average());
+        if (crackRidgeValue(phase_field, points, reach) < _threshold)
+          continue;
+        for (const auto * elem : nodes_to_elems[node_id])
+          added = label(elem) || added;
       }
+    }
 
-    crack_elems.clear();
-    for (const auto & [key, face] : plane_faces)
-      if (face.crack)
-      {
-        crack_elems.insert(face.elem);
-        crack_elems.insert(face.neighbor);
-        for (const auto node_id : key)
-          if (surrounded[node_id])
-            for (const auto * elem : nodes_to_elems[node_id])
-              crack_elems.insert(elem);
-      }
-
-    // Crack elements still crossing the plane get their edges snapped in the next pass
+    // Elements assigned to a side that still cross the plane are snapped or split in another round
     to_snap.clear();
-    for (const auto * elem : crack_elems)
-      if (allowed(*elem) && straddles(*elem))
+    for (const auto & [elem, upper] : is_upper)
+      if (straddles(*elem))
         to_snap.push_back(elem);
-    if (to_snap.empty() || moved_vertices.size() == n_moved_before)
+    if (to_snap.empty() || !_bisect_unsnapped_edges)
       break;
   }
+
+  // Edges that still exist (not split) and still cross the plane
   std::size_t n_unresolved = 0;
   for (const auto & [a, b] : unresolved)
-    n_unresolved += phi(mesh->point(a)) * phi(mesh->point(b)) < 0 &&
+  {
+    bool exists = false;
+    for (const auto * elem : nodes_to_elems[a])
+      for (unsigned int v = 0; v < 4; ++v)
+        exists = exists || elem->node_id(v) == b;
+    n_unresolved += exists && phi(mesh->point(a)) * phi(mesh->point(b)) < 0 &&
                     std::abs(phi(mesh->point(a))) > tolerance &&
                     std::abs(phi(mesh->point(b))) > tolerance;
+  }
 
   std::set<const Elem *> touched;
   for (const auto node_id : moved_vertices)
     for (const auto * elem : nodes_to_elems[node_id])
       touched.insert(elem);
-
-  // Final sides. Seeds: both elements of each crack face on the plane, and elements inside the
-  // extent that still cross the plane because their edges could not be snapped. Every element goes
-  // to the side its centroid is on: for snapped elements that is the side of all their vertices,
-  // and around unsnapped ones the crack follows their faces (sawtooth) instead of leaving a hole.
-  // Then, as in PhaseFieldCrackSubdomainGenerator, every node between the two sides where the ridge
-  // reaches the threshold takes all elements around it, so BreakMeshByBlockGenerator duplicates it;
-  // nodes where the ridge is below the threshold stay shared as the crack front.
-  std::map<const Elem *, bool> is_upper;
-  std::size_t n_outside_blocks = 0;
-  const auto label = [&](const Elem * elem)
-  {
-    if (is_upper.count(elem))
-      return false;
-    if (!allowed(*elem))
-    {
-      ++n_outside_blocks;
-      return false;
-    }
-    is_upper[elem] = phi(elem->vertex_average()) >= 0;
-    return true;
-  };
-  for (const auto & [key, face] : plane_faces)
-    if (face.crack)
-    {
-      label(face.elem);
-      label(face.neighbor);
-    }
-  std::size_t n_sawtooth_elems = 0;
-  for (const auto & elem : mesh->active_element_ptr_range())
-    if (allowed(*elem) && straddles(*elem) && inside(*elem))
-      n_sawtooth_elems += label(elem);
-
-  std::set<dof_id_type> checked_nodes;
-  bool added = true;
-  while (added)
-  {
-    added = false;
-    std::set<dof_id_type> interface_nodes;
-    for (const auto & [elem, upper] : is_upper)
-      for (const auto s : elem->side_index_range())
-      {
-        const Elem * neighbor = elem->neighbor_ptr(s);
-        if (!neighbor || neighbor == remote_elem)
-          continue;
-        const auto it = is_upper.find(neighbor);
-        if (it != is_upper.end() && it->second != upper)
-          for (const auto v : elem->nodes_on_side(s))
-            interface_nodes.insert(elem->node_id(v));
-      }
-    for (const auto node_id : interface_nodes)
-    {
-      if (!checked_nodes.insert(node_id).second)
-        continue;
-      // The ridge through the node and the centroids around it, which smooths out single dips
-      std::vector<Point> points = {mesh->point(node_id)};
-      for (const auto * elem : nodes_to_elems[node_id])
-        points.push_back(elem->vertex_average());
-      if (crackRidgeValue(phase_field, points, reach) < _threshold)
-        continue;
-      for (const auto * elem : nodes_to_elems[node_id])
-        added = label(elem) || added;
-    }
-  }
 
   std::size_t n_lower = 0, n_upper = 0, n_crack_faces = 0, n_off_plane_faces = 0;
   for (const auto & [elem, upper] : is_upper)
@@ -784,14 +1148,23 @@ PlanarCrackGenerator::generate()
            << relaxed_vertices.size() << " relaxed vertices and "
            << original_positions.size() - moved_vertices.size() - relaxed_vertices.size()
            << " mid-edge nodes"
+           << (n_bisected ? "; split " + std::to_string(n_bisected) + " edges crossing the plane (" +
+                                std::to_string(n_split_elems) + " elements bisected)"
+                          : "")
            << (touched.empty() ? "" : "; lowest scaled Jacobian of moved elements ")
            << (touched.empty() ? "" : std::to_string(lowest_quality)) << "; " << n_crack_faces
            << " crack faces (" << n_off_plane_faces << " off the plane); " << n_lower
-           << " lower and " << n_upper << " upper elements." << std::endl;
+           << " lower and " << n_upper << " upper elements"
+           << (existing_crack_elems.empty()
+                   ? "."
+                   : "; kept " + std::to_string(existing_crack_elems.size()) +
+                         " faces of an existing crack.")
+           << std::endl;
   // Machine-readable summary, parsed by scripts deciding whether a crack was cut
   _console << name() << ": crack summary: band_elements=" << band.size()
-           << " crack_faces=" << n_crack_faces << std::endl;
-  if (n_crack_faces == 0)
+           << " crack_faces=" << n_crack_faces
+           << " existing_faces=" << existing_crack_elems.size() << std::endl;
+  if (n_crack_faces == 0 && existing_crack_elems.empty())
     mooseWarning("No crack faces were found where the ridge reaches d >= ",
                  _threshold,
                  "; no elements were assigned to the crack subdomains.");
@@ -809,7 +1182,9 @@ PlanarCrackGenerator::generate()
                  n_refused_inverted,
                  " inverting an element, ",
                  n_refused_quality,
-                 " below 'min_scaled_jacobian'.");
+                 " below 'min_scaled_jacobian', ",
+                 n_refused_frozen,
+                 " nodes of an existing crack.");
   if (n_outside_blocks)
     mooseWarning(n_outside_blocks,
                  " elements needed on the crack sides are outside 'block' and were not assigned; "
