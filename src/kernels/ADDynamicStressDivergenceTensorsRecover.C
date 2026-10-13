@@ -50,8 +50,6 @@ ADDynamicStressDivergenceTensorsRecover::validParams()
       "matching patches in ComputeLargeDeformationStress and ComputeDeformationGradient.  "
       "When false (default), reads sigma_old / sigma_older at t_step=1,2 from the "
       "legacy AD material properties `stress_sol` / `stress_old_store_sol`.");
-  // Not read by the kernel; still accepted so existing input files that set it keep working.
-  params.addParam<UserObjectName>("solution", "", "Unused.");
 
   return params;
 }
@@ -78,99 +76,41 @@ ADDynamicStressDivergenceTensorsRecover::ADDynamicStressDivergenceTensorsRecover
 ADReal
 ADDynamicStressDivergenceTensorsRecover::computeQpResidual()
 {
-  /**
-   * HHT-alpha + Rayleigh stress-divergence residual:
-   *   R = [(1+alpha)*(1 + zeta/dt)] * Div sigma
-   *     - [alpha + (1+2*alpha)*zeta/dt] * Div sigma_old
-   *     + [alpha * zeta/dt]            * Div sigma_older
-   */
-  ADReal residual;
-
+  // Quasi-static first step: Div sigma only
   if (_static_initialization && _t == _dt)
   {
-    residual = _stress[_qp].row(_component) * _grad_test[_i][_qp];
-
+    ADReal residual = _stress[_qp].row(_component) * _grad_test[_i][_qp];
     if (_volumetric_locking_correction)
       residual +=
           _stress[_qp].trace() / 3.0 * (_avg_grad_test[_i] - _grad_test[_i][_qp](_component));
+    return residual;
   }
-  else if (_recompute_old_stress)
+
+  if (_dt <= 0)
+    return 0.0;
+
+  // The old and older stress. Without recompute_old_stress, the stateful stress has no recovered
+  // history on the first two steps, so the stress read from the recovery file stands in for it.
+  ADRankTwoTensor stress_old = _stress_old[_qp];
+  ADRankTwoTensor stress_older = _stress_older[_qp];
+  if (!_recompute_old_stress && _t_step == 1)
   {
-    // RECOMPUTE PATH.  At t_step=1, _stress_old has been populated at INITIAL
-    // by ComputeLargeDeformationStress::initQpStatefulProperties evaluating
-    // the elasticity model on _Fm = F_recovered.  _stress_older at t_step=1
-    // is zero (no prior state); its only coefficient is alpha*zeta/dt, which
-    // vanishes for the zeta=0 (no Rayleigh) case.
-    if (_dt > 0)
-    {
-      residual =
-          _stress[_qp].row(_component) * _grad_test[_i][_qp] *
-              (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
-          (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * _stress_old[_qp].row(_component) *
-              _grad_test[_i][_qp] +
-          (_alpha * _zeta[_qp] / _dt) * _stress_older[_qp].row(_component) * _grad_test[_i][_qp];
-
-      if (_volumetric_locking_correction)
-        residual += (_stress[_qp].trace() * (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
-                     (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * _stress_old[_qp].trace() +
-                     (_alpha * _zeta[_qp] / _dt) * _stress_older[_qp].trace()) /
-                    3.0 * (_avg_grad_test[_i] - _grad_test[_i][_qp](_component));
-    }
-    else
-      residual = 0.0;
+    stress_old = (*_stress_old_sol)[_qp];
+    stress_older = (*_stress_older_sol)[_qp];
   }
-  else if (_dt > 0 && _t_step == 1)
-  {
-    // LEGACY PATH t_step=1: sigma_old from SolutionTensor (dumped sigma);
-    // sigma_older is the identity placeholder, only contributes when zeta != 0.
-    residual =
-        _stress[_qp].row(_component) * _grad_test[_i][_qp] *
-            (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
-        (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * (*_stress_old_sol)[_qp].row(_component) *
-            _grad_test[_i][_qp] +
-        (_alpha * _zeta[_qp] / _dt) * (*_stress_older_sol)[_qp].row(_component) * _grad_test[_i][_qp];
+  else if (!_recompute_old_stress && _t_step == 2)
+    stress_older = (*_stress_old_sol)[_qp];
 
-    if (_volumetric_locking_correction)
-      residual +=
-          (_stress[_qp].trace() * (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
-           (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * (*_stress_old_sol)[_qp].trace() +
-           (_alpha * _zeta[_qp] / _dt) * (*_stress_older_sol)[_qp].trace()) /
-          3.0 * (_avg_grad_test[_i] - _grad_test[_i][_qp](_component));
-  }
-  else if (_dt > 0 && _t_step == 2)
-  {
-    // LEGACY PATH t_step=2: sigma_old MOOSE-tracked, sigma_older from SolutionTensor.
-    residual =
-        _stress[_qp].row(_component) * _grad_test[_i][_qp] *
-            (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
-        (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * _stress_old[_qp].row(_component) *
-            _grad_test[_i][_qp] +
-        (_alpha * _zeta[_qp] / _dt) * (*_stress_old_sol)[_qp].row(_component) * _grad_test[_i][_qp];
+  // HHT-alpha + Rayleigh stress-divergence residual:
+  //   R = [(1+alpha)*(1 + zeta/dt)]      * Div sigma
+  //     - [alpha + (1+2*alpha)*zeta/dt]  * Div sigma_old
+  //     + [alpha * zeta/dt]              * Div sigma_older
+  const ADRankTwoTensor stress = (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) * _stress[_qp] -
+                                 (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * stress_old +
+                                 (_alpha * _zeta[_qp] / _dt) * stress_older;
 
-    if (_volumetric_locking_correction)
-      residual += (_stress[_qp].trace() * (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
-                   (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * _stress_old[_qp].trace() +
-                   (_alpha * _zeta[_qp] / _dt) * (*_stress_old_sol)[_qp].trace()) /
-                  3.0 * (_avg_grad_test[_i] - _grad_test[_i][_qp](_component));
-  }
-  else if (_dt > 0)
-  {
-    // LEGACY PATH t_step >= 3: fully MOOSE-tracked.
-    residual =
-        _stress[_qp].row(_component) * _grad_test[_i][_qp] *
-            (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
-        (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * _stress_old[_qp].row(_component) *
-            _grad_test[_i][_qp] +
-        (_alpha * _zeta[_qp] / _dt) * _stress_older[_qp].row(_component) * _grad_test[_i][_qp];
-
-    if (_volumetric_locking_correction)
-      residual += (_stress[_qp].trace() * (1.0 + _alpha + (1.0 + _alpha) * _zeta[_qp] / _dt) -
-                   (_alpha + (1.0 + 2.0 * _alpha) * _zeta[_qp] / _dt) * _stress_old[_qp].trace() +
-                   (_alpha * _zeta[_qp] / _dt) * _stress_older[_qp].trace()) /
-                  3.0 * (_avg_grad_test[_i] - _grad_test[_i][_qp](_component));
-  }
-  else
-    residual = 0.0;
-
+  ADReal residual = stress.row(_component) * _grad_test[_i][_qp];
+  if (_volumetric_locking_correction)
+    residual += stress.trace() / 3.0 * (_avg_grad_test[_i] - _grad_test[_i][_qp](_component));
   return residual;
 }

@@ -1,3 +1,7 @@
+//* This file is part of the RACCOON application
+//* being developed at Dolbow lab at Duke University
+//* http://dolbow.pratt.duke.edu
+
 #include "SolutionUserObjectQP.h"
 #include "libmesh/nemesis_io.h"
 // MOOSE includes
@@ -57,49 +61,54 @@ SolutionUserObjectQP::SolutionUserObjectQP(const InputParameters & parameters)
 {
   _lookup = QpMapping::getLookup(_element, _qpnum, /*reversed=*/true);
 
-  unsigned int qp_max = _qpnum;
-  int dim = 3;
-
-  auto formatQP = [qp_max](unsigned int qp)
+  // Read the variables of the listed properties at every quadrature point
+  for (const auto qp : make_range(_qpnum))
   {
-    if (qp_max < 10)
-      return std::to_string(qp); // Single digit
-    else
-      return (qp < 10) ? "0" + std::to_string(qp) : std::to_string(qp); // Two digits
-  };
-
-  if (!_tensor_materials.empty())
-  {
-    std::vector<std::string> conv = {"x", "y", "z"};
-    for (unsigned int i = 0; i < _tensor_materials.size(); i++)
-    {
-      std::string matname = _tensor_materials[i];
-      if (_tensor_materials[i].size() > 26)
-        matname.erase(26, _tensor_materials[i].size() - 1);
-      for (unsigned int qp = 1; qp <= qp_max; qp++)
-      {
-        unsigned int qp_sel = QpMapping::getQP(qp, _lookup);
-        for (int j = 0; j < dim; j++)
-          for (int k = 0; k < dim; k++)
-          {
-            _system_variables.push_back(matname + "_" + conv[j] + conv[k] + "_" + formatQP(qp_sel));
-          }
-      }
-    }
+    for (const auto & material : _materials)
+      _system_variables.push_back(qpVariableName(material, qp));
+    for (const auto & material : _tensor_materials)
+      for (const auto i : make_range(3u))
+        for (const auto j : make_range(3u))
+          _system_variables.push_back(qpVariableName(material, i, j, qp));
   }
-  if (!_materials.empty())
-  {
-    for (unsigned int i = 0; i < _materials.size(); i++)
-    {
-      // Assuming 8 QPs
-      // Starting at 1 because qps start at one in Sierra
-      for (unsigned int qp = 1; qp <= qp_max; qp++)
-      {
-        unsigned int qp_sel = QpMapping::getQP(qp, _lookup);
-        _system_variables.push_back(_materials[i] + "_" + formatQP(qp_sel));
-      }
-    }
-  }
+}
+
+std::string
+SolutionUserObjectQP::qpVariableName(const std::string & property, const unsigned int qp) const
+{
+  return QpMapping::variableName(property, QpMapping::getQP(qp + 1, _lookup), _qpnum);
+}
+
+std::string
+SolutionUserObjectQP::qpVariableName(const std::string & property,
+                                     const unsigned int i,
+                                     const unsigned int j,
+                                     const unsigned int qp) const
+{
+  return QpMapping::variableName(property, i, j, QpMapping::getQP(qp + 1, _lookup), _qpnum);
+}
+
+Real
+SolutionUserObjectQP::qpValue(const Real t,
+                              const Elem & elem,
+                              const std::string & property,
+                              const unsigned int qp) const
+{
+  return pointValue(t, elem.true_centroid(), qpVariableName(property, qp));
+}
+
+RankTwoTensor
+SolutionUserObjectQP::qpTensor(const Real t,
+                               const Elem & elem,
+                               const std::string & property,
+                               const unsigned int qp) const
+{
+  const Point centroid = elem.true_centroid();
+  RankTwoTensor tensor;
+  for (const auto i : make_range(3u))
+    for (const auto j : make_range(3u))
+      tensor(i, j) = pointValue(t, centroid, qpVariableName(property, i, j, qp));
+  return tensor;
 }
 
 void

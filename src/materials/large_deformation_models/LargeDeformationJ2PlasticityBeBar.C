@@ -124,21 +124,8 @@ LargeDeformationJ2PlasticityBeBar::initQpStatefulProperties()
   if (!_recover)
     return;
 
-  const std::vector<std::string> indices = {"x", "y", "z"};
-  unsigned int qp_sel = QpMapping::getQP(_qp + 1, _lookup);
-
-  _ep[_qp] = _solution_object_ptr->pointValue(
-      _t, _current_elem->true_centroid(), "effective_plastic_strain_" + formatQP(qp_sel), nullptr);
-  if (_ep[_qp] < 0)
-    _ep[_qp] = 0;
-
-  for (int i_ind = 0; i_ind < 3; i_ind++)
-    for (int j_ind = 0; j_ind < 3; j_ind++)
-      _bebar[_qp](i_ind, j_ind) = _solution_object_ptr->pointValue(
-          _t,
-          _current_elem->true_centroid(),
-          "be_bar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
-          nullptr);
+  _ep[_qp] = recoverNonNegative("effective_plastic_strain");
+  _bebar[_qp] = recoverTensor("be_bar");
 
   // Re-enforce det(be_bar) = 1 on the mapped be_bar.
   const Real det_bebar = MetaPhysicL::raw_value(_bebar[_qp].det());
@@ -146,12 +133,7 @@ LargeDeformationJ2PlasticityBeBar::initQpStatefulProperties()
     _bebar[_qp] /= std::cbrt(det_bebar);
 
   if (_recover_psip_triax)
-  {
-    _psip_triax_raw[_qp] = _solution_object_ptr->pointValue(
-        _t, _current_elem->true_centroid(), "psip_triax_raw_" + formatQP(qp_sel), nullptr);
-    if (MetaPhysicL::raw_value(_psip_triax_raw[_qp]) < 0)
-      _psip_triax_raw[_qp] = 0.0;
-  }
+    _psip_triax_raw[_qp] = recoverNonNegative("psip_triax_raw");
 }
 
 void

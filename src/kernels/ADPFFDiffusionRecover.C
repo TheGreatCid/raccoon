@@ -13,8 +13,6 @@ ADPFFDiffusionRecover::validParams()
   params.addClassDescription("The diffusion term in the phase-field evolution equation. The weak "
                              "form is $(\\grad w, \\dfrac{2\\Gc l}{c_0} \\grad d)$.");
 
-  // Not read by the kernel; still accepted so existing input files that set it keep working.
-  params.addParam<Real>("qp", 8, "Unused.");
   params.addParam<MaterialPropertyName>("Fbarprev", "Fbar from previous simulation");
   return params;
 }

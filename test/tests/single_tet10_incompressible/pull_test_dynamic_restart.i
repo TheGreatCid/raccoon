@@ -292,7 +292,6 @@ zfix_bnd = 'front back'
     component = 0
     use_displaced_mesh = true
     alpha = ${hht_alpha}
-    solution = epsol
   []
   [y]
     type = ADDynamicStressDivergenceTensorsRecover
@@ -300,7 +299,6 @@ zfix_bnd = 'front back'
     component = 1
     use_displaced_mesh = true
     alpha = ${hht_alpha}
-    solution = epsol
   []
   [z]
     type = ADDynamicStressDivergenceTensorsRecover
@@ -308,7 +306,6 @@ zfix_bnd = 'front back'
     component = 2
     use_displaced_mesh = true
     alpha = ${hht_alpha}
-    solution = epsol
   []
 
   # ----- Inertia (recovered velocity/acceleration carry through) ------------
@@ -453,7 +450,6 @@ zfix_bnd = 'front back'
     type = SolutionReal
     solution = epsol
     mat_name = Jacobian
-    element = TET10_4th
   []
   [adj_density_rec]
     type = ADParsedMaterial

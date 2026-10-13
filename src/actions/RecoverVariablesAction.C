@@ -18,7 +18,6 @@ RecoverVariablesAction::validParams()
   params.addParam<std::vector<MaterialName>>("tensor_materials", "materials to output qps on");
   params.addParam<std::vector<MaterialName>>("materials", "materials to output qps on");
   params.addParam<std::string>("output_name", "exodusqp", "name of output for variables");
-  // params.addParam<Real>("num_qps", 8, "Number of QPs");
   params.addRequiredParam<MooseEnum>(
       "element", MooseEnum(QpMapping::ELEMENT_ENUM_DEFINITION), "The element type");
   params.addParam<std::vector<SubdomainName>>(
@@ -58,49 +57,26 @@ RecoverVariablesAction::act()
 {
   // Tensors are always dumped with all 3x3 components, which is what the recovery readers expect
   const unsigned int dim = 3;
-  unsigned int qp_max = _qpnum;
 
-  std::vector<std::string> conv = {"x", "y", "z"};
-
-  // Formatting qp number in the case where num_qps > 10
-  auto formatQP = [qp_max](unsigned int qp)
-  {
-    if (qp_max < 10)
-      return std::to_string(qp); // Single digit
-    else
-      return (qp < 10) ? "0" + std::to_string(qp) : std::to_string(qp); // Two digits
-  };
-
+  // The variables are named after the quadrature points of the file, numbered from 1; _lookup
+  // gives the MOOSE quadrature point each of them holds.
   if (_current_task == "add_aux_variable")
   {
     auto var_params = _factory.getValidParams("MooseVariable");
     var_params.set<MooseEnum>("order") = "CONSTANT";
     var_params.set<MooseEnum>("family") = "MONOMIAL";
     var_params.set<std::vector<OutputName>>("outputs") = {_output_name};
-    // Non tensor mats
-    for (unsigned int i = 0; i < _materials.size(); i++)
-    {
-      // Starting at 1 because qps start at one in Sierra
-      for (unsigned int qp = 1; qp <= qp_max; qp++)
-        _problem->addAuxVariable("MooseVariable", _materials[i] + "_" + formatQP(qp), var_params);
-    }
 
-    // Tensor mats
-    for (unsigned int i = 0; i < _tensor_materials.size(); i++)
+    for (unsigned int qp = 1; qp <= _qpnum; qp++)
     {
-      // Assuming 8 QPs
-      // Starting at 1 because qps start at one in Sierra
-      for (unsigned int qp = 1; qp <= qp_max; qp++)
+      for (const auto & material : _materials)
+        _problem->addAuxVariable(
+            "MooseVariable", QpMapping::variableName(material, qp, _qpnum), var_params);
+      for (const auto & material : _tensor_materials)
         for (unsigned int j = 0; j < dim; j++)
           for (unsigned int k = 0; k < dim; k++)
-          {
-            std::string matname = _tensor_materials[i];
-            if (_tensor_materials[i].size() > 26)
-              matname.erase(26, _tensor_materials[i].size() - 1);
-            _problem->addAuxVariable("MooseVariable",
-                                     matname + "_" + conv[j] + conv[k] + "_" + formatQP(qp),
-                                     var_params);
-          }
+            _problem->addAuxVariable(
+                "MooseVariable", QpMapping::variableName(material, j, k, qp, _qpnum), var_params);
     }
   }
 
@@ -111,53 +87,39 @@ RecoverVariablesAction::act()
     for (const auto & block : _blocks)
       block_suffix += "_" + block;
 
+    for (unsigned int qp = 1; qp <= _qpnum; qp++)
+    {
+      const unsigned int moose_qp = QpMapping::getQP(qp, _lookup) - 1;
 
-    // Non tensor
-    for (unsigned int i = 0; i < _materials.size(); i++)
-      // assuming 8 QPs
-      for (unsigned int qp = 1; qp <= qp_max; qp++)
+      for (const auto & material : _materials)
       {
-        unsigned int qp_sel = QpMapping::getQP(qp, _lookup);
+        const auto variable = QpMapping::variableName(material, qp, _qpnum);
         InputParameters params = _factory.getValidParams("ADMaterialRealAux");
-        params.set<AuxVariableName>("variable") = _materials[i] + "_" + formatQP(qp);
-        params.set<MaterialPropertyName>("property") = _materials[i];
-        params.set<unsigned int>("selected_qp") = qp_sel - 1;
+        params.set<AuxVariableName>("variable") = variable;
+        params.set<MaterialPropertyName>("property") = material;
+        params.set<unsigned int>("selected_qp") = moose_qp;
         params.set<ExecFlagEnum>("execute_on") = _execute_on;
         if (!_blocks.empty())
           params.set<std::vector<SubdomainName>>("block") = _blocks;
-        _problem->addAuxKernel(
-            "ADMaterialRealAux", _materials[i] + "_" + formatQP(qp) + block_suffix, params);
+        _problem->addAuxKernel("ADMaterialRealAux", variable + block_suffix, params);
       }
 
-    // tensor
-    for (unsigned int i = 0; i < _tensor_materials.size(); i++)
-    {
-      std::string matname = _tensor_materials[i];
-      if (_tensor_materials[i].size() > 26)
-        matname.erase(26, _tensor_materials[i].size() - 1);
-      // assuming 8 QPs
-      for (unsigned int qp = 1; qp <= qp_max; qp++)
-      {
-        unsigned int qp_sel = QpMapping::getQP(qp, _lookup);
+      for (const auto & material : _tensor_materials)
         for (unsigned int j = 0; j < dim; j++)
           for (unsigned int k = 0; k < dim; k++)
           {
+            const auto variable = QpMapping::variableName(material, j, k, qp, _qpnum);
             InputParameters params = _factory.getValidParams("ADRankTwoAux");
-            params.set<AuxVariableName>("variable") =
-                matname + "_" + conv[j] + conv[k] + "_" + formatQP(qp);
-            params.set<MaterialPropertyName>("rank_two_tensor") = _tensor_materials[i];
-            params.set<unsigned int>("selected_qp") = qp_sel - 1;
+            params.set<AuxVariableName>("variable") = variable;
+            params.set<MaterialPropertyName>("rank_two_tensor") = material;
+            params.set<unsigned int>("selected_qp") = moose_qp;
             params.set<unsigned int>("index_i") = j;
             params.set<unsigned int>("index_j") = k;
             params.set<ExecFlagEnum>("execute_on") = _execute_on;
             if (!_blocks.empty())
               params.set<std::vector<SubdomainName>>("block") = _blocks;
-            _problem->addAuxKernel("ADRankTwoAux",
-                                   _tensor_materials[i] + "_" + conv[j] + conv[k] + "_" +
-                                       formatQP(qp) + block_suffix,
-                                   params);
+            _problem->addAuxKernel("ADRankTwoAux", variable + block_suffix, params);
           }
-      }
     }
   }
 }

@@ -4,18 +4,13 @@
 
 #pragma once
 
-#include "InputParameters.h"
 #include "Material.h"
 #include "BaseNameInterface.h"
-#include "ADRankTwoTensorForward.h"
-#include "MaterialProperty.h"
-#include "MooseArray.h"
-#include "SolutionUserObject.h"
-#include "Qp_Mapping.h"
+
+class SolutionUserObjectQP;
 
 /**
- * Per-QP scalar material that reads values from a SolutionUserObject (typical
- * use: the recovery dump).
+ * A scalar material property read at each quadrature point from a recovery file
  */
 class SolutionReal : public Material, public BaseNameInterface
 {
@@ -36,12 +31,5 @@ protected:
   /// initStatefulProperties() called and keeps the recovered value across time steps.
   const MaterialProperty<Real> & _mat_old;
 
-  const SolutionUserObject * _solution_object_ptr;
-
-  QpMapping::Element _element;
-
-  unsigned int _qpnum;
-
-private:
-  const std::unordered_map<int, int> * _lookup;
+  const SolutionUserObjectQP * _solution_object_ptr;
 };

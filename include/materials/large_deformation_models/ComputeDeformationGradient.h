@@ -7,9 +7,8 @@
 #include "Material.h"
 #include "BaseNameInterface.h"
 #include "ADRankTwoTensorForward.h"
-#include "Qp_Mapping.h"
 
-class SolutionUserObject;
+class SolutionUserObjectQP;
 
 /**
  * This class computes the deformation gradient, with an optional F-bar volumetric locking
@@ -18,7 +17,7 @@ class SolutionUserObject;
  *
  * With recover = true the mesh is the deformed configuration of an earlier run, the displacements
  * are incremental, and the total deformation gradient is F_inc * F_rec, where F_rec is read at
- * each quadrature point from a SolutionUserObject (as R and U, or as F). When the F-bar
+ * each quadrature point from a SolutionUserObjectQP (as R and U, or as F). When the F-bar
  * correction is active there are three ways to recover the corrected deformation gradient:
  *
  *   - default: read the corrected stretch (stretch_tensor_fbar) and use F_bar_rec = R * U_bar.
@@ -93,14 +92,10 @@ protected:
   const bool _recover;
 
   /// The solution the recovered deformation is read from
-  const SolutionUserObject * _solution_object_ptr;
+  const SolutionUserObjectQP * _solution_object_ptr;
 
   /// Components of an externally provided deformation gradient to recover with
   std::vector<const ADVariableValue *> _F_recover;
-
-  /// Element type and number of quadrature points of the recovery file
-  QpMapping::Element _element = QpMapping::Element::HEX8_3rd;
-  unsigned int _qpnum = 0;
 
   /// Frobenius norm of F - I
   MaterialProperty<Real> & _Frobenius;
@@ -150,12 +145,6 @@ protected:
   const bool _recover_with_fbar;
 
 private:
-  /// Map from this element's quadrature points to those of the recovery file
-  const std::unordered_map<int, int> * _lookup = nullptr;
-
-  /// Read a tensor of the recovery file at the current element and a quadrature point of the file
-  RankTwoTensor readRecoveredTensor(const std::string & name, unsigned int file_qp) const;
-
   /**
    * Read the recovered rotation and stretches at every quadrature point of the current element.
    * @param R       the rotation

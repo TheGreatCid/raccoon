@@ -289,7 +289,6 @@ out = restart_out
     component = 0
     use_displaced_mesh = true
     alpha = ${hht_alpha}
-    solution = epsol
     absolute_value_vector_tags = 'ref'
   []
   [y]
@@ -298,7 +297,6 @@ out = restart_out
     component = 1
     use_displaced_mesh = true
     alpha = ${hht_alpha}
-    solution = epsol
     absolute_value_vector_tags = 'ref'
   []
   [z]
@@ -307,7 +305,6 @@ out = restart_out
     component = 2
     use_displaced_mesh = true
     alpha = ${hht_alpha}
-    solution = epsol
     absolute_value_vector_tags = 'ref'
   []
   [hcond_time]

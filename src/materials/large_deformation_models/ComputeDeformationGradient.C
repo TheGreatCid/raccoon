@@ -3,7 +3,7 @@
 //* http://dolbow.pratt.duke.edu
 
 #include "ComputeDeformationGradient.h"
-#include "SolutionUserObject.h"
+#include "SolutionUserObjectQP.h"
 
 registerADMooseObject("raccoonApp", ComputeDeformationGradient);
 
@@ -46,10 +46,8 @@ ComputeDeformationGradient::validParams()
   // Recovery
   params.addParam<bool>(
       "recover", false, "Recover the deformation of an earlier run from 'solution'");
-  params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
-  params.addParam<MooseEnum>("element",
-                             MooseEnum(QpMapping::ELEMENT_ENUM_DEFINITION),
-                             "Element type for QP remapping; required when recover = true");
+  params.addParam<UserObjectName>(
+      "solution", "The SolutionUserObjectQP to extract data from; required when recover = true");
   MooseEnum recover_mode("deformation_gradient polar_decomposition", "deformation_gradient");
   params.addParam<MooseEnum>("recover_mode",
                              recover_mode,
@@ -82,10 +80,6 @@ ComputeDeformationGradient::validParams()
       "explicit dynamics, where no Newton iteration absorbs the error of composing two F-bar "
       "corrections.");
   params.addCoupledVar("F_ext_rec", "External F to recover with");
-
-  // Not read; still accepted so existing input files that set them keep working.
-  params.addParam<MaterialPropertyName>("F_store", "F_store", "Unused.");
-  params.addParam<Real>("num_qps", 8, "Unused.");
   return params;
 }
 
@@ -141,15 +135,8 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
   if (MaterialBase::getParam<bool>("use_displaced_mesh"))
     MaterialBase::paramError("use_displaced_mesh",
                              "The strain calculator needs to run on the undisplaced mesh.");
-  if (_recover)
-  {
-    if (!isParamValid("solution"))
-      paramError("solution", "Required when recover = true.");
-    if (!isParamSetByUser("element"))
-      paramError("element", "Required when recover = true.");
-    _element = getParam<MooseEnum>("element").getEnum<QpMapping::Element>();
-    _lookup = QpMapping::getLookup(_element, _qpnum, /*reversed=*/true);
-  }
+  if (_recover && !isParamValid("solution"))
+    paramError("solution", "Required when recover = true.");
 }
 
 void
@@ -158,7 +145,7 @@ ComputeDeformationGradient::initialSetup()
   displacementIntegrityCheck();
 
   if (_recover)
-    _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
+    _solution_object_ptr = &getUserObject<SolutionUserObjectQP>("solution");
 
   // set unused dimensions to zero
   for (unsigned i = _ndisp; i < 3; ++i)
@@ -202,23 +189,6 @@ ComputeDeformationGradient::needFbarStretch() const
   return !needRawStretch();
 }
 
-RankTwoTensor
-ComputeDeformationGradient::readRecoveredTensor(const std::string & name,
-                                                const unsigned int file_qp) const
-{
-  static const std::array<std::string, 3> indices = {{"x", "y", "z"}};
-  // Two digits when the element has ten or more quadrature points
-  const std::string qp_suffix =
-      "_" + std::string(_qpnum >= 10 && file_qp < 10 ? "0" : "") + std::to_string(file_qp);
-
-  RankTwoTensor tensor;
-  for (const auto i : make_range(3))
-    for (const auto j : make_range(3))
-      tensor(i, j) = _solution_object_ptr->pointValue(
-          _t, _current_elem->true_centroid(), name + "_" + indices[i] + indices[j] + qp_suffix);
-  return tensor;
-}
-
 void
 ComputeDeformationGradient::readRecoveredState(std::vector<RankTwoTensor> & R,
                                                std::vector<RankTwoTensor> & R_file,
@@ -231,20 +201,22 @@ ComputeDeformationGradient::readRecoveredState(std::vector<RankTwoTensor> & R,
   const bool raw = needRawStretch();
   const bool fbar = needFbarStretch();
 
-  const auto n_points = R.size();
+  const auto read = [&](const std::string & name, const unsigned int qp)
+  { return _solution_object_ptr->qpTensor(_t, *_current_elem, name, qp); };
+
+  const unsigned int n_points = R.size();
   for (const auto qp : make_range(n_points))
   {
-    const unsigned int file_qp = QpMapping::getQP(qp + 1, _lookup);
 
     if (_recover_from_polar)
     {
-      R_file[qp] = readRecoveredTensor("rotation_tensor", file_qp);
+      R_file[qp] = read("rotation_tensor", qp);
       R[qp] = _input_half_rotation ? R_file[qp] * R_file[qp] : R_file[qp];
       // The stretch that is not read stands in for the other, so F_raw = R * U and
       // F_fbar = R * U_fbar are both defined
       if (raw)
-        U[qp] = readRecoveredTensor("stretch_tensor", file_qp);
-      U_fbar[qp] = fbar ? readRecoveredTensor("stretch_tensor_fbar", file_qp) : U[qp];
+        U[qp] = read("stretch_tensor", qp);
+      U_fbar[qp] = fbar ? read("stretch_tensor_fbar", qp) : U[qp];
       if (!raw)
         U[qp] = U_fbar[qp];
     }
@@ -253,9 +225,9 @@ ComputeDeformationGradient::readRecoveredState(std::vector<RankTwoTensor> & R,
       // Read F and decompose it, so the rest of the recovery only deals with R and U
       RankTwoTensor F_raw, F_fbar;
       if (raw)
-        F_raw = readRecoveredTensor("Fnobar", file_qp);
+        F_raw = read("Fnobar", qp);
       if (fbar)
-        F_fbar = readRecoveredTensor("F", file_qp);
+        F_fbar = read("F", qp);
       const RankTwoTensor & F = raw ? F_raw : F_fbar;
       F.getRUDecompositionRotation(R[qp]);
       R_file[qp] = R[qp];

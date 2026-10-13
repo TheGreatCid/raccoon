@@ -1,29 +1,22 @@
+//* This file is part of the RACCOON application
+//* being developed at Dolbow lab at Duke University
+//* http://dolbow.pratt.duke.edu
+
 #pragma once
-#include <unordered_map>
-#include <stdexcept>
-#include "MooseEnum.h"
+
 #include "MooseError.h"
+
+#include <string>
+#include <unordered_map>
+
+/**
+ * Quadrature point numbering and variable naming of the recovery files, in which material
+ * properties are stored as one elemental variable per quadrature point. The quadrature points of
+ * a file are numbered from 1 in the SIERRA order, which differs from the MOOSE order.
+ */
 namespace QpMapping
 {
-// Moose → SIERRA
-inline const std::unordered_map<int, int> TET4_2nd_lookup = {{1, 4}, {2, 1}, {3, 2}, {4, 3}};
-inline const std::unordered_map<int, int> TET4_4th_lookup = {
-    {1, 1}, {2, 5}, {3, 4}, {4, 3}, {5, 2}};
-inline const std::unordered_map<int, int> TET10_4th_lookup = {
-    {1, 1}, {2, 5}, {3, 4}, {4, 3}, {5, 2}, {6, 6}, {7, 11}, {8, 10}, {9, 7}, {10, 9}, {11, 8}};
-inline const std::unordered_map<int, int> HEX8_3rd_lookup = {
-    {1, 8}, {2, 7}, {3, 6}, {4, 5}, {5, 4}, {6, 3}, {7, 2}, {8, 1}};
-
-// SIERRA → Moose
-inline const std::unordered_map<int, int> TET4_2nd_lookup_rev = {{4, 1}, {1, 2}, {2, 3}, {3, 4}};
-inline const std::unordered_map<int, int> TET4_4th_lookup_rev = {
-    {1, 1}, {5, 2}, {4, 3}, {3, 4}, {2, 5}};
-inline const std::unordered_map<int, int> TET10_4th_lookup_rev = {
-    {1, 1}, {5, 2}, {4, 3}, {3, 4}, {2, 5}, {6, 6}, {11, 7}, {10, 8}, {7, 9}, {9, 10}, {8, 11}};
-inline const std::unordered_map<int, int> HEX8_3rd_lookup_rev = {
-    {8, 1}, {7, 2}, {6, 3}, {5, 4}, {4, 5}, {3, 6}, {2, 7}, {1, 8}};
-
-// Element types
+/// Element type and quadrature order
 enum class Element
 {
   TET4_2nd,
@@ -34,10 +27,31 @@ enum class Element
 
 inline constexpr const char * ELEMENT_ENUM_DEFINITION = "TET4_2nd TET4_4th TET10_4th HEX8_3rd";
 
-// Helper to get qp number and catch out of range qps
-unsigned int getQP(unsigned int qp, const std::unordered_map<int, int> * lookup);
-
-// Helper to get either Moose→SIERRA or SIERRA→Moose map with qpnum
+/**
+ * The quadrature point map of an element type, with 1-based indices on both sides: from the
+ * file's numbering to the MOOSE numbering, or (reversed) from the MOOSE numbering to the file's.
+ * Also gives the number of quadrature points.
+ */
 const std::unordered_map<int, int> *
 getLookup(Element elem, unsigned int & qpnum, bool reversed = false);
+
+/// Look up a (1-based) quadrature point in a map from getLookup()
+unsigned int getQP(unsigned int qp, const std::unordered_map<int, int> * lookup);
+
+/**
+ * Name of the variable holding a scalar property at a quadrature point of the file (1-based).
+ * The quadrature point number has two digits when the element has ten or more of them.
+ */
+std::string variableName(const std::string & property, unsigned int file_qp, unsigned int n_qps);
+
+/**
+ * Name of the variable holding component (i, j) of a tensor property at a quadrature point of the
+ * file (1-based). The property name is truncated so that the variable name fits the 32 characters
+ * of an Exodus name.
+ */
+std::string variableName(const std::string & property,
+                         unsigned int i,
+                         unsigned int j,
+                         unsigned int file_qp,
+                         unsigned int n_qps);
 }

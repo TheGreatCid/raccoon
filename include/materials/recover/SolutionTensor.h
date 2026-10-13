@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include "InputParameters.h"
 #include "Material.h"
 #include "BaseNameInterface.h"
 #include "ADRankTwoTensorForward.h"
-#include "MaterialProperty.h"
-#include "MooseArray.h"
-#include "SolutionUserObject.h"
-#include "Qp_Mapping.h"
 
+class SolutionUserObjectQP;
+
+/**
+ * A tensor material property read at each quadrature point from a recovery file
+ */
 class SolutionTensor : public Material, public BaseNameInterface
 {
 public:
@@ -31,10 +31,5 @@ protected:
   /// Not read. Requesting the old value makes the property stateful, which is what gets
   /// initStatefulProperties() called and keeps the recovered value across time steps.
   const MaterialProperty<RankTwoTensor> & _tensor_old;
-  const SolutionUserObject * _solution_object_ptr;
-  unsigned int _qpnum;
-  QpMapping::Element _element;
-
-private:
-  const std::unordered_map<int, int> * _lookup;
+  const SolutionUserObjectQP * _solution_object_ptr;
 };

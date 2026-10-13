@@ -4,6 +4,7 @@
 
 #include "LargeDeformationPlasticityModel.h"
 #include "LargeDeformationElasticityModel.h"
+#include "SolutionUserObjectQP.h"
 
 InputParameters
 LargeDeformationPlasticityModel::validParams()
@@ -16,8 +17,10 @@ LargeDeformationPlasticityModel::validParams()
 
   params.set<bool>("compute") = false;
   params.suppressParameter<bool>("compute");
-  params.addParam<bool>("recover", false, "recovering?");
-  params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
+  params.addParam<bool>(
+      "recover", false, "Recover the plastic state of an earlier run from 'solution'");
+  params.addParam<UserObjectName>(
+      "solution", "The SolutionUserObjectQP to extract data from; required when recover = true");
   return params;
 }
 
@@ -33,13 +36,14 @@ LargeDeformationPlasticityModel::LargeDeformationPlasticityModel(const InputPara
     _Np(declareADProperty<RankTwoTensor>(prependBaseName("flow_direction"))),
     _heat(declareADProperty<Real>(prependBaseName("plastic_heat_generation"))),
     _recover(getParam<bool>("recover")),
-    _solution_object_ptr(NULL)
+    _solution_object_ptr(nullptr)
 {
-  if (!isParamValid("solution") && _recover == true)
-    MaterialBase::mooseError("Need solution object!");
-
-  if (_recover == true)
-    _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
+  if (_recover)
+  {
+    if (!isParamValid("solution"))
+      paramError("solution", "Required when recover = true.");
+    _solution_object_ptr = &getUserObject<SolutionUserObjectQP>("solution");
+  }
 }
 
 void
