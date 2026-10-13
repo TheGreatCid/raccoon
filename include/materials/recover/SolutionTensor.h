@@ -28,12 +28,12 @@ protected:
   const std::string _tensor_name;
 
   ADMaterialProperty<RankTwoTensor> & _tensor;
+  /// Not read. Requesting the old value makes the property stateful, which is what gets
+  /// initStatefulProperties() called and keeps the recovered value across time steps.
   const MaterialProperty<RankTwoTensor> & _tensor_old;
   const SolutionUserObject * _solution_object_ptr;
   unsigned int _qpnum;
   QpMapping::Element _element;
-  /// Value in elements whose recovery the solution relaxes (none, zero or identity)
-  const MooseEnum _relaxed_value;
 
 private:
   const std::unordered_map<int, int> * _lookup;

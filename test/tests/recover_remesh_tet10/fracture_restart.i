@@ -24,7 +24,7 @@
     mesh = ${recover_file}
     system_variables = 'd'
     materials = ''
-    tensor_materials = 'rotation_tensor stretch_tensor'
+    tensor_materials = 'rotation_tensor stretch_tensor_fbar'
     nodal_variable_order = SECOND
     timestep = LATEST
     use_displaced_mesh = false

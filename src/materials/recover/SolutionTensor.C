@@ -8,7 +8,6 @@
 #include "RankTwoTensorForward.h"
 #include "SolutionUserObject.h"
 #include "SolutionTensor.h"
-#include "SolutionUserObjectQP.h"
 #include "Qp_Mapping.h"
 
 registerADMooseObject("raccoonApp", SolutionTensor);
@@ -24,12 +23,6 @@ SolutionTensor::validParams()
   params.addParam<std::string>("tensor_name", "stress", "Name of tensor");
   params.addRequiredParam<MooseEnum>(
       "element", MooseEnum(QpMapping::ELEMENT_ENUM_DEFINITION), "The element type");
-  params.addParam<MooseEnum>(
-      "relaxed_value",
-      MooseEnum("none zero identity", "none"),
-      "Value in elements whose recovery the solution relaxes to a stress-free state (see "
-      "SolutionUserObjectQP relax_threshold): 'zero' for a stress, 'identity' for a stretch, "
-      "'none' to keep the recovered tensor");
   return params;
 }
 
@@ -40,8 +33,7 @@ SolutionTensor::SolutionTensor(const InputParameters & parameters)
     _tensor(declareADProperty<RankTwoTensor>(prependBaseName(_tensor_name + "_sol"))),
     _tensor_old(getMaterialPropertyOld<RankTwoTensor>(prependBaseName(_tensor_name + "_sol"))),
     _solution_object_ptr(NULL),
-    _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>()),
-    _relaxed_value(getParam<MooseEnum>("relaxed_value"))
+    _element(getParam<MooseEnum>("element").getEnum<QpMapping::Element>())
 {
   _lookup = QpMapping::getLookup(_element, _qpnum, /*reversed=*/true);
 }
@@ -50,13 +42,6 @@ void
 SolutionTensor::initialSetup()
 {
   _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
-  const auto * qp_solution = dynamic_cast<const SolutionUserObjectQP *>(_solution_object_ptr);
-  if (_relaxed_value == "none" && qp_solution && qp_solution->relaxing())
-    mooseWarning(name(),
-                 ": the solution relaxes the recovery of elements behind the crack faces, but "
-                 "'relaxed_value = none' keeps the recovered '",
-                 _tensor_name,
-                 "' there. Use 'zero' for a stress.");
 }
 
 void
@@ -78,15 +63,6 @@ SolutionTensor::initStatefulProperties(unsigned int n_points)
   };
 
   std::vector<std::string> indices = {"x", "y", "z"};
-
-  if (_relaxed_value != "none" &&
-      SolutionUserObjectQP::relaxRecovery(_solution_object_ptr, *_current_elem))
-  {
-    for (_qp = 0; _qp < n_points; ++_qp)
-      if (_relaxed_value == "zero")
-        _tensor[_qp].zero();
-    return;
-  }
 
   for (_qp = 0; _qp < n_points; ++_qp)
   {

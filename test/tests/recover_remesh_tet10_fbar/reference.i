@@ -1,19 +1,13 @@
 # Reference simulation for the F-bar comparison recover/remesh test.
 #
-# Tuned to maximize F-bar correction work so the recover-side choice between
-# (A) recovering U_bar directly and (B) recovering raw U + re-correcting on the
-# new mesh produces a measurable difference in step-1 state.
+# Tuned to maximize F-bar correction work, so the recovery of the F-bar corrected state is exercised.
 #
 # Tunings vs recover_remesh_tet10/reference.i:
 #   - Poisson ratio nu = 0.49           (near-incompressible -> high K/G ratio
 #                                        -> volumetric locking severe -> F-bar
 #                                        correction does heavy lifting)
-#   - sigma_0 = 0.1 (was 1)             (lower yield -> earlier and stronger
-#                                        plastic flow -> isochoric plastic
-#                                        deformation drives det F variation
-#                                        between QPs that F-bar must average)
-#   - final_velocity = 0.5 (was 0.05)   (10x deformation magnitude)
-#   - end_time = 2.0 (was 1)            (more steps to accumulate F-bar history)
+#   - final_velocity = 0.2 (was 0.05)   (4x deformation magnitude)
+#   - end_time = 1.5 (was 1)            (more steps to accumulate F-bar history)
 #   - The two output exports include `Fnobar` and `deformation_gradient`
 #     (= F-bar) so the per-QP F vs F-bar gap is visible in Paraview.
 #
@@ -45,34 +39,6 @@ newmark_gamma = '${fparse 1/2-hht_alpha}'
 end_time = 1.5
 dt = 0.1
 
-# Mesh-refinement knob (overridable from CLI: raccoon-opt -i reference.i n=4).
-# Controls all three element-counts: nx = ny = nz = ${n}.
-n = 1
-
-# All Exodus / CSV outputs land in this subdirectory.  Overridable from CLI:
-#   raccoon-opt -i reference.i out_dir=runs/mesh4
-out_dir = outputs
-
-# Suffix appended to file_base for every Output block.  Sweeps that vary a
-# parameter at fixed n (e.g. nu, final_velocity) use this to label each run's
-# files so they don't overwrite each other.  Empty by default.  CLI:
-#   raccoon-opt -i reference.i tag=_nu_0p49
-tag = ''
-
-# Physical time at which the displaced exodusqp recovery dump is written.
-# Defaults to end_time so the FINAL dump matches the original behaviour.
-# Convergence scripts that extend end_time past ref_end_time override this
-# to point at the original ref_end_time so the recovery dump stays at the
-# physically-correct deformation state.  CLI:
-#   raccoon-opt -i reference.i end_time=2.0 dump_time=1.5
-dump_time = ${end_time}
-
-# BC constraint pattern (CLI-overridable for bc_sweep_study.sh).
-# Defaults reproduce the original heavily-constrained setup.
-xfix_bnd = 'left top'
-yfix_bnd = 'bottom'
-zfix_bnd = 'front back'
-
 [GlobalParams]
   displacements = 'disp_x disp_y disp_z'
   volumetric_locking_correction = true
@@ -89,9 +55,9 @@ zfix_bnd = 'front back'
   [gmg]
     type = GeneratedMeshGenerator
     dim = 3
-    nx = ${n}
-    ny = ${n}
-    nz = ${n}
+    nx = 1
+    ny = 1
+    nz = 1
     xmin = 0
     xmax = 3
     ymin = 0
@@ -336,10 +302,8 @@ zfix_bnd = 'front back'
 
 [RecoverVariables]
   [rec]
-    # stretch_tensor (= U raw) and stretch_tensor_fbar (= U_bar) are both
-    # written, so the restart side can switch between Approach A and Approach B
-    # without re-running the reference.
-    tensor_materials = 'be_bar stress rotation_tensor stretch_tensor stretch_tensor_fbar'
+    # stretch_tensor_fbar (= U_bar) is read back directly by the restart
+    tensor_materials = 'be_bar stress rotation_tensor stretch_tensor_fbar'
     # Jacobian: per-QP J_raw at dump time, consumed by the restart's
     # adj_density_rec material so the inertia kernel's per-QP mass
     # distribution matches the reference exactly.  Without this the restart
@@ -500,21 +464,21 @@ final_velocity = 0.2
   [xfix]
     type = DirichletBC
     variable = disp_x
-    boundary = '${xfix_bnd}'
+    boundary = 'left top'
     value = 0
     preset = false
   []
   [yfix]
     type = DirichletBC
     variable = disp_y
-    boundary = '${yfix_bnd}'
+    boundary = 'bottom'
     value = 0
     preset = false
   []
   [zfix]
     type = DirichletBC
     variable = disp_z
-    boundary = '${zfix_bnd}'
+    boundary = 'front back'
     value = 0
     preset = false
   []
@@ -629,29 +593,19 @@ final_velocity = 0.2
   print_linear_residuals = false
   [exodus]
     type = Exodus
-    file_base = ${out_dir}/reference_fbar_out_${n}${tag}
+    file_base = reference_fbar_out
     use_displaced = false
   []
   [exodusqp]
     type = Exodus
-    file_base = ${out_dir}/reference_fbar_out_disp_${n}${tag}
-    # use_displaced = true is required for SolutionUserObjectQP's
-    # centroid-to-centroid lookup on the restart side -- the restart's mesh
-    # comes from FileMeshGenerator(file = this dump), so the dump's node
-    # coordinates have to be in the deformed configuration the restart will
-    # see.  Exodus stores ONE mesh definition per file, so this output only
-    # writes ONCE -- gated to a single sync time = dump_time so the dump
-    # captures the kinematic state at exactly that physical time.  Default
-    # dump_time = end_time matches the original FINAL behaviour; convergence
-    # scripts extend end_time past ref_end_time and override
-    # dump_time = ref_end_time so the restart still recovers from the
-    # original ref_end_time slice.
+    file_base = reference_fbar_out_disp
+    # The restart's mesh is this file (FileMeshGenerator), so it has to be written in the deformed
+    # configuration for SolutionUserObjectQP's centroid-to-centroid lookup to line up.
     use_displaced = true
-    sync_times = '${dump_time}'
-    sync_only = true
+    execute_on = 'FINAL'
   []
   [csv]
     type = CSV
-    file_base = ${out_dir}/reference_fbar_out_${n}${tag}
+    file_base = reference_fbar_out
   []
 []

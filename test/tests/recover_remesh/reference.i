@@ -32,6 +32,11 @@ newmark_gamma = '${fparse 1/2-hht_alpha}'
 end_time = 1.2
 dt = 0.1
 
+# Stretch tensor written for recovery: stretch_tensor_fbar (F-bar corrected, read back directly)
+# or stretch_tensor (raw, F-bar rebuilt on restart with recover_apply_fbar_to_U = true)
+stretch = stretch_tensor_fbar
+out = reference_out
+
 [GlobalParams]
   displacements = 'disp_x disp_y disp_z'
   volumetric_locking_correction = true
@@ -65,7 +70,7 @@ dt = 0.1
   [fracture]
     type = TransientMultiApp
     input_files = 'fracture_ref.i'
-    cli_args = 'Gc=${Gc};l=${l};out_file=reference_d'
+    cli_args = 'Gc=${Gc};l=${l};out_file=${out}_d'
     execute_on = 'TIMESTEP_END'
     clone_parent_mesh = no
   []
@@ -262,7 +267,7 @@ dt = 0.1
 
 [RecoverVariables]
   [rec]
-    tensor_materials = 'be_bar stress rotation_tensor stretch_tensor'
+    tensor_materials = 'be_bar stress rotation_tensor ${stretch}'
     materials = 'effective_plastic_strain'
   []
 []
@@ -447,17 +452,17 @@ final_velocity = 0.05
   print_linear_residuals = false
   [exodus]
     type = Exodus
-    file_base = reference_out
+    file_base = ${out}
     use_displaced = false
   []
   [exodusqp]
     type = Exodus
-    file_base = reference_out_disp
+    file_base = ${out}_disp
     use_displaced = true
     execute_on = 'FINAL'
   []
   [csv]
     type = CSV
-    file_base = reference_out
+    file_base = ${out}
   []
 []

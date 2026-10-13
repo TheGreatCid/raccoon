@@ -4,7 +4,7 @@
 
 #include "LargeDeformationPlasticityModel.h"
 #include "LargeDeformationElasticityModel.h"
-#include "PsicDegModel.h"
+
 InputParameters
 LargeDeformationPlasticityModel::validParams()
 {
@@ -16,7 +16,6 @@ LargeDeformationPlasticityModel::validParams()
 
   params.set<bool>("compute") = false;
   params.suppressParameter<bool>("compute");
-  params.addParam<MaterialName>("psic_model", "Name of the psic model");
   params.addParam<bool>("recover", false, "recovering?");
   params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
   return params;
@@ -49,8 +48,8 @@ LargeDeformationPlasticityModel::initialSetup()
   _hardening_model = dynamic_cast<PlasticHardeningModel *>(&getMaterial("hardening_model"));
   if (!_hardening_model)
     paramError("hardening_model",
-               "Plastic hardening model " + _hardening_model->name() + " is not compatible with " +
-                   name());
+               "Plastic hardening model " + getParam<MaterialName>("hardening_model") +
+                   " is not compatible with " + name());
 }
 
 void
@@ -58,10 +57,6 @@ LargeDeformationPlasticityModel::setQp(unsigned int qp)
 {
   _qp = qp;
   _hardening_model->setQp(qp);
-  if (isParamValid("psic_model"))
-  {
-    _psic_model->setQp(qp);
-  }
 }
 
 void

@@ -5,7 +5,6 @@
 #pragma once
 
 #include "ADPFFDiffusion.h"
-#include "SolutionUserObject.h"
 
 class ADPFFDiffusionRecover : public ADPFFDiffusion
 {

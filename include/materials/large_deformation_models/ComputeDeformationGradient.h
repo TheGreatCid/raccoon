@@ -7,12 +7,26 @@
 #include "Material.h"
 #include "BaseNameInterface.h"
 #include "ADRankTwoTensorForward.h"
-#include "MaterialProperty.h"
-#include "MooseArray.h"
-#include "SolutionUserObject.h"
 #include "Qp_Mapping.h"
+
+class SolutionUserObject;
+
 /**
- * This class computes the deformation gradient
+ * This class computes the deformation gradient, with an optional F-bar volumetric locking
+ * correction and removal of eigen deformation gradients. It also outputs the polar decomposition
+ * F = R * U of the uncorrected deformation gradient, which is what a later run recovers from.
+ *
+ * With recover = true the mesh is the deformed configuration of an earlier run, the displacements
+ * are incremental, and the total deformation gradient is F_inc * F_rec, where F_rec is read at
+ * each quadrature point from a SolutionUserObject (as R and U, or as F). When the F-bar
+ * correction is active there are three ways to recover the corrected deformation gradient:
+ *
+ *   - default: read the corrected stretch (stretch_tensor_fbar) and use F_bar_rec = R * U_bar.
+ *     The total is F_bar(F_inc) * F_bar_rec.
+ *   - recover_apply_fbar_to_U: read the raw stretch (stretch_tensor) and rebuild F_bar_rec by
+ *     averaging det(R * U) over the element. The total is F_bar(F_inc) * F_bar_rec.
+ *   - recover_apply_fbar_to_total: read the raw stretch and apply F-bar once to the total raw
+ *     deformation gradient F_inc * F_rec, averaging over the original undeformed volume.
  */
 class ComputeDeformationGradient : public Material, public BaseNameInterface
 {
@@ -25,13 +39,9 @@ public:
 
   void computeProperties() override;
 
-  // void computeQpProperties() override;
-
   void initStatefulProperties(unsigned int n_points) override;
 
 protected:
-  // virtual void initQpStatefulProperties() override;
-
   virtual void displacementIntegrityCheck();
 
   virtual ADReal computeQpOutOfPlaneGradDisp();
@@ -63,35 +73,36 @@ protected:
   ADMaterialProperty<RankTwoTensor> & _F;
   ADMaterialProperty<RankTwoTensor> & _Fnobar;
   ADMaterialProperty<RankTwoTensor> & _F_store_Fbar;
+  /// Not read. Requesting the old value makes the recovered F stateful, so the value seeded in
+  /// initStatefulProperties() is kept across time steps.
   const MaterialProperty<RankTwoTensor> & _F_store_Fbar_old;
   // The mechanical deformation gradient (after excluding eigen deformation gradients from the total
   // deformation gradient)
   ADMaterialProperty<RankTwoTensor> & _Fm;
 
   ADMaterialProperty<RankTwoTensor> & _F_store_noFbar;
+  /// Not read; makes the recovered F stateful (see _F_store_Fbar_old)
   const MaterialProperty<RankTwoTensor> & _F_store_noFbar_old;
-  /// det of the recovered deformation gradient where the recovery was relaxed to a stress-free
-  /// state (1 elsewhere), so the density keeps the recovered volume change
-  MaterialProperty<Real> & _relaxed_jacobian;
-  const MaterialProperty<Real> & _relaxed_jacobian_old;
 
   // @{ Eigen deformation gradients
   std::vector<MaterialPropertyName> _Fg_names;
   std::vector<const ADMaterialProperty<RankTwoTensor> *> _Fgs;
   // @}
 
-  ADMaterialProperty<Real> & _weights;
-
-  // is this recovering?
+  /// Whether the deformation of an earlier run is recovered
   const bool _recover;
 
+  /// The solution the recovered deformation is read from
   const SolutionUserObject * _solution_object_ptr;
 
+  /// Components of an externally provided deformation gradient to recover with
   std::vector<const ADVariableValue *> _F_recover;
 
+  /// Element type and number of quadrature points of the recovery file
   QpMapping::Element _element = QpMapping::Element::HEX8_3rd;
-
   unsigned int _qpnum = 0;
+
+  /// Frobenius norm of F - I
   MaterialProperty<Real> & _Frobenius;
   /// det(F_raw) per QP -- declared AD so the RecoverVariables/exodus dump
   /// pipeline (which wires ADMaterialRealAux) can pick it up, and so the
@@ -127,33 +138,44 @@ protected:
   /// avoids inverting U, requires only 3x3 matrix inverses, and converges quadratically.
   const bool _use_iterative_polar;
 
-  /// When recovering with volumetric-locking correction active, controls how F_bar is
-  /// constructed on the restart side from the recovered fields:
-  ///   false (default): F_bar = R * U_fbar, where U_fbar is the per-QP F-bar-corrected
-  ///                    stretch tensor read directly from the recovery file (approach A).
-  ///                    This is what the rest of the current pipeline does and is the
-  ///                    behaviour you get if the recovery file already contains
-  ///                    `stretch_tensor_fbar`.
-  ///   true           : F_bar is rebuilt on the new mesh by applying the original
-  ///                    cfb539fe1-era F-bar averaging operator to the recovered raw U:
-  ///                       F_raw[qp] = R[qp] * U[qp]
-  ///                       J_avg     = (1/V) * sum_qp det(F_raw[qp]) * JxW * coord
-  ///                       F_bar[qp] = F_raw[qp] * cbrt(J_avg / det(F_raw[qp]))
-  ///                    (approach B).  Useful when the recovery file does NOT carry
-  ///                    `stretch_tensor_fbar` and the F-bar correction has to be
-  ///                    re-derived from the raw stretch tensor.
-  /// Active only when both `recover = true` and `volumetric_locking_correction = true`.
+  /// Rebuild the recovered F-bar from the raw recovered stretch (see the class description)
   const bool _recover_apply_fbar_to_U;
 
-  /// Approach C: apply F-bar once to the EXACT total F (= F_inc * F_dump_raw),
-  /// using a change-of-variables-corrected J_avg over the original undeformed
-  /// volume.  Required for explicit dynamics (no Newton to absorb the
-  /// multiplicative F-bar composition error of approach A/B).  Implies raw U
-  /// recovery from the dump; mutually exclusive with `_recover_apply_fbar_to_U`.
+  /// Apply F-bar once to the total raw deformation gradient (see the class description)
   const bool _recover_apply_fbar_to_total;
 
+  /// The volumetric_locking_correction parameter as given. _volumetric_locking_correction is
+  /// false for boundary materials, but which stretch tensor the recovery file holds does not
+  /// depend on where this material is evaluated.
+  const bool _recover_with_fbar;
+
 private:
-  const std::unordered_map<int, int> * _lookup;
+  /// Map from this element's quadrature points to those of the recovery file
+  const std::unordered_map<int, int> * _lookup = nullptr;
+
+  /// Read a tensor of the recovery file at the current element and a quadrature point of the file
+  RankTwoTensor readRecoveredTensor(const std::string & name, unsigned int file_qp) const;
+
+  /**
+   * Read the recovered rotation and stretches at every quadrature point of the current element.
+   * @param R       the rotation
+   * @param R_file  the rotation as stored in the file (its square root with input_half_rotation)
+   * @param U       the raw stretch (the corrected stretch if the file only holds that)
+   * @param U_fbar  the F-bar corrected stretch (the raw stretch if the file only holds that)
+   */
+  void readRecoveredState(std::vector<RankTwoTensor> & R,
+                          std::vector<RankTwoTensor> & R_file,
+                          std::vector<RankTwoTensor> & U,
+                          std::vector<RankTwoTensor> & U_fbar) const;
+
+  /// Whether the recovery needs the raw / the F-bar corrected stretch from the file
+  bool needRawStretch() const;
+  bool needFbarStretch() const;
+
+  /// Warn if R is not a rotation or R * U does not reproduce F
+  void checkPolarDecomposition(const RankTwoTensor & R,
+                               const RankTwoTensor & U,
+                               const RankTwoTensor & F) const;
 
   /// Compute the principal square root of a rotation matrix R in SO(3).
   /// R_half_old is the stored rotation_tensor from the previous timestep; its skew
@@ -165,5 +187,6 @@ private:
   /// Higham iterative polar decomposition: F = R * U where R in SO(3) and U is symmetric PD.
   /// X_{k+1} = (X_k + X_k^{-T}) / 2, converges quadratically to R.
   /// More numerically stable than getRUDecompositionRotation for ill-conditioned F.
-  void polarDecompositionIterative(const RankTwoTensor & F, RankTwoTensor & R, RankTwoTensor & U);
+  void
+  polarDecompositionIterative(const RankTwoTensor & F, RankTwoTensor & R, RankTwoTensor & U) const;
 };

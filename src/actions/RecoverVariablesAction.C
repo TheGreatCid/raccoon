@@ -56,7 +56,8 @@ RecoverVariablesAction::RecoverVariablesAction(const InputParameters & params)
 void
 RecoverVariablesAction::act()
 {
-  auto dim = _mesh->dimension();
+  // Tensors are always dumped with all 3x3 components, which is what the recovery readers expect
+  const unsigned int dim = 3;
   unsigned int qp_max = _qpnum;
 
   std::vector<std::string> conv = {"x", "y", "z"};

@@ -29,7 +29,7 @@ newmark_gamma = '${fparse 1/2-hht_alpha}'
 
 end_time = 1
 dt = 0.1
-n = 2
+n = 1
 [GlobalParams]
   displacements = 'disp_x disp_y disp_z'
   volumetric_locking_correction = true
@@ -59,42 +59,42 @@ n = 2
   []
 []
 
-# [MultiApps]
-#   [fracture]
-#     type = TransientMultiApp
-#     input_files = 'fracture_ref.i'
-#     cli_args = 'Gc=${Gc};l=${l};out_file=reference_d'
-#     execute_on = 'TIMESTEP_END'
-#     clone_parent_mesh = no
-#   []
-# []
+[MultiApps]
+  [fracture]
+    type = TransientMultiApp
+    input_files = 'fracture_ref.i'
+    cli_args = 'Gc=${Gc};l=${l};out_file=reference_d'
+    execute_on = 'TIMESTEP_END'
+    clone_parent_mesh = no
+  []
+[]
 
-# [Transfers]
-#   [to_coal]
-#     type = MultiAppCopyTransfer
-#     variable = coal
-#     source_variable = coal
-#     to_multi_app = fracture
-#   []
-#   [from_d]
-#     type = MultiAppCopyTransfer
-#     variable = d
-#     source_variable = d
-#     from_multi_app = fracture
-#   []
-#   [to_psie]
-#     type = MultiAppCopyTransfer
-#     variable = psie_corr_active
-#     source_variable = psie_corr_active
-#     to_multi_app = fracture
-#   []
-#   [to_psip]
-#     type = MultiAppCopyTransfer
-#     variable = psip_active
-#     source_variable = psip_active
-#     to_multi_app = fracture
-#   []
-# []
+[Transfers]
+  [to_coal]
+    type = MultiAppCopyTransfer
+    variable = coal
+    source_variable = coal
+    to_multi_app = fracture
+  []
+  [from_d]
+    type = MultiAppCopyTransfer
+    variable = d
+    source_variable = d
+    from_multi_app = fracture
+  []
+  [to_psie]
+    type = MultiAppCopyTransfer
+    variable = psie_corr_active
+    source_variable = psie_corr_active
+    to_multi_app = fracture
+  []
+  [to_psip]
+    type = MultiAppCopyTransfer
+    variable = psip_active
+    source_variable = psip_active
+    to_multi_app = fracture
+  []
+[]
 
 [Variables]
   [disp_x]
@@ -309,7 +309,7 @@ n = 2
 
 [RecoverVariables]
   [rec]
-    tensor_materials = 'be_bar stress rotation_tensor stretch_tensor'
+    tensor_materials = 'be_bar stress rotation_tensor stretch_tensor_fbar'
     materials = 'effective_plastic_strain'
   []
 []
@@ -494,17 +494,17 @@ final_velocity = 0.05
   print_linear_residuals = false
   [exodus]
     type = Exodus
-    file_base = reference_out_${n}
+    file_base = reference_out
     use_displaced = false
   []
   [exodusqp]
     type = Exodus
-    file_base = reference_out_disp_${n}
+    file_base = reference_out_disp
     use_displaced = true
     execute_on = 'FINAL'
   []
   [csv]
     type = CSV
-    file_base = reference_out_${n}
+    file_base = reference_out
   []
 []

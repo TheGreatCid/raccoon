@@ -64,7 +64,7 @@ recover_file = reference_out_disp.e
     mesh = ${recover_file}
     system_variables = 'd d_old d_corr psie_corr_active psip_active T accel_x accel_y accel_z vel_x vel_y vel_z'
     materials = 'effective_plastic_strain'
-    tensor_materials = 'stress be_bar stretch_tensor rotation_tensor'
+    tensor_materials = 'stress be_bar stretch_tensor_fbar rotation_tensor'
     nodal_variable_order = SECOND
     use_displaced_mesh = false
     execute_on = 'INITIAL'
@@ -72,42 +72,42 @@ recover_file = reference_out_disp.e
   []
 []
 
-# [MultiApps]
-#   [fracture]
-#     type = TransientMultiApp
-#     input_files = 'fracture_restart.i'
-#     cli_args = 'Gc=${Gc};l=${l};start_time=${start_time};recover_file=${recover_file};out_file=restart_d'
-#     execute_on = 'TIMESTEP_END'
-#     clone_parent_mesh = no
-#   []
-# []
+[MultiApps]
+  [fracture]
+    type = TransientMultiApp
+    input_files = 'fracture_restart.i'
+    cli_args = 'Gc=${Gc};l=${l};start_time=${start_time};recover_file=${recover_file};out_file=restart_d'
+    execute_on = 'TIMESTEP_END'
+    clone_parent_mesh = no
+  []
+[]
 
-# [Transfers]
-#   [to_coal]
-#     type = MultiAppCopyTransfer
-#     variable = coal
-#     source_variable = coal
-#     to_multi_app = fracture
-#   []
-#   [from_d]
-#     type = MultiAppCopyTransfer
-#     variable = d
-#     source_variable = d
-#     from_multi_app = fracture
-#   []
-#   [to_psie]
-#     type = MultiAppCopyTransfer
-#     variable = psie_corr_active
-#     source_variable = psie_corr_active
-#     to_multi_app = fracture
-#   []
-#   [to_psip]
-#     type = MultiAppCopyTransfer
-#     variable = psip_active
-#     source_variable = psip_active
-#     to_multi_app = fracture
-#   []
-# []
+[Transfers]
+  [to_coal]
+    type = MultiAppCopyTransfer
+    variable = coal
+    source_variable = coal
+    to_multi_app = fracture
+  []
+  [from_d]
+    type = MultiAppCopyTransfer
+    variable = d
+    source_variable = d
+    from_multi_app = fracture
+  []
+  [to_psie]
+    type = MultiAppCopyTransfer
+    variable = psie_corr_active
+    source_variable = psie_corr_active
+    to_multi_app = fracture
+  []
+  [to_psip]
+    type = MultiAppCopyTransfer
+    variable = psip_active
+    source_variable = psip_active
+    to_multi_app = fracture
+  []
+[]
 
 [Variables]
   [disp_x]

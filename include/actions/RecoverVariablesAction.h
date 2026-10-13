@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Action.h"
 #include "InputParameters.h"
 #include "MooseTypes.h"

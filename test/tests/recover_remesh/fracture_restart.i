@@ -24,7 +24,7 @@
     mesh = ${recover_file}
     system_variables = 'd'
     materials = ''
-    tensor_materials = 'rotation_tensor stretch_tensor'
+    tensor_materials = 'rotation_tensor ${stretch}'
     timestep = LATEST
     use_displaced_mesh = false
     execute_on = 'INITIAL'
@@ -110,6 +110,8 @@
     volumetric_locking_correction = true
     solution = epsol
     recover_mode = polar_decomposition
+    recover_apply_fbar_to_U = ${fbar_from_raw_U}
+    recover_apply_fbar_to_total = ${fbar_to_total}
   []
   [g]
     type = PowerDegradationFunction

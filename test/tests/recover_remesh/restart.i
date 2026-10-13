@@ -39,6 +39,15 @@ end_time = 2
 
 recover_file = reference_out_disp.e
 
+# Stretch tensor read from the recovery file, and how F-bar is recovered from it:
+#   stretch_tensor_fbar with fbar_from_raw_U = false reads the F-bar corrected stretch directly
+#   stretch_tensor      with fbar_from_raw_U = true  rebuilds F-bar from the raw stretch
+#   stretch_tensor      with fbar_to_total = true    applies F-bar once to the total F
+stretch = stretch_tensor_fbar
+fbar_from_raw_U = false
+fbar_to_total = false
+out = restart_out
+
 [GlobalParams]
   displacements = 'disp_x disp_y disp_z'
   volumetric_locking_correction = true
@@ -67,7 +76,7 @@ recover_file = reference_out_disp.e
     mesh = ${recover_file}
     system_variables = 'd T accel_x accel_y accel_z vel_x vel_y vel_z'
     materials = 'effective_plastic_strain'
-    tensor_materials = 'stress be_bar stretch_tensor rotation_tensor'
+    tensor_materials = 'stress be_bar ${stretch} rotation_tensor'
     use_displaced_mesh = false
     execute_on = 'INITIAL'
     timestep = 'LATEST'
@@ -78,7 +87,7 @@ recover_file = reference_out_disp.e
   [fracture]
     type = TransientMultiApp
     input_files = 'fracture_restart.i'
-    cli_args = 'Gc=${Gc};l=${l};start_time=${start_time};recover_file=${recover_file};out_file=restart_d'
+    cli_args = 'Gc=${Gc};l=${l};start_time=${start_time};recover_file=${recover_file};out_file=${out}_d;stretch=${stretch};fbar_from_raw_U=${fbar_from_raw_U};fbar_to_total=${fbar_to_total}'
     execute_on = 'TIMESTEP_END'
     clone_parent_mesh = no
   []
@@ -349,6 +358,8 @@ recover_file = reference_out_disp.e
     recover = true
     solution = epsol
     recover_mode = polar_decomposition
+    recover_apply_fbar_to_U = ${fbar_from_raw_U}
+    recover_apply_fbar_to_total = ${fbar_to_total}
   []
   [bulk_properties]
     type = ADGenericConstantMaterial
@@ -507,12 +518,12 @@ recover_file = reference_out_disp.e
   print_linear_residuals = false
   [exodus]
     type = Exodus
-    file_base = restart_out
+    file_base = ${out}
     use_displaced = false
     execute_on = 'INITIAL TIMESTEP_END'
   []
   [csv]
     type = CSV
-    file_base = restart_out
+    file_base = ${out}
   []
 []

@@ -2,19 +2,8 @@
 //* being developed at Dolbow lab at Duke University
 //* http://dolbow.pratt.duke.edu
 
-#include "ADRankTwoTensorForward.h"
-#include "ADReal.h"
 #include "ComputeDeformationGradient.h"
-#include "EigenADReal.h"
-#include "Material.h"
-#include "Moose.h"
-#include "MooseError.h"
-#include "MooseTypes.h"
-#include "RankTwoTensorForward.h"
 #include "SolutionUserObject.h"
-#include "SolutionUserObjectQP.h"
-#include "metaphysicl/raw_type.h"
-#include "Qp_Mapping.h"
 
 registerADMooseObject("raccoonApp", ComputeDeformationGradient);
 
@@ -27,7 +16,8 @@ ComputeDeformationGradient::validParams()
   params.addClassDescription(
       "This class computes the deformation gradient. Eigen deformation gradients are extracted "
       "from the total deformation gradient. The F-bar approach can optionally be used to correct "
-      "volumetric locking.");
+      "volumetric locking. The deformation of an earlier run can be recovered from a "
+      "SolutionUserObject.");
 
   params.addRequiredCoupledVar(
       "displacements",
@@ -36,13 +26,9 @@ ComputeDeformationGradient::validParams()
       "volumetric_locking_correction", false, "Flag to correct volumetric locking");
   params.addParam<std::vector<MaterialPropertyName>>(
       "eigen_deformation_gradient_names", {}, "List of eigen deformation gradients to be applied");
-  params.addParam<MaterialPropertyName>("F_store", "F_store");
-  params.addParam<bool>("recover", false, "Are you trying to recover");
-  MooseEnum recover_mode("deformation_gradient polar_decomposition", "deformation_gradient");
-  params.addParam<MooseEnum>("recover_mode",
-                             recover_mode,
-                             "Recovery mode: 'deformation_gradient' reads F directly, "
-                             "'polar_decomposition' reads R and U and reconstructs F = R*U");
+  params.suppressParameter<bool>("use_displaced_mesh");
+
+  // Polar decomposition output
   params.addParam<bool>("output_half_rotation_tensor",
                         false,
                         "Store R^(1/2) (rotation by theta/2) in the rotation_tensor output "
@@ -56,6 +42,19 @@ ComputeDeformationGradient::validParams()
                         "method), avoids inverting U, requires only 3x3 matrix inverses, and "
                         "converges quadratically. More robust for large stretches and rotations "
                         "near pi.");
+
+  // Recovery
+  params.addParam<bool>(
+      "recover", false, "Recover the deformation of an earlier run from 'solution'");
+  params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
+  params.addParam<MooseEnum>("element",
+                             MooseEnum(QpMapping::ELEMENT_ENUM_DEFINITION),
+                             "Element type for QP remapping; required when recover = true");
+  MooseEnum recover_mode("deformation_gradient polar_decomposition", "deformation_gradient");
+  params.addParam<MooseEnum>("recover_mode",
+                             recover_mode,
+                             "Recovery mode: 'deformation_gradient' reads F directly, "
+                             "'polar_decomposition' reads R and U and reconstructs F = R*U");
   params.addParam<bool>("input_half_rotation_tensor",
                         false,
                         "Indicates that the rotation tensor in the recovery file contains R^(1/2) "
@@ -65,36 +64,28 @@ ComputeDeformationGradient::validParams()
   params.addParam<bool>(
       "recover_apply_fbar_to_U",
       false,
-      "When recovering with volumetric_locking_correction = true, rebuild F_bar on the new mesh "
-      "by applying the original F-bar volumetric-averaging operator to the recovered raw U "
-      "(F_raw = R*U; J_avg = <det F_raw>; F_bar = F_raw * cbrt(J_avg/det F_raw)) -- approach B "
-      "from the cfb539fe1-era recovery method.  When false (default), F_bar is read directly "
-      "from the recovery file's `stretch_tensor_fbar` (approach A: recover U_bar already "
-      "averaged on the reference side).  Use approach B when the recovery file does not carry "
-      "stretch_tensor_fbar and the F-bar correction must be re-derived on the new mesh.  "
-      "Active only when `recover = true` and `volumetric_locking_correction = true`.");
+      "How the F-bar corrected deformation gradient is recovered when both 'recover' and "
+      "'volumetric_locking_correction' are true. By default (false) the corrected stretch "
+      "'stretch_tensor_fbar' is read from the recovery file. When true, the raw stretch "
+      "'stretch_tensor' is read instead and the correction is rebuilt on this mesh: F_raw = R*U, "
+      "J_avg = <det F_raw>, F_bar = F_raw * cbrt(J_avg / det F_raw). Use this when the recovery "
+      "file does not hold stretch_tensor_fbar.");
   params.addParam<bool>(
       "recover_apply_fbar_to_total",
       false,
-      "Approach C (recommended for explicit / central-difference dynamics where there is no "
-      "Newton iteration to absorb F-bar composition error): instead of applying F-bar to F_inc "
-      "and F_dump separately and composing them multiplicatively (approach A / B), recover the "
-      "raw F_dump per QP and at each step compute F_total = F_inc * F_dump first, then apply "
-      "F-bar exactly ONCE to F_total -- matching what the reference's continuous run does at "
-      "every step (`F_bar(F_total_raw)`).  J_avg is computed using the corrected formula "
-      "  J_avg = (sum J_inc * _JxW_dump) / (sum _JxW_dump / J_dump_raw)\n"
-      "which is the change-of-variables form of the reference's ` <J_total>_V_orig `; using "
-      "_JxW_dump directly (approach B) gives the wrong J_avg because it averages over the "
-      "wrong volume (V_dump_def vs V_orig).  Requires recovery of raw U from the dump (same as "
-      "approach B).  Mutually exclusive with `recover_apply_fbar_to_U`.  Active only when "
-      "`recover = true` and `volumetric_locking_correction = true`.");
-  params.suppressParameter<bool>("use_displaced_mesh");
-  params.addParam<UserObjectName>("solution", "The SolutionUserObject to extract data from.");
-  params.addParam<Real>("num_qps", 8, "Number of QPs");
+      "Alternative to 'recover_apply_fbar_to_U' when both 'recover' and "
+      "'volumetric_locking_correction' are true: read the raw stretch 'stretch_tensor' and apply "
+      "the F-bar correction once to the total raw deformation gradient F_inc * F_rec at every "
+      "step, instead of correcting F_inc and F_rec separately and multiplying them. The average "
+      "of det F is taken over the original undeformed volume, J_avg = (sum J_inc * JxW) / "
+      "(sum JxW / J_rec), which is what a run without a restart computes. Recommended for "
+      "explicit dynamics, where no Newton iteration absorbs the error of composing two F-bar "
+      "corrections.");
   params.addCoupledVar("F_ext_rec", "External F to recover with");
-  params.addParam<MooseEnum>("element",
-                             MooseEnum(QpMapping::ELEMENT_ENUM_DEFINITION),
-                             "Element type for QP remapping; required when recover = true");
+
+  // Not read; still accepted so existing input files that set them keep working.
+  params.addParam<MaterialPropertyName>("F_store", "F_store", "Unused.");
+  params.addParam<Real>("num_qps", 8, "Unused.");
   return params;
 }
 
@@ -118,16 +109,12 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
         declareADProperty<RankTwoTensor>(prependBaseName("deformation_gradient_NoFbar"))),
     _F_store_noFbar_old(
         getMaterialPropertyOld<RankTwoTensor>(prependBaseName("deformation_gradient_NoFbar"))),
-    _relaxed_jacobian(declareProperty<Real>(prependBaseName("recovery_relaxed_jacobian"))),
-    _relaxed_jacobian_old(getMaterialPropertyOld<Real>(prependBaseName("recovery_relaxed_jacobian"))),
     _Fg_names(prependBaseName(
         getParam<std::vector<MaterialPropertyName>>("eigen_deformation_gradient_names"))),
     _Fgs(_Fg_names.size()),
-    _weights(declareADProperty<Real>("weights")),
     _recover(getParam<bool>("recover")),
-    _solution_object_ptr(NULL),
+    _solution_object_ptr(nullptr),
     _F_recover(adCoupledValues("F_ext_rec")),
-    _element(QpMapping::Element::HEX8_3rd),
     _Frobenius(declareProperty<Real>(prependBaseName("Frobenius_norm"))),
     _Jacobian(declareADProperty<Real>(prependBaseName("Jacobian"))),
     _rotation_tensor(declareADProperty<RankTwoTensor>(prependBaseName("rotation_tensor"))),
@@ -140,14 +127,13 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
     _input_half_rotation(getParam<bool>("input_half_rotation_tensor")),
     _use_iterative_polar(getParam<bool>("use_iterative_polar_decomposition")),
     _recover_apply_fbar_to_U(getParam<bool>("recover_apply_fbar_to_U")),
-    _recover_apply_fbar_to_total(getParam<bool>("recover_apply_fbar_to_total"))
+    _recover_apply_fbar_to_total(getParam<bool>("recover_apply_fbar_to_total")),
+    _recover_with_fbar(getParam<bool>("volumetric_locking_correction"))
 {
   if (_recover_apply_fbar_to_U && _recover_apply_fbar_to_total)
     paramError("recover_apply_fbar_to_total",
-               "Cannot enable both `recover_apply_fbar_to_U` (approach B) and "
-               "`recover_apply_fbar_to_total` (approach C) at the same time -- they "
-               "are alternative remedies to the multiplicative F-bar composition "
-               "issue and apply different formulas to the same step.");
+               "Cannot be used together with 'recover_apply_fbar_to_U': they are alternative ways "
+               "of recovering the F-bar corrected deformation gradient.");
 
   for (unsigned int i = 0; i < _Fgs.size(); ++i)
     _Fgs[i] = &Material::getADMaterialProperty<RankTwoTensor>(_Fg_names[i]);
@@ -157,8 +143,10 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
                              "The strain calculator needs to run on the undisplaced mesh.");
   if (_recover)
   {
+    if (!isParamValid("solution"))
+      paramError("solution", "Required when recover = true.");
     if (!isParamSetByUser("element"))
-      mooseError("'element' must be specified when recover = true");
+      paramError("element", "Required when recover = true.");
     _element = getParam<MooseEnum>("element").getEnum<QpMapping::Element>();
     _lookup = QpMapping::getLookup(_element, _qpnum, /*reversed=*/true);
   }
@@ -167,13 +155,11 @@ ComputeDeformationGradient::ComputeDeformationGradient(const InputParameters & p
 void
 ComputeDeformationGradient::initialSetup()
 {
-  if (!isParamValid("solution") && _recover == true)
-    MaterialBase::mooseError("Need solution object!");
-
   displacementIntegrityCheck();
 
-  if (_recover == true)
+  if (_recover)
     _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
+
   // set unused dimensions to zero
   for (unsigned i = _ndisp; i < 3; ++i)
   {
@@ -204,6 +190,82 @@ ComputeDeformationGradient::displacementIntegrityCheck()
         "z-direction");
 }
 
+bool
+ComputeDeformationGradient::needRawStretch() const
+{
+  return !_recover_with_fbar || _recover_apply_fbar_to_U || _recover_apply_fbar_to_total;
+}
+
+bool
+ComputeDeformationGradient::needFbarStretch() const
+{
+  return !needRawStretch();
+}
+
+RankTwoTensor
+ComputeDeformationGradient::readRecoveredTensor(const std::string & name,
+                                                const unsigned int file_qp) const
+{
+  static const std::array<std::string, 3> indices = {{"x", "y", "z"}};
+  // Two digits when the element has ten or more quadrature points
+  const std::string qp_suffix =
+      "_" + std::string(_qpnum >= 10 && file_qp < 10 ? "0" : "") + std::to_string(file_qp);
+
+  RankTwoTensor tensor;
+  for (const auto i : make_range(3))
+    for (const auto j : make_range(3))
+      tensor(i, j) = _solution_object_ptr->pointValue(
+          _t, _current_elem->true_centroid(), name + "_" + indices[i] + indices[j] + qp_suffix);
+  return tensor;
+}
+
+void
+ComputeDeformationGradient::readRecoveredState(std::vector<RankTwoTensor> & R,
+                                               std::vector<RankTwoTensor> & R_file,
+                                               std::vector<RankTwoTensor> & U,
+                                               std::vector<RankTwoTensor> & U_fbar) const
+{
+  // Only the stretch that is needed is read, so the recovery file has to hold only that one.
+  // (It should not hold both: the Exodus reader confuses stretch_tensor_* with
+  // stretch_tensor_fbar_* because one name is a prefix of the other.)
+  const bool raw = needRawStretch();
+  const bool fbar = needFbarStretch();
+
+  const auto n_points = R.size();
+  for (const auto qp : make_range(n_points))
+  {
+    const unsigned int file_qp = QpMapping::getQP(qp + 1, _lookup);
+
+    if (_recover_from_polar)
+    {
+      R_file[qp] = readRecoveredTensor("rotation_tensor", file_qp);
+      R[qp] = _input_half_rotation ? R_file[qp] * R_file[qp] : R_file[qp];
+      // The stretch that is not read stands in for the other, so F_raw = R * U and
+      // F_fbar = R * U_fbar are both defined
+      if (raw)
+        U[qp] = readRecoveredTensor("stretch_tensor", file_qp);
+      U_fbar[qp] = fbar ? readRecoveredTensor("stretch_tensor_fbar", file_qp) : U[qp];
+      if (!raw)
+        U[qp] = U_fbar[qp];
+    }
+    else
+    {
+      // Read F and decompose it, so the rest of the recovery only deals with R and U
+      RankTwoTensor F_raw, F_fbar;
+      if (raw)
+        F_raw = readRecoveredTensor("Fnobar", file_qp);
+      if (fbar)
+        F_fbar = readRecoveredTensor("F", file_qp);
+      const RankTwoTensor & F = raw ? F_raw : F_fbar;
+      F.getRUDecompositionRotation(R[qp]);
+      R_file[qp] = R[qp];
+      U[qp] = R[qp].transpose() * F;
+      // F-bar scales F by a scalar, so F_fbar has the same rotation as F_raw
+      U_fbar[qp] = fbar ? R[qp].transpose() * F_fbar : U[qp];
+    }
+  }
+}
+
 void
 ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
 {
@@ -214,258 +276,84 @@ ComputeDeformationGradient::initStatefulProperties(unsigned int n_points)
     _F[_qp].setToIdentity();
     _Fm[_qp].setToIdentity();
     _rotation_tensor[_qp].setToIdentity();
-    _relaxed_jacobian[_qp] = 1;
   }
-  unsigned int qp_max = _qpnum;
 
-  auto formatQP = [qp_max](unsigned int qp)
-  {
-    if (qp_max < 10)
-      return std::to_string(qp); // Single digit
-    else
-      return (qp < 10) ? "0" + std::to_string(qp) : std::to_string(qp); // Two digits
-  };
-
-  // If we are using an an externally provided F to recover with (instead of using a solution user
-  // object)
+  // An externally provided F is picked up in computeProperties()
   if (isParamValid("F_ext_rec"))
   {
     for (_qp = 0; _qp < n_points; ++_qp)
-    {
       _F_store_Fbar[_qp].setToIdentity();
-      // int i = 0;
-      //
-      // for (int i_ind = 0; i_ind < 3; i_ind++)
-      //   for (int j_ind = 0; j_ind < 3; j_ind++)
-      //   {
-      //     std::cout << MetaPhysicL::raw_value((*_F_recover[i])[_qp]) << std::endl;
-      //     _F_store_noFbar[_qp](i_ind, j_ind) = (*_F_recover[i])[_qp];
-      //     i++;
-      //   }
-      _F[_qp].setToIdentity();
-    }
+    return;
   }
-  else
+
+  if (!_recover)
+    return;
+
+  std::vector<RankTwoTensor> R(n_points), R_file(n_points), U(n_points), U_fbar(n_points);
+  readRecoveredState(R, R_file, U, U_fbar);
+
+  // When the F-bar correction is rebuilt from the raw stretch, the element average of det(F_raw)
+  // is needed first
+  const bool rebuild_fbar =
+      _recover_with_fbar && (_recover_apply_fbar_to_U || _recover_apply_fbar_to_total);
+  Real J_avg = 0;
+  if (rebuild_fbar && _recover_apply_fbar_to_U)
   {
-    if (_recover == true)
+    // Average over this (deformed) mesh
+    for (const auto qp : make_range(n_points))
+      J_avg += (R[qp] * U[qp]).det() * _JxW[qp] * _coord[qp];
+    J_avg /= _current_elem_volume;
+  }
+  else if (rebuild_fbar)
+  {
+    // Average over the original undeformed volume, using dV_orig = dV / det(F_raw). This is the
+    // average the earlier run computed, so its F-bar is reproduced at each quadrature point.
+    Real V = 0, V_orig = 0;
+    for (const auto qp : make_range(n_points))
     {
-      // Recovery pipeline:
-      //   (1) read R/U/U_fbar (or polar-decompose F/F_fbar) at every QP of the element,
-      //   (2) reconstruct F_raw = R * U and either pull F_fbar = R * U_fbar from the file
-      //       (approach A) or rebuild it via the F-bar averaging operator on F_raw
-      //       (approach B; recover_apply_fbar_to_U = true), then store.
-      const std::vector<std::string> indices = {"x", "y", "z"};
-      // Use the USER's requested volumetric_locking_correction, NOT the
-      // boundary-adjusted `_volumetric_locking_correction` member (which gets
-      // AND'd with `!isBoundaryMaterial()` in the constructor).  The
-      // recovery-read decision is about which approach the user configured
-      // (A/B/C -- i.e., which stretch_tensor variant lives in the dump), not
-      // about whether this particular material instance is a bulk or boundary
-      // variant.  Without this, MOOSE-created boundary variants see
-      // `_volumetric_locking_correction = false`, flip `need_U_raw_from_file`
-      // on, and try to read `stretch_tensor_*` (raw) from a dump that only
-      // contains `stretch_tensor_fbar_*` -- erroring at INITIAL.
-      const bool have_fbar = getParam<bool>("volumetric_locking_correction");
-      // Approach B (recover_apply_fbar_to_U) rebuilds F_bar from the raw recovered U on
-      // the new mesh -- it doesn't need U_fbar from the recovery file, so don't try to
-      // read it.  Approach A (recover_apply_fbar_to_U = false, F-bar active) consumes
-      // U_fbar directly and doesn't need the raw U either -- F_noFbar gets aliased to
-      // F_Fbar at INITIAL in that case.  Reading only what's needed lets the same
-      // restart input work against reference dumps that contain only one of the two
-      // stretch-tensor variants (libmesh's exodus reader silently shadows
-      // `stretch_tensor_*` whenever `stretch_tensor_fbar_*` is also present in the same
-      // file due to a name-prefix collision, so the reference can dump only one).
-      // Approach C also requires raw U (it composes F_inc * F_dump_raw at
-      // every step), but unlike approach B it computes J_avg via a
-      // change-of-variables corrected formula instead of the new-mesh _JxW.
-      const bool need_U_fbar_from_file =
-          have_fbar && !_recover_apply_fbar_to_U && !_recover_apply_fbar_to_total;
-      const bool need_U_raw_from_file =
-          !have_fbar || _recover_apply_fbar_to_U || _recover_apply_fbar_to_total;
-
-      std::vector<RankTwoTensor> R_qp(n_points), U_qp(n_points), Ufb_qp(n_points);
-      std::vector<RankTwoTensor> R_file_qp(n_points); // raw R as read; may be R^(1/2)
-
-      for (unsigned int qp = 0; qp < n_points; ++qp)
-      {
-        const unsigned int qp_sel = QpMapping::getQP(qp + 1, _lookup);
-
-        if (_recover_from_polar)
-        {
-          RankTwoTensor R, U, Ufb;
-          for (int i_ind = 0; i_ind < 3; ++i_ind)
-            for (int j_ind = 0; j_ind < 3; ++j_ind)
-            {
-              R(i_ind, j_ind) = _solution_object_ptr->pointValue(
-                  _t,
-                  _current_elem->true_centroid(),
-                  "rotation_tensor_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
-                  nullptr);
-              if (need_U_raw_from_file)
-                U(i_ind, j_ind) = _solution_object_ptr->pointValue(
-                    _t,
-                    _current_elem->true_centroid(),
-                    "stretch_tensor_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
-                    nullptr);
-              if (need_U_fbar_from_file)
-                Ufb(i_ind, j_ind) = _solution_object_ptr->pointValue(
-                    _t,
-                    _current_elem->true_centroid(),
-                    "stretch_tensor_fbar_" + indices[i_ind] + indices[j_ind] + "_" +
-                        formatQP(qp_sel),
-                    nullptr);
-            }
-          R_file_qp[qp] = R;
-          if (_input_half_rotation)
-            R = R * R;
-          R_qp[qp] = R;
-          // Approach A skips reading raw U; alias U <- U_fbar so F_raw = R*U downstream
-          // collapses to F_fbar (i.e., _F_store_noFbar = _F_store_Fbar at INITIAL).
-          U_qp[qp] = need_U_raw_from_file ? U : Ufb;
-          // Approach B / no-fbar skip U_fbar; alias Ufb <- U so the F_fbar pathway has
-          // a sane placeholder.  Approach B overrides _F_store_Fbar below via averaging.
-          Ufb_qp[qp] = need_U_fbar_from_file ? Ufb : U_qp[qp];
-        }
-        else
-        {
-          // Traditional recovery from F: read F_raw (and F_fbar) directly, then polar-decompose
-          // so the downstream code uses a uniform (R, U) view regardless of recovery mode.
-          RankTwoTensor F_raw, F_fbar;
-          for (int i_ind = 0; i_ind < 3; ++i_ind)
-            for (int j_ind = 0; j_ind < 3; ++j_ind)
-            {
-              if (need_U_raw_from_file)
-                F_raw(i_ind, j_ind) = _solution_object_ptr->pointValue(
-                    _t,
-                    _current_elem->true_centroid(),
-                    "Fnobar_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
-                    nullptr);
-              if (need_U_fbar_from_file)
-                F_fbar(i_ind, j_ind) = _solution_object_ptr->pointValue(
-                    _t,
-                    _current_elem->true_centroid(),
-                    "F_" + indices[i_ind] + indices[j_ind] + "_" + formatQP(qp_sel),
-                    nullptr);
-            }
-          // For approach A (need_U_raw=false but need_U_fbar=true) we alias F_raw <- F_fbar
-          // so the polar decomposition still has a valid input.
-          const RankTwoTensor & F_for_RU = need_U_raw_from_file ? F_raw : F_fbar;
-          RankTwoTensor R, U;
-          F_for_RU.getRUDecompositionRotation(R);
-          U = R.transpose() * F_for_RU;
-          R_file_qp[qp] = R;
-          R_qp[qp] = R;
-          U_qp[qp] = U;
-          // F_fbar = R * U_fbar with the same R since fbar is a scalar volumetric multiplier.
-          Ufb_qp[qp] = need_U_fbar_from_file ? R.transpose() * F_fbar : U;
-        }
-      }
-
-      // Damaged elements behind a cut crack face are recovered stress-free (see
-      // SolutionUserObjectQP relax_threshold): the element's current shape becomes its reference,
-      // keeping the rotation. Their stored stretch belongs to the smeared crack opening the cut
-      // crack now carries. The recovered volume change is kept for the density.
-      if (SolutionUserObjectQP::relaxRecovery(_solution_object_ptr, *_current_elem))
-        for (unsigned int qp = 0; qp < n_points; ++qp)
-        {
-          _relaxed_jacobian[qp] = (R_qp[qp] * U_qp[qp]).det();
-          U_qp[qp].setToIdentity();
-          Ufb_qp[qp].setToIdentity();
-        }
-
-      // Approach B (recover_apply_fbar_to_U = true, F-bar active): rebuild F_bar on the
-      // new mesh by applying the original cfb539fe1-era F-bar averaging operator to the
-      // recovered raw U.  Pre-pass over QPs computes the element-volume-weighted average
-      // det(F_raw); the per-QP F_fbar in the next loop is then scaled to enforce that
-      // det(F_bar) = J_avg per element.
-      Real J_avg_init = 0.0;
-      const bool fbar_from_raw_U = have_fbar && _recover_apply_fbar_to_U;
-      const bool fbar_from_total_C = have_fbar && _recover_apply_fbar_to_total;
-      if (fbar_from_raw_U)
-      {
-        // Approach B: average J_dump_raw over the new (dump-deformed) mesh.
-        for (unsigned int qp = 0; qp < n_points; ++qp)
-        {
-          const RankTwoTensor F_raw_qp = R_qp[qp] * U_qp[qp];
-          J_avg_init += F_raw_qp.det() * _JxW[qp] * _coord[qp];
-        }
-        J_avg_init /= _current_elem_volume;
-      }
-      else if (fbar_from_total_C)
-      {
-        // Approach C: J_avg_init = V_dump_def / sum(_JxW / J_dump_raw)
-        // which is the change-of-variables form of <J_dump_raw>_V_orig (the
-        // reference's actual J_avg at dump_time).  At INITIAL, F_total = F_dump,
-        // so J_avg_total = J_avg_dump = this expression.  Using the corrected
-        // formula here ensures F_store_Fbar = F_bar_dump (per QP) exactly, so
-        // CLDS::initQpStatefulProperties evaluating the constitutive on _Fm
-        // sees the right F-bar and produces sigma matching the reference's
-        // sigma at dump_time.
-        Real V_dump_def = 0.0;
-        Real V_orig = 0.0;
-        for (unsigned int qp = 0; qp < n_points; ++qp)
-        {
-          const RankTwoTensor F_raw_qp = R_qp[qp] * U_qp[qp];
-          V_dump_def += _JxW[qp] * _coord[qp];
-          V_orig += _JxW[qp] * _coord[qp] / F_raw_qp.det();
-        }
-        J_avg_init = V_dump_def / V_orig;
-      }
-
-      for (_qp = 0; _qp < n_points; ++_qp)
-      {
-        const RankTwoTensor F_raw = R_qp[_qp] * U_qp[_qp];
-        // Four branches:
-        //   no F-bar             -> F_fbar = F_raw
-        //   approach A (default) -> F_fbar = R * U_fbar from the recovery file
-        //   approach B           -> F_fbar = F_raw * cbrt(J_avg_B / det F_raw)
-        //   approach C           -> F_fbar = F_raw * cbrt(J_avg_C / det F_raw)
-        //                          (same formula as B but with corrected J_avg
-        //                          computed via change-of-variables to V_orig)
-        RankTwoTensor F_fbar;
-        if (!have_fbar)
-          F_fbar = F_raw;
-        else if (fbar_from_raw_U || fbar_from_total_C)
-          F_fbar = F_raw * cbrt(J_avg_init / F_raw.det());
-        else
-          F_fbar = R_qp[_qp] * Ufb_qp[_qp];
-
-        for (int i_ind = 0; i_ind < 3; ++i_ind)
-          for (int j_ind = 0; j_ind < 3; ++j_ind)
-          {
-            _F_store_noFbar[_qp](i_ind, j_ind) = F_raw(i_ind, j_ind);
-            _F_store_Fbar[_qp](i_ind, j_ind) = F_fbar(i_ind, j_ind);
-          }
-
-        const RankTwoTensor I_seed(RankTwoTensor::initIdentity);
-        if (_output_half_rotation)
-          _rotation_tensor[_qp] =
-              _input_half_rotation ? R_file_qp[_qp] : computeHalfRotation(R_qp[_qp], I_seed);
-        else
-          _rotation_tensor[_qp] = R_qp[_qp];
-
-        _F[_qp] = have_fbar ? _F_store_Fbar[_qp] : _F_store_noFbar[_qp];
-
-        // Seed _Fm at INITIAL so downstream stateful seeders (e.g.
-        // ComputeLargeDeformationStress::initQpStatefulProperties) see
-        // F_m = Fg^-1 * F_recovered rather than identity.  Without this,
-        // _stress at INITIAL gets seeded from the constitutive on F = I,
-        // making _stress_old = 0 at t_step=1 and breaking the HHT-alpha
-        // residual on the first restart step.
-        ADRankTwoTensor Fg(ADRankTwoTensor::initIdentity);
-        for (auto Fgi : _Fgs)
-          Fg *= (*Fgi)[_qp];
-        _Fm[_qp] = Fg.inverse() * _F[_qp];
-      }
+      V += _JxW[qp] * _coord[qp];
+      V_orig += _JxW[qp] * _coord[qp] / (R[qp] * U[qp]).det();
     }
+    J_avg = V / V_orig;
+  }
+
+  for (_qp = 0; _qp < n_points; ++_qp)
+  {
+    const RankTwoTensor F_raw = R[_qp] * U[_qp];
+    RankTwoTensor F_fbar;
+    if (!_recover_with_fbar)
+      F_fbar = F_raw;
+    else if (rebuild_fbar)
+      F_fbar = F_raw * cbrt(J_avg / F_raw.det());
+    else
+      F_fbar = R[_qp] * U_fbar[_qp];
+
+    _F_store_noFbar[_qp] = F_raw;
+    _F_store_Fbar[_qp] = F_fbar;
+
+    if (_output_half_rotation)
+      _rotation_tensor[_qp] =
+          _input_half_rotation
+              ? R_file[_qp]
+              : computeHalfRotation(R[_qp], RankTwoTensor(RankTwoTensor::initIdentity));
+    else
+      _rotation_tensor[_qp] = R[_qp];
+
+    _F[_qp] = _recover_with_fbar ? _F_store_Fbar[_qp] : _F_store_noFbar[_qp];
+
+    // Seed Fm with the recovered deformation, so materials that initialize their own stateful
+    // properties from it (e.g. the stress) start from the recovered state instead of identity
+    ADRankTwoTensor Fg(ADRankTwoTensor::initIdentity);
+    for (auto Fgi : _Fgs)
+      Fg *= (*Fgi)[_qp];
+    _Fm[_qp] = Fg.inverse() * _F[_qp];
   }
 }
 
-
 void
-ComputeDeformationGradient::polarDecompositionIterative(const RankTwoTensor & F, // NOLINT
+ComputeDeformationGradient::polarDecompositionIterative(const RankTwoTensor & F,
                                                         RankTwoTensor & R,
-                                                        RankTwoTensor & U)
+                                                        RankTwoTensor & U) const
 {
   // Higham's Newton iteration for the orthogonal polar factor:
   //   X_{k+1} = (X_k + X_k^{-T}) / 2,  X_0 = F
@@ -602,97 +490,99 @@ ComputeDeformationGradient::applyOutOfPlaneGradDisp(ADRankTwoTensor & A)
 }
 
 void
+ComputeDeformationGradient::checkPolarDecomposition(const RankTwoTensor & R,
+                                                    const RankTwoTensor & U,
+                                                    const RankTwoTensor & F) const
+{
+  const Real tol = 1e-6;
+  const auto warn = [&](const std::string & quantity, const Real value, const std::string & what)
+  {
+    mooseWarning(name(),
+                 ": polar decomposition ",
+                 quantity,
+                 " = ",
+                 value,
+                 " at QP ",
+                 _qp,
+                 " element ",
+                 _current_elem->id(),
+                 ". ",
+                 what);
+  };
+
+  const Real det_R = R.det();
+  if (std::abs(det_R - 1.0) > tol)
+    warn("det(R)", det_R, "R is not a proper rotation.");
+
+  const Real ortho_norm = (R * R.transpose() - RankTwoTensor(RankTwoTensor::initIdentity)).norm();
+  if (ortho_norm > tol)
+    warn("||R*R^T - I||", ortho_norm, "R is not orthogonal.");
+
+  const Real recon_norm = (R * U - F).norm();
+  if (recon_norm > tol)
+    warn("||R*U - F||", recon_norm, "Reconstruction error is large.");
+}
+
+void
 ComputeDeformationGradient::computeProperties()
 {
   using std::cbrt;
 
-  ADReal ave_F_det = 0;
-  // Approach C: alternative denominator for J_avg.  Sums _JxW / J_dump_raw,
-  // which is V_orig by the change-of-variables dV_orig = dV_dump / J_dump_raw.
-  // Combined with the standard J_inc-weighted numerator, this gives
-  //   J_avg_total = sum(J_inc * _JxW) / sum(_JxW / J_dump_raw)
-  // which equals the reference's <J_total>_V_orig exactly.
-  ADReal denom_C = 0;
+  // Whether F-bar is applied once to the total raw deformation gradient (see the class description)
+  const bool fbar_to_total =
+      _recover && _recover_apply_fbar_to_total && _volumetric_locking_correction;
 
-  if (isParamValid("F_ext_rec"))
-  {
-    if (_t_step >= 1)
-    {
-      for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
-      {
-        int i = 0;
-        for (int i_ind = 0; i_ind < 3; i_ind++)
-          for (int j_ind = 0; j_ind < 3; j_ind++)
-          {
-            _F_store_Fbar[_qp](i_ind, j_ind) = MetaPhysicL::raw_value((*_F_recover[i])[_qp]);
-            i++;
-          }
-      }
-    }
-  }
+  // Volume integrals for the element average of det(F)
+  ADReal ave_F_det = 0;
+  ADReal original_volume = 0;
+
+  if (isParamValid("F_ext_rec") && _t_step >= 1)
+    for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
+      for (const auto i : make_range(3))
+        for (const auto j : make_range(3))
+          _F_store_Fbar[_qp](i, j) = MetaPhysicL::raw_value((*_F_recover[3 * i + j])[_qp]);
 
   for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
   {
-    _relaxed_jacobian[_qp] = _relaxed_jacobian_old[_qp];
-
+    // The (incremental, when recovering) deformation gradient from the displacements
     ADRankTwoTensor A = ADRankTwoTensor::initializeFromRows(
         (*_grad_disp[0])[_qp], (*_grad_disp[1])[_qp], (*_grad_disp[2])[_qp]);
     applyOutOfPlaneGradDisp(A);
     _F[_qp] = A;
     _F[_qp].addIa(1.0);
 
-    _Fnobar[_qp].setToIdentity();
-
-    // Outputting the Frobenius norm for post processing reasons
-    ADRankTwoTensor temp = _F[_qp];
-    temp.addIa(-1);
-    _Frobenius[_qp] = MetaPhysicL::raw_value(temp).norm();
-
-    // Outputting the Jacobian (determinant of F) for post processing reasons
+    // For postprocessing
+    _Frobenius[_qp] = MetaPhysicL::raw_value(A).norm();
     _Jacobian[_qp] = _F[_qp].det();
 
-    // Add in recovered F
-    if (_recover == true)
-      _Fnobar[_qp] = _F[_qp] * _F_store_noFbar[_qp];
-    else
-      _Fnobar[_qp] = _F[_qp];
+    // The total deformation gradient without the F-bar correction
+    _Fnobar[_qp] = _recover ? _F[_qp] * _F_store_noFbar[_qp] : _F[_qp];
 
     if (_volumetric_locking_correction)
     {
       ave_F_det += _F[_qp].det() * _JxW[_qp] * _coord[_qp];
-      if (_recover_apply_fbar_to_total && _recover)
-        denom_C += _JxW[_qp] * _coord[_qp] / _F_store_noFbar[_qp].det();
+      if (fbar_to_total)
+        original_volume += _JxW[_qp] * _coord[_qp] / _F_store_noFbar[_qp].det();
     }
   }
 
+  // This mesh is the deformed configuration of the earlier run when recovering, so dividing by
+  // the original volume (dV_orig = dV / det(F_rec)) gives the average of det(F_total) over the
+  // original volume, as in a run without a restart.
   if (_volumetric_locking_correction)
-  {
-    if (_recover_apply_fbar_to_total && _recover)
-      // approach C: numerator = sum(J_inc * _JxW) = ∫_dump J_inc dV;
-      // denominator = sum(_JxW / J_dump_raw) = V_orig.  Result = <J_total>_V_orig.
-      ave_F_det /= denom_C;
-    else
-      // approach A / B / no recover: standard average over the integration mesh.
-      ave_F_det /= _current_elem_volume;
-  }
+    ave_F_det /= fbar_to_total ? original_volume : ADReal(_current_elem_volume);
 
   for (_qp = 0; _qp < _qrule->n_points(); ++_qp)
   {
-    if (_recover_apply_fbar_to_total && _recover && _volumetric_locking_correction)
-    {
-      // Approach C: F = F_total_raw * cbrt(J_avg / det(F_total_raw)) -- one F-bar
-      // applied to the EXACT total raw F, no separate F-bar on F_inc and no
-      // multiplicative composition.  _Fnobar already holds F_inc * F_store_noFbar
-      // = F_total_raw (set in the previous loop), so we just rescale it.
+    if (fbar_to_total)
       _F[_qp] = _Fnobar[_qp] * cbrt(ave_F_det / _Fnobar[_qp].det());
-    }
     else
     {
       if (_volumetric_locking_correction)
         _F[_qp] *= cbrt(ave_F_det / _F[_qp].det());
 
-      // Multiply in old deformation
-      if (_recover == true)
+      // Multiply in the recovered deformation
+      if (_recover)
         _F[_qp] = _F[_qp] * _F_store_Fbar[_qp];
     }
 
@@ -702,72 +592,24 @@ ComputeDeformationGradient::computeProperties()
       Fg *= (*Fgi)[_qp];
     _Fm[_qp] = Fg.inverse() * _F[_qp];
 
-    // Compute polar decomposition of non-volume corrected F
-    // Convert ADRankTwoTensor to RankTwoTensor for polar decomposition
-    RankTwoTensor Fnobar_real = MetaPhysicL::raw_value(_Fnobar[_qp]);
+    // Polar decomposition F = R * U of the deformation gradient without the F-bar correction
+    const RankTwoTensor Fnobar = MetaPhysicL::raw_value(_Fnobar[_qp]);
     RankTwoTensor R, U;
-
-    // Compute polar decomposition F = R*U
     if (_use_iterative_polar)
-      polarDecompositionIterative(Fnobar_real, R, U);
+      polarDecompositionIterative(Fnobar, R, U);
     else
     {
-      Fnobar_real.getRUDecompositionRotation(R);
-      U = R.transpose() * Fnobar_real;
+      Fnobar.getRUDecompositionRotation(R);
+      U = R.transpose() * Fnobar;
     }
-
-    // Verify polar decomposition quality
-    {
-      const Real det_R = R.det();
-      if (std::abs(det_R - 1.0) > 1e-6)
-        mooseWarning(name(),
-                     ": polar decomposition det(R) = ",
-                     det_R,
-                     " (expected 1) at QP ",
-                     _qp,
-                     " element ",
-                     _current_elem->id(),
-                     ". R is not a proper rotation.");
-
-      const RankTwoTensor ortho_err =
-          R * R.transpose() - RankTwoTensor(RankTwoTensor::initIdentity);
-      const Real ortho_norm = ortho_err.norm();
-      if (ortho_norm > 1e-6)
-        mooseWarning(name(),
-                     ": polar decomposition ||R*R^T - I|| = ",
-                     ortho_norm,
-                     " at QP ",
-                     _qp,
-                     " element ",
-                     _current_elem->id(),
-                     ". R is not orthogonal.");
-
-      const Real recon_norm = (R * U - Fnobar_real).norm();
-      if (recon_norm > 1e-6)
-        mooseWarning(name(),
-                     ": polar decomposition ||R*U - F|| = ",
-                     recon_norm,
-                     " at QP ",
-                     _qp,
-                     " element ",
-                     _current_elem->id(),
-                     ". Reconstruction error is large.");
-    }
+    checkPolarDecomposition(R, U, Fnobar);
 
     _rotation_tensor[_qp] =
         _output_half_rotation ? computeHalfRotation(R, _rotation_tensor_old[_qp]) : R;
     _stretch_tensor[_qp] = U;
 
-    // U_fbar = R^T * F_fbar.  R is from the polar decomposition of F_raw = Fnobar; the
-    // volumetric scalar that produces F_fbar from F_raw commutes with the rotation, so
-    // F_fbar = R * U_fbar with the same R.  U_fbar is SPD (det = <J>_elem) and on the
-    // same manifold as U, so a downstream Lie-algebra interpolator handles it the same
-    // way (log -> interp -> exp).  Restarts read U_fbar directly to seed _F_store_Fbar
-    // without re-averaging <J> on the new mesh's _JxW.
-    ADRankTwoTensor R_ad;
-    for (int i_ind = 0; i_ind < 3; ++i_ind)
-      for (int j_ind = 0; j_ind < 3; ++j_ind)
-        R_ad(i_ind, j_ind) = R(i_ind, j_ind);
-    _stretch_tensor_fbar[_qp] = R_ad.transpose() * _F[_qp];
+    // F-bar scales F by a scalar, so F_fbar = R * U_fbar with the same rotation. A restart reads
+    // U_fbar to recover F_fbar without averaging det(F) again on its own mesh.
+    _stretch_tensor_fbar[_qp] = ADRankTwoTensor(R).transpose() * _F[_qp];
   }
 }

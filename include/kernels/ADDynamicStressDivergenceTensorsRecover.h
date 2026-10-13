@@ -10,7 +10,6 @@
 #pragma once
 
 #include "ADStressDivergenceTensors.h"
-#include "SolutionUserObject.h"
 
 /**
  * AD HHT-alpha (+ Rayleigh) stress-divergence kernel for the recover/restart
@@ -65,10 +64,4 @@ protected:
   const MaterialProperty<Real> & _zeta;
   const Real _alpha;
   const bool _static_initialization;
-
-  /// Optional SolutionUserObject -- never used in computeQpResidual.  May
-  /// be null in recompute mode.
-  const SolutionUserObject * _solution_object_ptr;
-  Assembly & _assembly_undisplaced;
-  const MooseArray<Point> & _q_point_undisplaced;
 };

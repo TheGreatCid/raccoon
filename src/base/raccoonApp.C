@@ -31,7 +31,6 @@ static void
 associateSyntaxInner(Syntax & syntax, ActionFactory & /*action_factory*/)
 {
   registerSyntax("RecoverVariablesAction", "RecoverVariables/*");
-  registerSyntax("CopySolutionFieldsAction", "CopySolutionFields");
 }
 
 void

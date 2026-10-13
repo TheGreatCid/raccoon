@@ -40,4 +40,46 @@
                   'strain of a reference run when restarted on the same mesh '
                   'through SolutionUserObjectQP recovery.'
   []
+
+  # --------------------------------------------------------------------------
+  # Same pair, recovering F-bar from the raw stretch tensor instead of reading
+  # stretch_tensor_fbar: the reference writes the raw stretch tensor, and the
+  # restart either rebuilds F-bar from it once at the start
+  # (recover_apply_fbar_to_U = true) or applies F-bar to the total deformation
+  # gradient every step (recover_apply_fbar_to_total = true).
+  # --------------------------------------------------------------------------
+  [reference_raw_U]
+    type = RunApp
+    input = 'reference.i'
+    cli_args = 'stretch=stretch_tensor out=reference_raw_U_out'
+    requirement = 'The system shall emit the raw stretch tensor at the '
+                  'quadrature points for recovery.'
+  []
+  [restart_raw_U]
+    type = CSVDiff
+    input = 'restart.i'
+    cli_args = 'stretch=stretch_tensor fbar_from_raw_U=true '
+               'recover_file=reference_raw_U_out_disp.e out=restart_raw_U_out'
+    csvdiff = 'restart_raw_U_out.csv'
+    prereq = 'reference_raw_U'
+    abs_zero = 1e-10
+    rel_err = 1e-6
+    requirement = 'The system shall recover a volumetric-locking-corrected '
+                  'deformation gradient from the raw stretch tensor by '
+                  'rebuilding the F-bar correction on restart.'
+  []
+  [restart_fbar_total]
+    type = CSVDiff
+    input = 'restart.i'
+    cli_args = 'stretch=stretch_tensor fbar_to_total=true '
+               'recover_file=reference_raw_U_out_disp.e out=restart_fbar_total_out'
+    csvdiff = 'restart_fbar_total_out.csv'
+    prereq = 'reference_raw_U'
+    abs_zero = 1e-10
+    rel_err = 1e-6
+    requirement = 'The system shall recover a volumetric-locking-corrected '
+                  'deformation gradient from the raw stretch tensor by '
+                  'applying the F-bar correction to the total deformation '
+                  'gradient.'
+  []
 []

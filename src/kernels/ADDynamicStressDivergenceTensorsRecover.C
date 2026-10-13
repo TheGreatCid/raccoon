@@ -11,7 +11,6 @@
 #include "ADRankTwoTensorForward.h"
 #include "ADReal.h"
 #include "ElasticityTensorTools.h"
-#include "Assembly.h"
 
 registerMooseObject("raccoonApp", ADDynamicStressDivergenceTensorsRecover);
 
@@ -51,13 +50,8 @@ ADDynamicStressDivergenceTensorsRecover::validParams()
       "matching patches in ComputeLargeDeformationStress and ComputeDeformationGradient.  "
       "When false (default), reads sigma_old / sigma_older at t_step=1,2 from the "
       "legacy AD material properties `stress_sol` / `stress_old_store_sol`.");
-  // `solution` is required by the legacy path but never used in the residual
-  // itself; keep it optional so recompute-mode input files don't need it.
-  params.addParam<UserObjectName>(
-      "solution",
-      "",
-      "Optional SolutionUserObject.  Unused by the kernel itself; supported for "
-      "input-file backwards compatibility with the legacy SolutionTensor pattern.");
+  // Not read by the kernel; still accepted so existing input files that set it keep working.
+  params.addParam<UserObjectName>("solution", "", "Unused.");
 
   return params;
 }
@@ -72,22 +66,13 @@ ADDynamicStressDivergenceTensorsRecover::ADDynamicStressDivergenceTensorsRecover
     _stress_old_sol(nullptr),
     _zeta(getMaterialProperty<Real>("zeta")),
     _alpha(getParam<Real>("alpha")),
-    _static_initialization(getParam<bool>("static_initialization")),
-    _solution_object_ptr(nullptr),
-    _assembly_undisplaced(_fe_problem.assembly(_tid, this->_sys.number())),
-    _q_point_undisplaced(_assembly_undisplaced.qPoints())
+    _static_initialization(getParam<bool>("static_initialization"))
 {
   if (!_recompute_old_stress)
   {
     _stress_old_sol = &getADMaterialProperty<RankTwoTensor>("stress_sol");
     _stress_older_sol = &getADMaterialProperty<RankTwoTensor>("stress_old_store_sol");
   }
-
-  // getUserObject takes the PARAM NAME (not the resolved value) and looks up
-  // the user object via that param.  Skip when the param value is empty so
-  // recompute-mode inputs don't need to declare a SolutionUserObject.
-  if (!getParam<UserObjectName>("solution").empty())
-    _solution_object_ptr = &getUserObject<SolutionUserObject>("solution");
 }
 
 ADReal

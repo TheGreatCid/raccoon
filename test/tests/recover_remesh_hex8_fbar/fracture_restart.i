@@ -19,7 +19,7 @@
     mesh = ${recover_file}
     system_variables = 'd'
     materials = ''
-    tensor_materials = 'rotation_tensor stretch_tensor'
+    tensor_materials = 'rotation_tensor stretch_tensor_fbar'
     timestep = LATEST
     use_displaced_mesh = false
     execute_on = 'INITIAL'

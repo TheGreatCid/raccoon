@@ -277,10 +277,8 @@ dt = 0.1
 
 [RecoverVariables]
   [rec]
-    # stretch_tensor (= U raw) is written so the restart side can switch
-    # between recovering U_bar directly vs recovering raw U + re-correcting on
-    # the new mesh.
-    tensor_materials = 'be_bar stress rotation_tensor stretch_tensor stretch_tensor_fbar'
+    # stretch_tensor_fbar (= U_bar) is read back directly by the restart
+    tensor_materials = 'be_bar stress rotation_tensor stretch_tensor_fbar'
     materials = 'effective_plastic_strain'
   []
 []

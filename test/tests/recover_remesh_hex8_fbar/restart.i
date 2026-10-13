@@ -1,9 +1,8 @@
 # Restart leg of the HEX8 F-bar comparison recover/remesh test.
 #
 # Reads reference.i's output via SolutionUserObjectQP on the same HEX8 mesh.
-# Reads stretch_tensor (= raw U) so the restart path can rebuild U-bar on the
-# new mesh through ComputeDeformationGradient(recover = true,
-# recover_mode = polar_decomposition).
+# Reads stretch_tensor_fbar (= U_bar) directly through
+# ComputeDeformationGradient(recover = true, recover_mode = polar_decomposition).
 #
 # The reference run was tuned so that F-bar correction does meaningful work
 # (nu = 0.49, sigma_0 = 0.1, final_velocity = 0.5).  The point of this test
@@ -66,7 +65,7 @@ recover_file = reference_hex8_fbar_out_disp.e
     mesh = ${recover_file}
     system_variables = 'd d_old d_corr T accel_x accel_y accel_z vel_x vel_y vel_z'
     materials = 'effective_plastic_strain'
-    tensor_materials = 'stress be_bar stretch_tensor rotation_tensor stretch_tensor_fbar'
+    tensor_materials = 'stress be_bar stretch_tensor_fbar rotation_tensor'
     use_displaced_mesh = false
     execute_on = 'INITIAL'
     timestep = LATEST

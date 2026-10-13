@@ -1,16 +1,8 @@
 # Restart leg of the F-bar comparison recover/remesh test.
 #
 # Reads reference.i's output via SolutionUserObjectQP on the same TET10 mesh.
-# Reads BOTH stretch_tensor (= raw U) and stretch_tensor_fbar (= U-bar) so
-# whichever path ComputeDeformationGradient is configured to consume,
-# the recovery data is available.
-#
-# To compare Approach A (recover U-bar directly) vs Approach B (recover raw U,
-# re-derive F-bar on the new mesh): rerun this input with the corresponding
-# branch / parameter setting in ComputeDeformationGradient and compare the
-# postprocessor CSV at start_time + dt.  The reference run was tuned so that
-# F-bar correction does meaningful work (nu = 0.49, sigma_0 = 0.1,
-# final_velocity = 0.5).
+# Reads stretch_tensor_fbar (= U-bar) directly.  The reference run was tuned so that
+# F-bar correction does meaningful work (nu = 0.49).
 
 E = 201.8e3
 nu = 0.49
@@ -20,7 +12,7 @@ rho = 7900
 Gc = 6
 l = 0.2
 psic = 15
-Q = 0
+Q = 0.9
 specific_heat = 4.47e-4
 thermal_conductivity = 4.4e-4
 c1 = 0.1
@@ -40,44 +32,7 @@ end_time = 2.5
 trans_time = 1.0
 final_velocity = 0.5
 
-# Mesh-refinement knob: must match the n used in reference.i so the recover
-# filename and SolutionUserObjectQP mesh line up.
-# Overridable from CLI:  raccoon-opt -i restart.i n=4
-n = 1
-
-# All Exodus / CSV outputs land in this subdirectory.  Must match the out_dir
-# used by reference.i so the recover_file path resolves.
-out_dir = outputs
-
-# Suffix used to locate the reference's recovery dump.  Must match the `tag`
-# passed to the reference.i run that produced the dump.  CLI:
-#   raccoon-opt -i restart.i tag=_nu_0p49
-tag = ''
-
-# Suffix appended to file_base for every Output block written by this restart.
-# Defaults to `tag` so a single-method run keeps shared naming with the
-# reference; sweeps that exercise multiple recovery methods (e.g. approach A
-# vs approach B) against the same reference dump override this to a more
-# specific value like '_nu_0p49_old' / '_nu_0p49_new' so each method's
-# outputs don't clobber each other.  CLI:
-#   raccoon-opt -i restart.i tag=_nu_0p49 output_tag=_nu_0p49_old
-output_tag = ${tag}
-
-recover_file = ${out_dir}/reference_fbar_out_disp_${n}${tag}.e
-
-# Which time slice of recover_file to read into SolutionUserObjectQP.  LATEST
-# is fine when reference and restart line up at the end of the reference run,
-# but the convergence script needs to point at the slice corresponding to
-# ref_end_time precisely (so it can extend the reference one dt past
-# ref_end_time and still recover from the correct state).  CLI override:
-#   raccoon-opt -i restart.i recover_timestep=16
-recover_timestep = LATEST
-
-# BC constraint pattern (CLI-overridable for bc_sweep_study.sh).  Must match
-# the values passed to the reference run.
-xfix_bnd = 'left top'
-yfix_bnd = 'bottom'
-zfix_bnd = 'front back'
+recover_file = reference_fbar_out_disp.e
 
 [GlobalParams]
   displacements = 'disp_x disp_y disp_z'
@@ -106,13 +61,11 @@ zfix_bnd = 'front back'
     # Jacobian: per-QP J_raw recovered for adj_density_rec (see
     # dynamic_recovery_fix.pdf in single_hex8_incompressible).
     materials = 'effective_plastic_strain Jacobian'
-    # Both stretch_tensor (raw U) and stretch_tensor_fbar (U_bar) are
-    # available so Approach A and Approach B can both be exercised.
     tensor_materials = 'stress be_bar stretch_tensor_fbar rotation_tensor'
     nodal_variable_order = SECOND
     use_displaced_mesh = true
     execute_on = 'INITIAL'
-    timestep = ${recover_timestep}
+    timestep = LATEST
   []
 []
 
@@ -592,21 +545,21 @@ zfix_bnd = 'front back'
   [xfix]
     type = DirichletBC
     variable = disp_x
-    boundary = '${xfix_bnd}'
+    boundary = 'left top'
     value = 0
     preset = false
   []
   [yfix]
     type = DirichletBC
     variable = disp_y
-    boundary = '${yfix_bnd}'
+    boundary = 'bottom'
     value = 0
     preset = false
   []
   [zfix]
     type = DirichletBC
     variable = disp_z
-    boundary = '${zfix_bnd}'
+    boundary = 'front back'
     value = 0
     preset = false
   []
@@ -712,21 +665,15 @@ zfix_bnd = 'front back'
   print_linear_residuals = false
   [exodus]
     type = Exodus
-    file_base = ${out_dir}/restart_fbar_out_${n}${output_tag}
+    file_base = restart_fbar_out
     use_displaced = false
     execute_on = 'INITIAL TIMESTEP_END'
   []
   [csv]
     type = CSV
-    file_base = ${out_dir}/restart_fbar_out_${n}${output_tag}
-    # TIMESTEP_END only.  EXEC_INITIAL would write a row at t=start_time but
-    # MOOSE calls Material::initStatefulProperties (not the regular
-    # computeQpProperties) at INITIAL, so material-property integrals are
-    # zero at that flag for any material that doesn't override the stateful
-    # init.  The mesh-convergence script therefore compares the restart's
-    # FIRST TIMESTEP_END row (t = start_time + dt) to a reference row at
-    # the same time -- which requires the reference to be extended by one
-    # dt past ref_end_time (see mesh_convergence.sh).
+    file_base = restart_fbar_out
+    # TIMESTEP_END only: material-property integrals are zero at INITIAL, when only the stateful
+    # initialization of the materials has run.
     execute_on = 'TIMESTEP_END'
   []
 []
