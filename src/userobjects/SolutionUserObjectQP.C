@@ -35,8 +35,10 @@ InputParameters
 SolutionUserObjectQP::validParams()
 {
   InputParameters params = SolutionUserObject::validParams();
-  params.addParam<std::vector<MaterialName>>("tensor_materials", "materials to output qps on");
-  params.addParam<std::vector<MaterialName>>("materials", "materials to output qps on");
+  params.addParam<std::vector<MaterialName>>(
+      "tensor_materials", {}, "Tensor properties to read at the quadrature points");
+  params.addParam<std::vector<MaterialName>>(
+      "materials", {}, "Scalar properties to read at the quadrature points");
   params.addRequiredParam<MooseEnum>(
       "element", MooseEnum(QpMapping::ELEMENT_ENUM_DEFINITION), "The element type");
   params.addParam<bool>(

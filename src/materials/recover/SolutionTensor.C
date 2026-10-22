@@ -19,6 +19,10 @@ SolutionTensor::validParams()
   params.addRequiredParam<UserObjectName>("solution",
                                           "The SolutionUserObjectQP to extract data from.");
   params.addParam<std::string>("tensor_name", "stress", "Name of tensor");
+  params.addParam<std::string>(
+      "file_tensor_name",
+      "Name of the tensor in the recovery file, when it differs from 'tensor_name' (which names "
+      "the property)");
   return params;
 }
 
@@ -26,6 +30,8 @@ SolutionTensor::SolutionTensor(const InputParameters & parameters)
   : Material(parameters),
     BaseNameInterface(parameters),
     _tensor_name(getParam<std::string>("tensor_name")),
+    _file_tensor_name(isParamValid("file_tensor_name") ? getParam<std::string>("file_tensor_name")
+                                                       : _tensor_name),
     _tensor(declareADProperty<RankTwoTensor>(prependBaseName(_tensor_name + "_sol"))),
     _tensor_old(getMaterialPropertyOld<RankTwoTensor>(prependBaseName(_tensor_name + "_sol"))),
     _solution_object_ptr(nullptr)
@@ -42,5 +48,5 @@ void
 SolutionTensor::initStatefulProperties(unsigned int n_points)
 {
   for (_qp = 0; _qp < n_points; ++_qp)
-    _tensor[_qp] = _solution_object_ptr->qpTensor(_t, *_current_elem, _tensor_name, _qp);
+    _tensor[_qp] = _solution_object_ptr->qpTensor(_t, *_current_elem, _file_tensor_name, _qp);
 }

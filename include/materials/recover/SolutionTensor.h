@@ -26,6 +26,8 @@ public:
 
 protected:
   const std::string _tensor_name;
+  /// Name of the tensor in the recovery file
+  const std::string _file_tensor_name;
 
   ADMaterialProperty<RankTwoTensor> & _tensor;
   /// Not read. Requesting the old value makes the property stateful, which is what gets
