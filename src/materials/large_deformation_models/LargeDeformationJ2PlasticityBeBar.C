@@ -98,8 +98,8 @@ LargeDeformationJ2PlasticityBeBar::setElasticityModel(
   _psie_active_cnh = &cnh->getPsieActive();
   _dpsie_dd_cnh = &cnh->getDpsieDD();
 
-  // Models with a single unsplit energy (e.g. CNHJay) do not admit a vol/dev split; force it off so
-  // the stress and energy stay consistent with the model's own (unsplit) volumetric formulation.
+  // A model whose energy does not admit a split at J = 1 forces it off, so the stress and energy stay
+  // consistent with the model's own (unsplit) volumetric formulation.
   if (_apply_strain_energy_split && !cnh->supportsEnergySplit())
   {
     _apply_strain_energy_split = false;

@@ -18,8 +18,11 @@
  * distortional energy 0.5 G (tr(bbar) - 3), identical to CNHIsotropicElasticity (this is NOT the
  * Seth-Hill deviatoric term of Eq. 4).
  *
- * This model does not support any energy decomposition (no volumetric/deviatoric split) and does
- * not include the inversion barrier of CNHIsotropicElasticity.
+ * Used on its own, the model does not decompose its energy (no volumetric/deviatoric split). A
+ * plasticity model that builds its response from volumetricEnergy() and
+ * volumetricKirchhoffPressure() (LargeDeformationJ2PlasticityBeBar) may split it at J = 1: the
+ * energy depends on J alone and U(1) = U'(1) = 0, so the split is smooth. The model does not include
+ * the inversion barrier of CNHIsotropicElasticity.
  */
 class CNHJay : public LargeDeformationElasticityModel,
                public DerivativeMaterialPropertyNameInterface,
@@ -44,7 +47,7 @@ public:
 
   ADReal volumetricKirchhoffPressure(const ADReal & J) const override;
   ADReal volumetricEnergy(const ADReal & J) const override;
-  bool supportsEnergySplit() const override { return false; }
+  bool supportsEnergySplit() const override { return true; }
 
 protected:
   /// The bulk modulus

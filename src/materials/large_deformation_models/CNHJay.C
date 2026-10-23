@@ -13,7 +13,8 @@ CNHJay::validParams()
   InputParameters params = LargeDeformationElasticityModel::validParams();
   params.addClassDescription(
       "Isotropic compressible Neo-Hookean hyperelasticity with the volumetric stress "
-      "2*K*(J - 1/J)*(J + 1/J - 1)*I. No energy decomposition (split) is supported.");
+      "(K/2)*(J - 1/J)*(J + 1/J - 1)*I. On its own the energy is not decomposed; "
+      "LargeDeformationJ2PlasticityBeBar can split it at J = 1 (apply_strain_energy_split).");
 
   params.addRequiredParam<MaterialPropertyName>("bulk_modulus", "The bulk modulus $K$");
   params.addRequiredParam<MaterialPropertyName>("shear_modulus", "The shear modulus $G$");

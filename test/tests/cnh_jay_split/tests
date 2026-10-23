@@ -1,0 +1,33 @@
+[Tests]
+  design = 'CNHJay.md LargeDeformationJ2PlasticityBeBar.md'
+  issues = '#0'
+  [split]
+    requirement = 'With CNHJay elasticity, LargeDeformationJ2PlasticityBeBar shall split the volumetric '
+                  'energy at J = 1'
+    [compression]
+      type = CSVDiff
+      input = 'split.i'
+      cli_args = 'rate=-0.01 split=true Outputs/file_base=compress'
+      csvdiff = 'compress.csv'
+      abs_zero = 1e-8
+      absent_out = 'disabling apply_strain_energy_split'
+      detail = 'making the compressive volumetric energy inactive and its pressure undegraded,'
+    []
+    [tension]
+      type = CSVDiff
+      input = 'split.i'
+      cli_args = 'rate=0.01 split=true Outputs/file_base=tension'
+      csvdiff = 'tension.csv'
+      abs_zero = 1e-8
+      detail = 'keeping the tensile volumetric energy active and its pressure degraded,'
+    []
+    [no_split]
+      type = CSVDiff
+      input = 'split.i'
+      cli_args = 'rate=-0.01 split=false Outputs/file_base=nosplit'
+      csvdiff = 'nosplit.csv'
+      abs_zero = 1e-8
+      detail = 'and degrade the whole energy, compression included, when the split is turned off.'
+    []
+  []
+[]
