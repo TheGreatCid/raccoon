@@ -1,0 +1,22 @@
+[Tests]
+  design = 'NodeInterpolatedSolutionIC.md'
+  issues = '#0'
+  [same_as_solution_ic]
+    requirement = 'NodeInterpolatedSolutionIC shall give the same nodal values as SolutionIC, '
+                  'mid-edge nodes included, on a curved second-order tetrahedral mesh where every '
+                  'point can be located'
+    [source]
+      type = RunApp
+      input = 'source.i'
+      detail = 'from a quadratic field written on the curved mesh,'
+    []
+    [read]
+      type = CSVDiff
+      input = 'read.i'
+      csvdiff = 'read_out.csv'
+      abs_zero = 1e-9
+      prereq = 'same_as_solution_ic/source'
+      detail = 'when the field is read back on the same mesh.'
+    []
+  []
+[]
